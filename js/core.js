@@ -136,14 +136,11 @@ window.GameCore = (function(){
     return entries[entries.length-1][0];
   }
 
-  function recruitOnce(costCrystals){
-    const cost = typeof costCrystals === 'number' ? costCrystals : 1;
-    if(!spendHolyCrystal(cost)) return { error: '圣晶不足' };
+  // performSingleRecruit: 不处理费用，仅执行一次抽卡逻辑并更新 state（未保存）
+  function performSingleRecruit(){
     const rates = (window.V5 && window.V5.recruitRates && window.V5.recruitRates.single) || { N:0.6, R:0.3, SR:0.08, SSR:0.015, UR:0.005 };
-    // pity: 保证第10抽至少SR
     let rarity;
     if(state.recruitPity.pullsSinceSR >= 9){
-      // pick from SR/SSR/UR weighted
       rarity = weightedChoice({ SR:0.9, SSR:0.09, UR:0.01 });
     } else {
       rarity = weightedChoice(rates);
@@ -154,26 +151,42 @@ window.GameCore = (function(){
     const cid = chosen.id;
     let isNew = false; let shardsAdded = 0;
     if(state.collection.indexOf(cid) >= 0){
-      // duplicate -> 转为碎片
       shardsAdded = rarity === 'N' ? 5 : rarity === 'R' ? 20 : rarity === 'SR' ? 50 : rarity === 'SSR' ? 180 : 600;
       state.shards[cid] = (state.shards[cid]||0) + shardsAdded;
     } else {
       state.collection.push(cid);
-      // add base character instance
       const base = Object.assign({}, chosen, { level:1, exp:0 });
       state.party.push(base);
       state.equips[base.id] = { weapon:null, armor:null, accessory:null };
       isNew = true;
     }
-    // update pity
     if(['SR','SSR','UR'].includes(rarity)) state.recruitPity.pullsSinceSR = 0; else state.recruitPity.pullsSinceSR++;
-    save();
     return { rarity, id: cid, name: chosen.name, isNew, shardsAdded };
+  }
+
+  function recruitOnce(costCrystals){
+    const cost = typeof costCrystals === 'number' ? costCrystals : (window.GAME_CONFIG && window.GAME_CONFIG.recruitCosts && window.GAME_CONFIG.recruitCosts.singleCost) || 1;
+    if(!spendHolyCrystal(cost)) return { error: '圣晶不足' };
+    const res = performSingleRecruit(); save(); return res;
   }
 
   function recruitMulti(n, costEach){
     const results = [];
-    for(let i=0;i<n;i++) results.push(recruitOnce(costEach));
+    // 如果未传入单次消耗并且为十连，使用配置中的 tenCost 折扣
+    if((typeof costEach === 'undefined' || costEach === null) && n===10){
+      const tenCost = (window.GAME_CONFIG && window.GAME_CONFIG.recruitCosts && window.GAME_CONFIG.recruitCosts.tenCost) || 9;
+      if(!spendHolyCrystal(tenCost)){
+        // 若扣费失败，返回带错误的结果数组
+        for(let i=0;i<n;i++) results.push({ error: '圣晶不足' });
+        return results;
+      }
+      for(let i=0;i<n;i++) results.push(performSingleRecruit());
+      save();
+      return results;
+    }
+    // 否则按每次消耗逐次扣费（如果未提供 costEach 则按 singleCost）
+    const per = typeof costEach === 'number' ? costEach : (window.GAME_CONFIG && window.GAME_CONFIG.recruitCosts && window.GAME_CONFIG.recruitCosts.singleCost) || 1;
+    for(let i=0;i<n;i++) results.push(recruitOnce(per));
     return results;
   }
 
