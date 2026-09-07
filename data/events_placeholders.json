@@ -1,0 +1,16 @@
+{
+  "meta": {"generatedFrom":"V3_audit","count":30},
+  "events": [
+    {
+      "id":"EVENT_0001",
+      "title":"占位事件 1",
+      "world":"W01",
+      "description":"这是自动生成的占位事件，请用完整内容替换。",
+      "choices":[
+        {"id":"c1","text":"选择A","outcome":{"gain":{"points":100},"note":"示例奖励"}},
+        {"id":"c2","text":"选择B","outcome":{"gain":{"holy_crystal":1},"note":"示例奖励"}}
+      ]
+    }
+  ],
+  "note":"后续使用策划提供的事件逐条替换。"
+}

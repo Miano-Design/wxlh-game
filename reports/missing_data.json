@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-09-08T00:00:00Z",
+  "missing":{
+    "skills_full_levels": "多数技能缺少 Lv1..Lv10 的数值与成长描述",
+    "equip_full_definitions": "虽然存在 259 条装备，但多数为占位，缺少真实基础属性与词缀范围的正式定义",
+    "events_list": "缺少 30 个事件的完整选项与分支描述",
+    "boss_phases": "14 个 Boss 的 3 阶段技能/机制未逐条结构化",
+    "shop_catalog": "商城商品逐条目录与价格/购买条件未提取",
+    "recruit_pools": "招募池的概率/保底规则需验证并写入配置",
+    "dungeon_seed_save": "副本随机 Seed 的生成与保存需在代码中固化",
+    "world_mechanics": "每个世界的专属机制需在 world 数据中标注"
+  },
+  "placeholders_created":{
+    "equip_placeholders": 250,
+    "equip_refined": 250,
+    "skill_placeholders": 15,
+    "event_placeholders": 1,
+    "events_placeholders_file":"data/events_placeholders.json",
+    "boss_placeholders": 14,
+    "boss_placeholders_file":"data/boss_placeholders.json"
+  }
+}
