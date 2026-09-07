@@ -35,6 +35,14 @@
 
   function showEventModal(ev){ el('event-title').textContent = ev.title; el('event-desc').textContent = ev.desc; const choices = el('event-choices'); choices.innerHTML=''; ev.choices.forEach(ch=>{ const b=document.createElement('button'); b.textContent=ch.text; b.addEventListener('click', ()=>{ const res = GameCore.handleEventChoice(ev.id, ch.id); renderAll(); renderDungeonLog(`事件选择：${ch.text} → ${res.result}`, true); el('event-modal').classList.add('hidden'); }); choices.appendChild(b); }); el('event-modal').classList.remove('hidden'); }
 
+  function renderRecruitLog(lines){ const box = el('battle-log'); if(!lines) return; if(!Array.isArray(lines)) lines=[lines]; lines.forEach(l=>{ box.innerHTML += l + '<br>' }); box.scrollTop = box.scrollHeight }
+
+  function renderCollection(s){ const c = GameCore.getCollection(); const node = document.getElementById('party'); // reuse party area to show collection count small
+    const info = document.createElement('div'); info.style.marginTop='8px'; info.style.fontSize='13px'; info.textContent = `收藏：${c.collection.length} 名，碎片种类 ${Object.keys(c.shards||{}).length}`;
+    // remove old info if exists
+    const old = document.getElementById('collection-info'); if(old) old.remove(); info.id='collection-info'; node.parentNode.insertBefore(info, node);
+  }
+
   function showPanel(id){ document.querySelectorAll('.panel').forEach(n=>n.classList.add('hidden')); el(id).classList.remove('hidden') }
 
   document.addEventListener('DOMContentLoaded', ()=>{
@@ -72,6 +80,18 @@
     el('btn-exit-dungeon').addEventListener('click', ()=>{ currentDungeon=null; showPanel('home'); renderAll(); });
 
     el('btn-close-event').addEventListener('click', ()=>{ el('event-modal').classList.add('hidden') });
+
+    // 招募
+    el('btn-recruit-one').addEventListener('click', ()=>{
+      const res = GameCore.recruitOnce(); if(res.error){ alert(res.error); return }
+      renderRecruitLog(`招募：${res.name} (${res.rarity}) ${res.isNew? '新获得':'已拥有，转为碎片 x'+res.shardsAdded}`);
+      renderAll(); renderCollection();
+    });
+    el('btn-recruit-ten').addEventListener('click', ()=>{
+      const results = GameCore.recruitMulti(10);
+      results.forEach(r=>{ if(r.error) renderRecruitLog(`招募失败：${r.error}`); else renderRecruitLog(`招募：${r.name} (${r.rarity}) ${r.isNew? '新获得':'转为碎片 x'+r.shardsAdded}`) });
+      renderAll(); renderCollection();
+    });
   });
 
   // 挂机计时器（每秒结算）

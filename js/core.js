@@ -6,7 +6,10 @@ window.GameCore = (function(){
     inBattle: false,
     idleOn: false,
     inventory: [],
-    equips: {}
+    equips: {},
+    collection: [],
+    shards: {},
+    recruitPity: { pullsSinceSR: 0 }
   };
 
   function expForLevel(lv){
@@ -111,6 +114,59 @@ window.GameCore = (function(){
     if(state.inventory.length >= (window.GAME_CONFIG.inventoryCapacity||40)) return false;
     state.inventory.push(itemId); save(); return true
   }
+
+  // Recruitment and drops
+  function weightedChoice(map){
+    const entries = Object.entries(map);
+    const total = entries.reduce((s,[,v])=>s+v,0);
+    let r = Math.random() * total;
+    for(const [k,v] of entries){ r -= v; if(r<=0) return k }
+    return entries[entries.length-1][0];
+  }
+
+  function recruitOnce(costPoints){
+    const cost = typeof costPoints === 'number' ? costPoints : 2000;
+    if((state.points||0) < cost) return { error: '不足点数' };
+    state.points -= cost;
+    const rates = (window.V5 && window.V5.recruitRates && window.V5.recruitRates.single) || { N:0.6, R:0.3, SR:0.08, SSR:0.015, UR:0.005 };
+    // pity: 保证第10抽至少SR
+    let rarity;
+    if(state.recruitPity.pullsSinceSR >= 9){
+      // pick from SR/SSR/UR weighted
+      rarity = weightedChoice({ SR:0.9, SSR:0.09, UR:0.01 });
+    } else {
+      rarity = weightedChoice(rates);
+    }
+    const pool = (window.V5 && window.V5.characters || []).filter(c=>c.rarity === rarity);
+    const chosen = pool.length ? pool[Math.floor(Math.random()*pool.length)] : ((window.V5 && window.V5.characters||[])[Math.floor(Math.random()*((window.V5 && window.V5.characters||[]).length||1))]);
+    if(!chosen) return { error: '无可用角色' };
+    const cid = chosen.id;
+    let isNew = false; let shardsAdded = 0;
+    if(state.collection.indexOf(cid) >= 0){
+      // duplicate -> 转为碎片
+      shardsAdded = rarity === 'N' ? 5 : rarity === 'R' ? 20 : rarity === 'SR' ? 50 : rarity === 'SSR' ? 180 : 600;
+      state.shards[cid] = (state.shards[cid]||0) + shardsAdded;
+    } else {
+      state.collection.push(cid);
+      // add base character instance
+      const base = Object.assign({}, chosen, { level:1, exp:0 });
+      state.party.push(base);
+      state.equips[base.id] = { weapon:null, armor:null, accessory:null };
+      isNew = true;
+    }
+    // update pity
+    if(['SR','SSR','UR'].includes(rarity)) state.recruitPity.pullsSinceSR = 0; else state.recruitPity.pullsSinceSR++;
+    save();
+    return { rarity, id: cid, name: chosen.name, isNew, shardsAdded };
+  }
+
+  function recruitMulti(n, costEach){
+    const results = [];
+    for(let i=0;i<n;i++) results.push(recruitOnce(costEach));
+    return results;
+  }
+
+  function getCollection(){ return { collection: state.collection||[], shards: state.shards||{} } }
 
   function removeItem(itemId){
     const i = (state.inventory||[]).indexOf(itemId);
