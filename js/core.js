@@ -2,6 +2,7 @@ window.GameCore = (function(){
   const KEY='wxlh_save_v1';
   let state = {
     points: 0,
+    holy_crystal: 0,
     party: [],
     inBattle: false,
     idleOn: false,
@@ -18,6 +19,7 @@ window.GameCore = (function(){
 
   function init(){
     state.points = window.GAME_CONFIG.startPoints || 0;
+    state.holy_crystal = window.GAME_CONFIG.startHolyCrystal || 0;
     // clone default characters into party (first 2)
     state.party = (window.GAME_CONFIG.characters || []).map(c=>Object.assign({}, c));
     state.inventory = (window.GAME_CONFIG.startingItems||[]).slice();
@@ -29,9 +31,19 @@ window.GameCore = (function(){
   function getState(){ return state }
 
   function save(){ localStorage.setItem(KEY, JSON.stringify(state)) }
-  function load(){ const s=localStorage.getItem(KEY); if(s){ state=JSON.parse(s); return true } return false }
+  function load(){ const s=localStorage.getItem(KEY); if(s){ state=JSON.parse(s); // ensure new fields exist
+      state.holy_crystal = state.holy_crystal || 0;
+      state.recruitPity = state.recruitPity || { pullsSinceSR: 0 };
+      state.collection = state.collection || [];
+      state.shards = state.shards || {};
+      return true }
+    return false }
 
   function addPoints(n){ state.points = Math.max(0, (state.points||0) + Math.floor(n)); save() }
+
+  function addHolyCrystal(n){ state.holy_crystal = Math.max(0, (state.holy_crystal||0) + Math.floor(n)); save(); }
+
+  function spendHolyCrystal(n){ if((state.holy_crystal||0) < n) return false; state.holy_crystal -= n; save(); return true }
 
   function startBattle(){ if(state.inBattle) return false; state.inBattle=true; save(); return true }
   function endBattle(){ state.inBattle=false; save() }
@@ -124,10 +136,9 @@ window.GameCore = (function(){
     return entries[entries.length-1][0];
   }
 
-  function recruitOnce(costPoints){
-    const cost = typeof costPoints === 'number' ? costPoints : 2000;
-    if((state.points||0) < cost) return { error: '不足点数' };
-    state.points -= cost;
+  function recruitOnce(costCrystals){
+    const cost = typeof costCrystals === 'number' ? costCrystals : 1;
+    if(!spendHolyCrystal(cost)) return { error: '圣晶不足' };
     const rates = (window.V5 && window.V5.recruitRates && window.V5.recruitRates.single) || { N:0.6, R:0.3, SR:0.08, SSR:0.015, UR:0.005 };
     // pity: 保证第10抽至少SR
     let rarity;
@@ -203,7 +214,7 @@ window.GameCore = (function(){
       const evt = isEvent ? (d.eventPool && d.eventPool[Math.floor(Math.random()*(d.eventPool.length||1))]) : null;
       nodes.push({ idx:i+1, type: isEvent? 'event':'combat', eventId: evt });
     }
-    return { dungeonId: d.id, name: d.name, nodes, cur:0 };
+    return { dungeonId: d.id, name: d.name, nodes, cur:0, difficulty: d.difficulty || 1 };
   }
 
   function advanceDungeon(dg){
@@ -218,7 +229,12 @@ window.GameCore = (function(){
       if(res.win && Math.random()<0.4){
         const loot = (window.V5 && window.V5.equipments || [])[Math.floor(Math.random()*((window.V5 && window.V5.equipments||[]).length||1))];
         if(loot) addItem(loot.id);
-        return { node, combat: res, loot: loot && loot.id };
+        // 额外掉落圣晶概率，基于副本难度
+        const diff = dg.difficulty || 1;
+        const crystalChance = diff === 1 ? 0.15 : diff === 2 ? 0.30 : 0.5;
+        let crystalGot = 0;
+        if(Math.random() < crystalChance){ addHolyCrystal(1); crystalGot = 1 }
+        return { node, combat: res, loot: loot && loot.id, crystal: crystalGot };
       }
       return { node, combat: res };
     }
@@ -231,6 +247,7 @@ window.GameCore = (function(){
     if(!choice) return null;
     if(choice.gain && choice.gain.points) addPoints(choice.gain.points);
     if(choice.gain && choice.gain.item) addItem(choice.gain.item);
+    if(choice.gain && choice.gain.holy_crystal) addHolyCrystal(choice.gain.holy_crystal);
     return { result: choice.result, gain: choice.gain };
   }
 

@@ -35,12 +35,12 @@ window.V5 = (function(){
 
   const events = [
     { id:'E01', title:'发现废弃实验室', desc:'你发现一间废弃实验室，地上有箱子。', choices:[
-      { id:'c1', text:'搜索箱子', result:'获得材料', gain:{points:200, item:'WPN_001'} },
+      { id:'c1', text:'搜索箱子', result:'获得材料', gain:{points:200, item:'WPN_001', holy_crystal:1} },
       { id:'c2', text:'离开', result:'安全离开', gain:{} },
       { id:'c3', text:'深入调查', result:'触发遭遇', gain:{points:-50} }
     ]},
     { id:'E02', title:'遇到流浪者', desc:'一个流浪者求助', choices:[
-      { id:'c1', text:'帮助他', result:'获得碎片', gain:{points:50} },
+      { id:'c1', text:'帮助他', result:'获得碎片', gain:{points:50, holy_crystal:1} },
       { id:'c2', text:'忽略', result:'失去信任', gain:{} }
     ]}
   ];

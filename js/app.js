@@ -1,6 +1,6 @@
 (function(){
   const el = id=>document.getElementById(id);
-  function renderResources(s){ el('res-points').textContent = s.points }
+  function renderResources(s){ el('res-points').textContent = Math.floor(s.points||0); const rc = el('res-crystal'); if(rc) rc.textContent = s.holy_crystal || 0 }
   function renderParty(s){ const p=el('party'); p.innerHTML=''; s.party.forEach(c=>{
     const d=document.createElement('div'); d.className='char-card';
     d.innerHTML = `<h3>${c.name} (${c.rarity})</h3><div>职业：${c.role}</div><div>等级：${c.level || 1}（EXP ${c.exp||0}/${GameCore.expForLevel(c.level||1)}）</div><div>肌肉 ${c.muscle}</div>`;
@@ -75,7 +75,7 @@
       const res = GameCore.advanceDungeon(currentDungeon);
       if(res.finished){ renderDungeonLog('副本已完成'); currentDungeon=null; return }
       if(res.event){ renderDungeonLog(`节点 ${res.node.idx}：事件 ${res.event.title}`, true); showEventModal(res.event); }
-      else if(res.combat){ renderDungeonLog(`节点 ${res.node.idx}：战斗 → ${res.combat.log || res.combat}`, true); if(res.loot){ renderDungeonLog(`获得战利品：${res.loot}`, true); } }
+      else if(res.combat){ renderDungeonLog(`节点 ${res.node.idx}：战斗 → ${res.combat.log || res.combat}`, true); if(res.loot){ renderDungeonLog(`获得战利品：${res.loot}`, true); } if(res.crystal){ renderDungeonLog(`获得圣晶 x${res.crystal}`, true); } }
     });
     el('btn-exit-dungeon').addEventListener('click', ()=>{ currentDungeon=null; showPanel('home'); renderAll(); });
 
