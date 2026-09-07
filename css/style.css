@@ -14,4 +14,17 @@ button:active{transform:translateY(1px)}
 .char-card{background:#08141b;padding:8px;border-radius:6px;width:140px}
 .char-card h3{font-size:14px;margin-bottom:6px}
 footer{padding:8px;text-align:center;color:#9fb0c9;font-size:12px}
+/* inventory */
+#inventory-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.item-card{background:#07131a;padding:8px;border-radius:6px;width:120px;display:flex;flex-direction:column;gap:6px}
+.small{display:inline-block;padding:8px;margin-top:8px}
+
+/* dungeon & logs */
+#dungeon-log, #inventory-list, #equips-list{background:#06111a;padding:8px;border-radius:6px;font-size:13px;min-height:56px}
+
+/* modal */
+.modal{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6)}
+.modal .modal-content{background:linear-gradient(180deg,#0b1220,#071019);padding:12px;border-radius:8px;max-width:92%;width:360px}
+
 @media (max-width:420px){header h1{font-size:16px}button{flex:1}}
+@media (max-width:480px){.char-card{width:46%}.item-card{width:46%}.modal .modal-content{width:92%}}

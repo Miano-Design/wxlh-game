@@ -17,9 +17,23 @@
       <button id="btn-start">开始轮回</button>
       <div id="home" class="panel">
         <h2>主神空间</h2>
+        <div id="idle-panel">
+          挂机：<span id="idle-rate">--</span> 点/秒
+          <button id="btn-toggle-idle">开启挂机</button>
+        </div>
+        <div id="inventory-panel" class="panel small">
+          <h3>背包</h3>
+          <div id="inventory-list"></div>
+        </div>
+        <div id="equips-panel" class="panel small">
+          <h3>装备</h3>
+          <div id="equips-list"></div>
+        </div>
         <div id="party"></div>
         <div class="controls">
           <button id="btn-venture">进入副本（战斗演示）</button>
+          <button id="btn-start-dungeon">开始副本（随机路线）</button>
+          <button id="btn-open-inventory">打开背包</button>
           <button id="btn-save">保存进度</button>
           <button id="btn-load">读取进度</button>
         </div>
@@ -34,6 +48,24 @@
         </div>
       </div>
 
+      <div id="dungeon" class="panel hidden">
+        <h2>副本探险</h2>
+        <div id="dungeon-log"></div>
+        <div class="controls">
+          <button id="btn-next-node">推进节点</button>
+          <button id="btn-exit-dungeon">退出副本</button>
+        </div>
+      </div>
+
+      <div id="event-modal" class="modal hidden">
+        <div class="modal-content">
+          <h3 id="event-title"></h3>
+          <p id="event-desc"></p>
+          <div id="event-choices"></div>
+          <button id="btn-close-event">关闭</button>
+        </div>
+      </div>
+
     </main>
 
     <footer>
@@ -41,6 +73,7 @@
     </footer>
   </div>
   <script src="js/config.js"></script>
+  <script src="js/v5data.js"></script>
   <script src="js/core.js"></script>
   <script src="js/app.js"></script>
 </body>
