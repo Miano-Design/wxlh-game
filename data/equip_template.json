@@ -1,0 +1,16 @@
+{
+  "meta": {"generatedFrom":"V5_extract","note":"Generate 200-300 placeholders and fill fields from extracted equipment segments"},
+  "equipments": [
+    {
+      "id":"EQUIP_PLACEHOLDER_0001",
+      "name":"占位装备1",
+      "slot":"weapon",
+      "rarity":"N",
+      "base_stats":{"muscle":0,"cell":0,"intelligence":0},
+      "affixes":[],
+      "set":null,
+      "drop_sources":["world:W01","boss:W01_boss"],
+      "notes":"请用策划提供的最终表替换"
+    }
+  ]
+}

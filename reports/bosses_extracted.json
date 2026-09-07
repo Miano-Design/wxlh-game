@@ -1,0 +1,294 @@
+[
+  {
+    "anchorLine": "| Boss | 500～3000 |",
+    "block": [
+      "| 每日任务 |     3000 |",
+      "| 每周任务 |    15000 |",
+      "| 挂机   |      随等级 |",
+      "| 出售装备 |  50～5000 |",
+      "| 回收材料 |  10～1000 |",
+      "| 商城   |      可购买 |"
+    ]
+  },
+  {
+    "anchorLine": "* Boss",
+    "block": [
+      "* 世界探索",
+      "* 事件"
+    ]
+  },
+  {
+    "anchorLine": "* Boss",
+    "block": [
+      "* 装备分解",
+      "* 无限回廊"
+    ]
+  },
+  {
+    "anchorLine": "| Boss |  50～150 |",
+    "block": [
+      "| 每日任务 |      30 |",
+      "| 活动   | 100～500 |",
+      "| 商店   |  50～500 |"
+    ]
+  },
+  {
+    "anchorLine": "* Boss",
+    "block": [
+      "* 无限回廊",
+      "* 转生"
+    ]
+  },
+  {
+    "anchorLine": "## Boss",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss至少掉落：",
+    "block": []
+  },
+  {
+    "anchorLine": "# 29. Boss额外保底",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss Lv1：",
+    "block": []
+  },
+  {
+    "anchorLine": "12关Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "BossMultiplier = 1.16^(Stage-1)",
+    "block": [
+      "```"
+    ]
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "守关Boss",
+    "block": [
+      "```"
+    ]
+  },
+  {
+    "anchorLine": "Boss",
+    "block": [
+      "UR",
+      "```"
+    ]
+  },
+  {
+    "anchorLine": "# 84. Boss宝箱",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss",
+    "block": [
+      "世界",
+      "血统",
+      "事件",
+      "道具",
+      "```"
+    ]
+  },
+  {
+    "anchorLine": "Boss收集：",
+    "block": []
+  },
+  {
+    "anchorLine": "8. 特殊Boss",
+    "block": []
+  },
+  {
+    "anchorLine": "| Boss |  5% |",
+    "block": []
+  },
+  {
+    "anchorLine": "50次Boss没有SSR",
+    "block": [
+      "```"
+    ]
+  },
+  {
+    "anchorLine": "下一次Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Hell Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "连续20次Boss无UR",
+    "block": [
+      "```"
+    ]
+  },
+  {
+    "anchorLine": "Boss战：",
+    "block": []
+  },
+  {
+    "anchorLine": "2. 控制Boss",
+    "block": [
+      "3. 释放增益",
+      "4. 群体技能",
+      "5. 单体技能",
+      "6. 普攻",
+      "```"
+    ]
+  },
+  {
+    "anchorLine": "# 119. Boss机制",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss必须至少拥有：",
+    "block": []
+  },
+  {
+    "anchorLine": "12关Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss：",
+    "block": []
+  },
+  {
+    "anchorLine": "Boss宝箱",
+    "block": [
+      "UR宝箱"
+    ]
+  },
+  {
+    "anchorLine": "| Boss  |   14 |",
+    "block": [
+      "| 事件    |  80+ |",
+      "| 道具    | 100+ |",
+      "| 商城商品  | 150+ |",
+      "| 成就    | 150+ |",
+      "| 图鉴    | 300+ |",
+      "| 回廊    |   无限 |",
+      "| 转生    |   无限 |"
+    ]
+  },
+  {
+    "anchorLine": "隐藏Boss",
+    "block": [
+      "特殊装备",
+      "```"
+    ]
+  },
+  {
+    "anchorLine": "* 14个Boss",
+    "block": [
+      "* 12关×3难度",
+      "* 敌人属性成长",
+      "* Boss血量",
+      "* 装备品质",
+      "* 装备词条",
+      "* 装备强化",
+      "* 装备套装",
+      "* 装备掉落",
+      "* 宝箱概率",
+      "* 角色抽卡",
+      "* 抽卡保底"
+    ]
+  },
+  {
+    "anchorLine": "* Boss血量",
+    "block": [
+      "* 装备品质",
+      "* 装备词条",
+      "* 装备强化",
+      "* 装备套装",
+      "* 装备掉落",
+      "* 宝箱概率",
+      "* 角色抽卡",
+      "* 抽卡保底",
+      "* 重复角色转换",
+      "* 角色升星",
+      "* 挂机收益"
+    ]
+  },
+  {
+    "anchorLine": "* Boss阶段",
+    "block": [
+      "* 自动战斗",
+      "* 扫荡",
+      "* 存档",
+      "* LocalStorage",
+      "* 时间作弊处理",
+      "* 数据ID",
+      "* JSON结构",
+      "* 经济来源",
+      "* 经济消耗",
+      "* 资源闭环",
+      "* 开发优先级"
+    ]
+  }
+]

@@ -1,5 +1,7 @@
 window.GameCore = (function(){
   const KEY='wxlh_save_v1';
+  const SLOT_COUNT = 3;
+  function slotKey(n){ return KEY + '_slot' + n }
   let state = {
     points: 0,
     holy_crystal: 0,
@@ -38,6 +40,15 @@ window.GameCore = (function(){
       state.shards = state.shards || {};
       return true }
     return false }
+
+  // Slot-based save/load (1..SLOT_COUNT)
+  function saveSlot(n){ if(typeof n !== 'number') return false; if(n<1||n>SLOT_COUNT) return false; try{ localStorage.setItem(slotKey(n), JSON.stringify(state)); return true }catch(e){ return false } }
+  function loadSlot(n){ if(typeof n !== 'number') return false; if(n<1||n>SLOT_COUNT) return false; const s = localStorage.getItem(slotKey(n)); if(!s) return false; try{ state = JSON.parse(s); state.holy_crystal = state.holy_crystal || 0; state.recruitPity = state.recruitPity || { pullsSinceSR: 0 }; state.collection = state.collection || []; state.shards = state.shards || {}; save(); return true }catch(e){ return false } }
+  function getSlotData(n){ if(typeof n !== 'number') return null; if(n<1||n>SLOT_COUNT) return null; return localStorage.getItem(slotKey(n)) }
+  function importSlotData(n, json){ if(typeof n !== 'number') return false; if(n<1||n>SLOT_COUNT) return false; try{ // validate json
+      const obj = typeof json === 'string' ? JSON.parse(json) : json; localStorage.setItem(slotKey(n), JSON.stringify(obj)); return true }catch(e){ return false } }
+  function listSlots(){ const out = []; for(let i=1;i<=SLOT_COUNT;i++){ const s = localStorage.getItem(slotKey(i)); out.push({ slot:i, exists: !!s }) } return out }
+  function deleteSlot(n){ if(typeof n !== 'number') return false; if(n<1||n>SLOT_COUNT) return false; localStorage.removeItem(slotKey(n)); return true }
 
   function addPoints(n){ state.points = Math.max(0, (state.points||0) + Math.floor(n)); save() }
 

@@ -1,0 +1,25 @@
+{
+  "meta": {"generatedFrom":"V5_extract","note":"Fill numeric values per-skill per-level (1..10)"},
+  "skills": {
+    "SKILL_PLACEHOLDER_001": {
+      "id":"SKILL_PLACEHOLDER_001",
+      "name":"占位技能1",
+      "type":"active",
+      "target":"single",
+      "scaling":"atk",
+      "levels":{
+        "1":{"power":0,"cost":0,"cooldown":0},
+        "2":{"power":0,"cost":0,"cooldown":0},
+        "3":{"power":0,"cost":0,"cooldown":0},
+        "4":{"power":0,"cost":0,"cooldown":0},
+        "5":{"power":0,"cost":0,"cooldown":0},
+        "6":{"power":0,"cost":0,"cooldown":0},
+        "7":{"power":0,"cost":0,"cooldown":0},
+        "8":{"power":0,"cost":0,"cooldown":0},
+        "9":{"power":0,"cost":0,"cooldown":0},
+        "10":{"power":0,"cost":0,"cooldown":0}
+      },
+      "description_template":"在{level}造成{power}点伤害，消耗{cost}。"
+    }
+  }
+}

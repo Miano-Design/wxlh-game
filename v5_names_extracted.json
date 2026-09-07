@@ -1,0 +1,268 @@
+[
+  {
+    "id": "C021",
+    "name": "叶沉舟",
+    "faction": "先锋",
+    "bloodline": "狼人",
+    "role": "狂战"
+  },
+  {
+    "id": "C022",
+    "name": "洛辰",
+    "faction": "先锋",
+    "bloodline": "修真",
+    "role": "剑修"
+  },
+  {
+    "id": "C023",
+    "name": "沈昭",
+    "faction": "策略",
+    "bloodline": "魔法",
+    "role": "爆发法师"
+  },
+  {
+    "id": "C024",
+    "name": "林霜",
+    "faction": "支援",
+    "bloodline": "血族",
+    "role": "吸血辅助"
+  },
+  {
+    "id": "C025",
+    "name": "顾言",
+    "faction": "科技",
+    "bloodline": "科技",
+    "role": "狙击"
+  },
+  {
+    "id": "C026",
+    "name": "白璃",
+    "faction": "异能",
+    "bloodline": "念动力",
+    "role": "控制"
+  },
+  {
+    "id": "C027",
+    "name": "周启",
+    "faction": "先锋",
+    "bloodline": "科技",
+    "role": "重装"
+  },
+  {
+    "id": "C028",
+    "name": "宁川",
+    "faction": "策略",
+    "bloodline": "修真",
+    "role": "法阵"
+  },
+  {
+    "id": "C029",
+    "name": "苏瑾",
+    "faction": "支援",
+    "bloodline": "魔法",
+    "role": "群体治疗"
+  },
+  {
+    "id": "C030",
+    "name": "唐若",
+    "faction": "异能",
+    "bloodline": "念动力",
+    "role": "精神爆发"
+  },
+  {
+    "id": "C031",
+    "name": "霍青",
+    "faction": "先锋",
+    "bloodline": "狼人",
+    "role": "反击坦克"
+  },
+  {
+    "id": "C032",
+    "name": "江黎",
+    "faction": "科技",
+    "bloodline": "科技",
+    "role": "无人机"
+  },
+  {
+    "id": "C033",
+    "name": "司空夜",
+    "faction": "异能",
+    "bloodline": "血族",
+    "role": "刺客"
+  },
+  {
+    "id": "C034",
+    "name": "云深",
+    "faction": "策略",
+    "bloodline": "修真",
+    "role": "增益"
+  },
+  {
+    "id": "C035",
+    "name": "白曜",
+    "faction": "先锋",
+    "bloodline": "科技",
+    "role": "近战输出"
+  },
+  {
+    "id": "C036",
+    "name": "苏岚",
+    "faction": "支援",
+    "bloodline": "血族",
+    "role": "治疗"
+  },
+  {
+    "id": "C037",
+    "name": "叶辰",
+    "faction": "策略",
+    "bloodline": "魔法",
+    "role": "火焰"
+  },
+  {
+    "id": "C038",
+    "name": "顾宁",
+    "faction": "异能",
+    "bloodline": "念动力",
+    "role": "精神控制"
+  },
+  {
+    "id": "C039",
+    "name": "沈夜",
+    "faction": "先锋",
+    "bloodline": "血族",
+    "role": "暗杀"
+  },
+  {
+    "id": "C040",
+    "name": "洛川",
+    "faction": "先锋",
+    "bloodline": "修真",
+    "role": "剑修"
+  },
+  {
+    "id": "C041",
+    "name": "顾寒",
+    "faction": "策略",
+    "bloodline": "魔法",
+    "role": "冰法"
+  },
+  {
+    "id": "C042",
+    "name": "林渊",
+    "faction": "科技",
+    "bloodline": "科技",
+    "role": "重火力"
+  },
+  {
+    "id": "C043",
+    "name": "苏月",
+    "faction": "支援",
+    "bloodline": "念动力",
+    "role": "全能辅助"
+  },
+  {
+    "id": "C044",
+    "name": "江玄",
+    "faction": "异能",
+    "bloodline": "念动力",
+    "role": "控场"
+  },
+  {
+    "id": "C045",
+    "name": "宁无尘",
+    "faction": "策略",
+    "bloodline": "修真",
+    "role": "法阵大师"
+  },
+  {
+    "id": "C046",
+    "name": "韩烬",
+    "faction": "先锋",
+    "bloodline": "狼人",
+    "role": "狂战"
+  },
+  {
+    "id": "C047",
+    "name": "白夜",
+    "faction": "异能",
+    "bloodline": "血族",
+    "role": "刺客"
+  },
+  {
+    "id": "C048",
+    "name": "唐星",
+    "faction": "科技",
+    "bloodline": "科技",
+    "role": "能量炮"
+  },
+  {
+    "id": "C049",
+    "name": "叶璃",
+    "faction": "支援",
+    "bloodline": "魔法",
+    "role": "圣愈"
+  },
+  {
+    "id": "C050",
+    "name": "顾长风",
+    "faction": "先锋",
+    "bloodline": "科技",
+    "role": "全能战士"
+  },
+  {
+    "id": "C051",
+    "name": "沈青",
+    "faction": "策略",
+    "bloodline": "魔法",
+    "role": "元素大师"
+  },
+  {
+    "id": "C052",
+    "name": "林昭",
+    "faction": "异能",
+    "bloodline": "念动力",
+    "role": "精神支配"
+  },
+  {
+    "id": "C053",
+    "name": "司夜",
+    "faction": "异能",
+    "bloodline": "血族",
+    "role": "终极刺客"
+  },
+  {
+    "id": "C054",
+    "name": "洛神",
+    "faction": "策略",
+    "bloodline": "修真",
+    "role": "终极剑修"
+  },
+  {
+    "id": "C055",
+    "name": "星尘",
+    "faction": "科技",
+    "bloodline": "科技",
+    "role": "星舰炮手"
+  },
+  {
+    "id": "C056",
+    "name": "白昼",
+    "faction": "支援",
+    "bloodline": "魔法",
+    "role": "终极治疗"
+  },
+  {
+    "id": "C057",
+    "name": "深渊",
+    "faction": "先锋",
+    "bloodline": "狼人",
+    "role": "终极狂战"
+  },
+  {
+    "id": "C058",
+    "name": "零",
+    "faction": "异能",
+    "bloodline": "念动力",
+    "role": "终极控制"
+  }
+]

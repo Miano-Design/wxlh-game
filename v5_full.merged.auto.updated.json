@@ -1,6 +1,4 @@
-// Auto-generated v5data.js - generated from v5_full.merged.auto.updated.json
-window.V5 = (function(){
-  const data = {
+{
   "expTable": [
     0,
     100,
@@ -9763,6 +9761,4 @@ window.V5 = (function(){
       }
     }
   ]
-};
-  return data;
-})();
+}

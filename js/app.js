@@ -56,6 +56,21 @@
     el('btn-venture').addEventListener('click', ()=>{ if(GameCore.startBattle()){ showPanel('battle'); el('battle-log').innerHTML='战斗开始\n' } });
     el('btn-save').addEventListener('click', ()=>{ GameCore.save(); alert('已保存') });
     el('btn-load').addEventListener('click', ()=>{ if(GameCore.load()){ renderAll(); alert('读取成功') } else alert('无存档') });
+    el('btn-save').addEventListener('click', ()=>{ /* keep existing */ });
+    // Slot-based save/load
+    const selSlot = el('select-save-slot');
+    el('btn-save').addEventListener('click', ()=>{
+      const slot = parseInt(selSlot.value,10)||1; if(GameCore.saveSlot(slot)){ alert('已保存到槽 '+slot) } else alert('保存失败')
+    });
+    el('btn-load').addEventListener('click', ()=>{ const slot = parseInt(selSlot.value,10)||1; if(GameCore.loadSlot(slot)){ renderAll(); alert('已从槽 '+slot+' 读取') } else alert('该槽无存档') });
+    el('btn-export-slot').addEventListener('click', ()=>{
+      const slot = parseInt(selSlot.value,10)||1; const data = GameCore.getSlotData(slot) || JSON.stringify(GameCore.getState());
+      const blob = new Blob([data], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `wxlh_slot${slot}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+    el('btn-import-slot').addEventListener('click', ()=>{ el('input-import-file').click(); });
+    el('input-import-file').addEventListener('change', (ev)=>{ const f = ev.target.files && ev.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = function(){ try{ const json = reader.result; const slot = parseInt(selSlot.value,10)||1; if(GameCore.importSlotData(slot, json)){ alert('已导入到槽 '+slot); if(GameCore.loadSlot(slot)){ renderAll(); } } else alert('导入失败：格式错误'); }catch(e){ alert('导入失败：'+e.message) } }; reader.readAsText(f); });
     el('btn-toggle-idle').addEventListener('click', ()=>{ const s = GameCore.getState(); GameCore.setIdle(!s.idleOn); renderAll(); });
     el('btn-attack').addEventListener('click', ()=>{ const res = GameCore.battleRound(); const log = el('battle-log'); log.innerHTML += res.log + '\n'; log.scrollTop = log.scrollHeight; renderAll(); });
     el('btn-end-battle').addEventListener('click', ()=>{ GameCore.endBattle(); showPanel('home'); renderAll() });
