@@ -33,18 +33,39 @@
   let currentDungeon = null;
   function renderDungeonLog(text, append){ const box = el('dungeon-log'); if(!append) box.innerHTML=''; box.innerHTML += text + '<br>'; box.scrollTop = box.scrollHeight }
 
-  function showEventModal(ev){ el('event-title').textContent = ev.title; el('event-desc').textContent = ev.desc; const choices = el('event-choices'); choices.innerHTML=''; ev.choices.forEach(ch=>{ const b=document.createElement('button'); b.textContent=ch.text; b.addEventListener('click', ()=>{ const res = GameCore.handleEventChoice(ev.id, ch.id); renderAll(); renderDungeonLog(`事件选择：${ch.text} → ${res.result}`, true); el('event-modal').classList.add('hidden'); }); choices.appendChild(b); }); el('event-modal').classList.remove('hidden'); }
+  function showEventModal(ev){
+    const modal = el('event-modal');
+    if(!modal) return;
+    el('event-title').textContent = ev.title;
+    el('event-desc').textContent = ev.desc;
+    const choices = el('event-choices'); choices.innerHTML='';
+    ev.choices.forEach(ch=>{
+      const b=document.createElement('button'); b.textContent=ch.text;
+      b.addEventListener('click', ()=>{
+        const res = GameCore.handleEventChoice(ev.id, ch.id);
+        renderAll(); renderDungeonLog(`事件选择：${ch.text} → ${res && res.result}`, true);
+        closeEventModal();
+      });
+      choices.appendChild(b);
+    });
+    modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+    // prevent background scroll on mobile
+    document.body.style.overflow = 'hidden';
+  }
 
-  // allow closing modal by background click or ESC key
+  // robust modal dismissal helper
+  function closeEventModal(){ const modal = el('event-modal'); if(!modal) return; modal.classList.add('hidden'); modal.style.display='none'; document.body.style.overflow = ''; }
+
+  // allow closing modal by background click, touch or ESC key
   (function enableModalDismiss(){
     const modal = el('event-modal');
     if(!modal) return;
-    modal.addEventListener('click', (e)=>{
-      if(e.target === modal){ modal.classList.add('hidden'); }
-    });
+    modal.addEventListener('click', (e)=>{ if(e.target === modal){ closeEventModal(); } });
     const content = modal.querySelector('.modal-content');
     if(content) content.addEventListener('click', (e)=>{ e.stopPropagation(); });
-    document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape'){ modal.classList.add('hidden'); } });
+    modal.addEventListener('touchend', (e)=>{ if(e.target === modal) closeEventModal(); });
+    document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape'){ closeEventModal(); } });
   })();
 
   function renderRecruitLog(lines){ const box = el('battle-log'); if(!lines) return; if(!Array.isArray(lines)) lines=[lines]; lines.forEach(l=>{ box.innerHTML += l + '<br>' }); box.scrollTop = box.scrollHeight }
@@ -106,7 +127,7 @@
     });
     el('btn-exit-dungeon').addEventListener('click', ()=>{ currentDungeon=null; showPanel('home'); renderAll(); });
 
-    el('btn-close-event').addEventListener('click', ()=>{ el('event-modal').classList.add('hidden') });
+    el('btn-close-event').addEventListener('click', ()=>{ closeEventModal(); });
 
     // 招募
     el('btn-recruit-one').addEventListener('click', ()=>{

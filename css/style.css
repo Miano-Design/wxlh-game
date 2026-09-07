@@ -23,8 +23,9 @@ footer{padding:8px;text-align:center;color:#9fb0c9;font-size:12px}
 #dungeon-log, #inventory-list, #equips-list{background:#06111a;padding:8px;border-radius:6px;font-size:13px;min-height:56px}
 
 /* modal */
-.modal{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:9999}
-.modal .modal-content{background:linear-gradient(180deg,#0b1220,#071019);padding:12px;border-radius:8px;max-width:92%;width:360px;max-height:80vh;overflow:auto}
+.modal{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:9999;pointer-events:auto}
+.modal .modal-content{background:linear-gradient(180deg,#0b1220,#071019);padding:12px;border-radius:8px;max-width:92%;width:360px;max-height:80vh;overflow:auto;touch-action:manipulation}
+.modal.hidden{display:none !important}
 
 @media (max-width:420px){header h1{font-size:16px}button{flex:1}}
 @media (max-width:480px){.char-card{width:46%}.item-card{width:46%}.modal .modal-content{width:92%}}
