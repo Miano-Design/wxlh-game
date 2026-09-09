@@ -267,7 +267,10 @@ window.DATA = (function () {
   };
 
   /* ================= 装备 ================= */
-  const EQUIP_SLOTS = { weapon: '武器', armor: '防具', accessory: '饰品' };
+  const EQUIP_SLOTS = { weapon: '武器', armor: '胸甲', accessory: '饰品', head: '头部', hands: '手部', legs: '腿部' };
+  const RECRUIT_SLOTS = ['weapon', 'armor', 'accessory'];                       // 招募角色 3 槽
+  const PLAYER_SLOTS = ['weapon', 'head', 'armor', 'hands', 'legs', 'accessory']; // 主角 6 槽（V5 §22）
+  const DROP_SLOTS = ['weapon', 'armor', 'accessory', 'head', 'hands', 'legs'];
   const EQUIP_RARITY_MULT = { N: 1.00, R: 1.15, SR: 1.35, SSR: 1.65, UR: 2.00 };
   const EQUIP_AFFIX_COUNT = { N: 0, R: 1, SR: 2, SSR: 3, UR: 4 };
   const DECOMPOSE_GAIN = { N: 5, R: 15, SR: 50, SSR: 180, UR: 600 };
@@ -285,6 +288,9 @@ window.DATA = (function () {
     weapon:   { bio: ['生化军刀', '脉冲步枪', '基因切割者'], ghost: ['镇魂铃', '驱邪短刃', '缚灵符剑'], mystic: ['秘银法杖', '圣光权杖', '咒纹长剑'], tech: ['磁轨枪', '粒子刀', '湮灭炮'], god: ['主神之刃', '轮回权杖', '试炼圣枪'] },
     armor:    { bio: ['防化作战服', '蜂巢护甲', '再生殖装'], ghost: ['符咒道袍', '怨念披风', '镇宅法衣'], mystic: ['秘陵铠甲', '圣甲护胸', '咒缚长袍'], tech: ['纳米装甲', '反应外骨骼', '相位护盾'], god: ['主神战甲', '轮回之袍', '试炼圣铠'] },
     accessory:{ bio: ['血清注射器', '病毒样本', '基因稳定环'], ghost: ['护身佛珠', '盐晶挂坠', '往生铜钱'], mystic: ['圣甲虫护符', '太阳金环', '安卡十字'], tech: ['战术目镜', '神经增幅器', '能量核心'], god: ['轮回徽记', '主神腕表', '试炼徽章'] },
+    head:     { bio: ['防毒面具', '战术头盔', '生化护目镜'], ghost: ['镇魂冠', '驱邪头巾', '符纸额带'], mystic: ['秘银头环', '圣光头盔', '咒纹面甲'], tech: ['战术头盔', '全息面罩', '神经头环'], god: ['主神之冕', '轮回头盔', '试炼面甲'] },
+    hands:    { bio: ['防化手套', '战术手套', '基因臂铠'], ghost: ['缚灵手套', '符咒护腕', '镇魂臂甲'], mystic: ['秘银护手', '圣光手套', '咒纹臂环'], tech: ['磁力手套', '粒子臂铠', '能量护腕'], god: ['主神护手', '轮回臂铠', '试炼手套'] },
+    legs:     { bio: ['防化护腿', '战术军靴', '生化腿甲'], ghost: ['疾行符靴', '镇魂护腿', '怨灵绑腿'], mystic: ['秘银护腿', '圣光战靴', '咒纹腿甲'], tech: ['磁力战靴', '喷射腿甲', '幻影护腿'], god: ['主神战靴', '轮回护腿', '试炼腿甲'] },
   };
   const AFFIX_POOL = {
     atkPct: { name: '攻击力', min: 0.02, max: 0.22, pct: true },
@@ -309,6 +315,9 @@ window.DATA = (function () {
     if (slot === 'weapon') base.atk = Math.round((22 + tier * 20) * mult);
     if (slot === 'armor') { base.def = Math.round((14 + tier * 13) * mult); base.hp = Math.round((220 + tier * 200) * mult); }
     if (slot === 'accessory') { base.spd = Math.round((8 + tier * 6) * mult); base.critPct = +(0.02 * mult).toFixed(3); }
+    if (slot === 'head') { base.def = Math.round((8 + tier * 8) * mult); base.hp = Math.round((120 + tier * 110) * mult); }
+    if (slot === 'hands') { base.atk = Math.round((10 + tier * 9) * mult); base.critPct = +(0.01 * mult).toFixed(3); }
+    if (slot === 'legs') { base.spd = Math.round((6 + tier * 5) * mult); base.def = Math.round((6 + tier * 5) * mult); }
     const affixes = [];
     const keys = Object.keys(AFFIX_POOL);
     const n = EQUIP_AFFIX_COUNT[rarity];
@@ -426,6 +435,21 @@ window.DATA = (function () {
   ];
 
   /* ================= 血统 / 基因锁 ================= */
+  /* ================= 主角（玩家）独立成长 ================= */
+  // 主角 = 玩家本人，不消耗点数升级（玩家等级即主角等级），无星级/碎片，6 装备槽，可选血统
+  const PROTAGONIST = {
+    id: '@player',
+    baseAttrs: { muscle: 65, immune: 60, cell: 62, nerve: 58, intelligence: 50, spirit: 55 },
+    kind: 'warrior',
+    // 技能随基因锁强化（每阶技能效果提升）
+    skills: {
+      s1: { name: '求生突刺', desc: '对单体造成 180% 伤害', cd: 3, type: 'dmg', mult: 1.8, target: 'enemy' },
+      s2: { name: '潜能爆发', desc: '自身攻击+30%、暴击+15%，持续 3 回合', cd: 5, type: 'buff', buff: { atkPct: 0.3, critPct: 0.15, turns: 3 }, target: 'self' },
+      ult: { name: '基因解放', desc: '对单体造成 400% 伤害并回复伤害 30% 的生命', type: 'dmg', mult: 4.0, lifesteal: 0.3, target: 'enemy' },
+      passive: { name: '轮回者直觉', desc: '闪避 +5%，基因锁每阶全属性额外 +3%' },
+    },
+  };
+
   const BLOODLINES = {
     '血族':  { desc: '吸血、暴击。每级：攻击+1.2%、吸血+0.4%', atkPct: 0.012, lifesteal: 0.004 },
     '狼人':  { desc: '生命、近战。每级：生命+1.5%、防御+0.8%', hpPct: 0.015, defPct: 0.008 },
@@ -544,8 +568,8 @@ window.DATA = (function () {
       check: S => S.worlds.W01 && S.worlds.W01.stages.normal[0] > 0 },
     { id: 'q03', name: '第一位同伴', desc: '进行 1 次招募', reward: { points: 2000 },
       check: S => S.stats.recruits >= 1 },
-    { id: 'q04', name: '并肩作战', desc: '在队伍中上阵 2 名角色', reward: { story: 50 },
-      check: S => S.party.filter(Boolean).length >= 2 },
+    { id: 'q04', name: '并肩作战', desc: '在队伍中上阵 1 名招募角色', reward: { story: 50 },
+      check: S => S.party.filter(Boolean).length >= 1 },
     { id: 'q05', name: '深入蜂巢', desc: '通关 生化蜂巢·第2关', reward: { points: 2000 }, unlock: 'shop',
       check: S => S.worlds.W01 && S.worlds.W01.stages.normal[1] > 0 },
     { id: 'q06', name: '工欲善其事', desc: '通关 生化蜂巢·第3关', reward: { otherworld: 50 }, unlock: 'enhance',
@@ -631,6 +655,7 @@ window.DATA = (function () {
     ROLE_KIND, ATK_ATTR, characters, charById,
     WORLDS, DIFFICULTY, FIRST_CLEAR,
     EQUIP_SLOTS, EQUIP_RARITY_MULT, DECOMPOSE_GAIN, ENHANCE_RATE, SETS, AFFIX_POOL, makeEquip,
+    RECRUIT_SLOTS, PLAYER_SLOTS, DROP_SLOTS, PROTAGONIST,
     ITEMS, EVENTS,
     BLOODLINES, BLOODLINE_MAX, bloodlineCost, GENE_LOCKS,
     BUILDINGS, buildingCost,

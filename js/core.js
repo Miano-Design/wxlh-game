@@ -12,12 +12,12 @@ window.Core = (function () {
     return {
       v: 5,
       createdAt: Date.now(),
-      player: { name: '轮回者', level: 1, exp: 0, geneLock: 0, reincarnations: 0, talents: { body: 0, energy: 0, nerve: 0, grace: 0 } },
+      player: { name: '轮回者', level: 1, exp: 0, geneLock: 0, reincarnations: 0, talents: { body: 0, energy: 0, nerve: 0, grace: 0 }, bloodline: null, bloodlineLv: 0 },
       cur: { points: 0, story: 0, otherworld: 0, holy: 0, skillChip: 0, bloodCrystal: 0, corridor: 0, rp: 0 },
       chars: {},            // id → {lv, exp, star, shards, skillLv:[1,1,1], bloodlineLv}
-      party: [null, null, null, null],   // 0,1 前排；2,3 后排
+      party: [null, null, null, null],   // 4 个招募位：0,1 前排；2,3 后排（主角必上阵，不占位）
       equips: {},           // uid → 装备实例
-      equipped: {},         // charId → {weapon, armor, accessory}
+      equipped: { '@player': { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null } },
       items: {},            // itemId → count
       buildings: { core: 1, training: 1, medical: 1, workshop: 1, geneLab: 1 },
       worlds: {},           // worldId → {unlocked, stages: {normal:[stars×12], hard, hell}}
@@ -49,8 +49,25 @@ window.Core = (function () {
       const data = JSON.parse(raw);
       if (!data || data.v !== 5) return false;
       S = Object.assign(defaultState(), data);
+      migrate();
       return true;
     } catch (e) { return false; }
+  }
+  // 旧档迁移：C001 林默不再是主角占位，主角为独立实体
+  function migrate() {
+    if (S.chars && S.chars['C001']) {
+      // 转移 C001 装备到主角
+      const old = (S.equipped && S.equipped['C001']) || {};
+      const slots = S.equipped['@player'];
+      ['weapon', 'armor', 'accessory'].forEach(k => { if (old[k] && !slots[k]) slots[k] = old[k]; });
+      delete S.equipped['C001'];
+      delete S.chars['C001'];
+      if (S.codex && S.codex.chars) S.codex.chars = S.codex.chars.filter(x => x !== 'C001');
+    }
+    if (S.party) S.party = S.party.map(id => (id === 'C001' ? null : id));
+    if (!S.equipped['@player']) S.equipped['@player'] = { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null };
+    S.player.bloodline = S.player.bloodline || null;
+    S.player.bloodlineLv = S.player.bloodlineLv || 0;
   }
   function newGame() {
     S = defaultState();
@@ -59,8 +76,6 @@ window.Core = (function () {
     addCur('points', D.STARTER.points);
     addCur('holy', D.STARTER.holy);
     Object.entries(D.STARTER.items).forEach(([k, v]) => addItem(k, v));
-    D.STARTER.chars.forEach(id => addChar(id));
-    S.party = ['C001', null, null, null];
     unlockWorld('W01');
     save();
   }
@@ -71,9 +86,9 @@ window.Core = (function () {
     save();
     return true;
   }
-  // 主角显示名（C001 即玩家本人）
+  // 主角显示名（@player 即玩家本人）
   function charName(id) {
-    if (id === 'C001' && S.player.name) return S.player.name;
+    if (id === '@player') return S.player.name || '主角';
     return D.charById[id] ? D.charById[id].name : id;
   }
   function exportSave() { return JSON.stringify(S); }
@@ -337,8 +352,93 @@ window.Core = (function () {
     if (!st) return 0;
     return Math.round(st.atk * 2 + st.def + st.hp * 0.2 + st.spd * 3);
   }
+  /* ================= 主角（玩家）独立属性 ================= */
+  function effectivePlayerStats() {
+    const P = D.PROTAGONIST;
+    const lvMult = 1 + (S.player.level - 1) * 0.035;
+    const a = {};
+    Object.keys(P.baseAttrs).forEach(k => { a[k] = P.baseAttrs[k] * lvMult; });
+    const pct = { atkPct: 0, hpPct: 0, defPct: 0, spdPct: 0, critPct: 0, critDmg: 0, skillPct: 0, evaPct: 0.05, resPct: 0, lifesteal: 0 };
+    // 基因锁（全队加成 + 主角每阶额外3%）
+    if (S.player.geneLock >= 1) { pct.atkPct += 0.05; pct.hpPct += 0.05; pct.defPct += 0.05; pct.spdPct += 0.05; }
+    if (S.player.geneLock >= 2) pct.skillPct += 0.15;
+    if (S.player.geneLock >= 5) { pct.atkPct += 0.15; pct.hpPct += 0.15; pct.defPct += 0.15; pct.spdPct += 0.15; }
+    const glExtra = S.player.geneLock * 0.03;
+    pct.atkPct += glExtra; pct.hpPct += glExtra; pct.defPct += glExtra; pct.spdPct += glExtra;
+    // 主角血统
+    if (S.player.bloodline) {
+      const bl = D.BLOODLINES[S.player.bloodline];
+      const blm = S.player.bloodlineLv * (S.player.geneLock >= 4 ? 1.5 : 1);
+      if (bl) {
+        if (bl.atkPct) pct.atkPct += bl.atkPct * blm;
+        if (bl.hpPct) pct.hpPct += bl.hpPct * blm;
+        if (bl.defPct) pct.defPct += bl.defPct * blm;
+        if (bl.skillPct) pct.skillPct += bl.skillPct * blm;
+        if (bl.critPct) pct.critPct += bl.critPct * blm;
+        if (bl.lifesteal) pct.lifesteal += bl.lifesteal * blm;
+        if (bl.spdPct) pct.spdPct += bl.spdPct * blm;
+        if (bl.allPct) { pct.atkPct += bl.allPct * blm; pct.hpPct += bl.allPct * blm; pct.defPct += bl.allPct * blm; pct.spdPct += bl.allPct * blm; }
+      }
+    }
+    // 转生天赋
+    const t = S.player.talents;
+    pct.hpPct += [0, .05, .05, 0, .08, 0, .12, 0, 0, .20, 0].slice(0, t.body + 1).reduce((x, y) => x + y, 0);
+    pct.defPct += [0, 0, .05, 0, 0, 0, 0, .08, 0, 0, 0].slice(0, t.body + 1).reduce((x, y) => x + y, 0);
+    pct.skillPct += [0, 0, .05, 0, 0, .08, 0, 0, .12, 0, .25].slice(0, t.energy + 1).reduce((x, y) => x + y, 0);
+    pct.spdPct += [0, .05, 0, 0, .08, 0, 0, .12, 0, 0, .20].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
+    pct.critPct += [0, 0, .03, 0, 0, 0, 0, .05, 0, 0, 0].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
+    pct.critDmg += [0, 0, 0, 0, 0, .10, 0, 0, 0, 0, 0].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
+    pct.evaPct += [0, 0, 0, .02, 0, 0, 0, 0, .04, 0, 0].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
+    // 装备（6 槽）
+    const eq = S.equipped['@player'] || {};
+    const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
+    Object.values(eq).forEach(uid => {
+      if (!uid || !S.equips[uid]) return;
+      const st = equipStats(S.equips[uid]);
+      flat.atk += st.flat.atk || 0;
+      flat.def += st.flat.def || 0;
+      flat.hp += st.flat.hp || 0;
+      flat.spd += st.flat.spd || 0;
+      pct.critPct += st.flat.critPct || 0;
+      Object.entries(st.affix).forEach(([k, v]) => { pct[k] = (pct[k] || 0) + v; });
+    });
+    const atk = (a.muscle * 1.8 + flat.atk) * (1 + pct.atkPct);
+    const def = (a.immune * 1.6 + flat.def) * (1 + pct.defPct);
+    const hp = (a.cell * 25 + flat.hp) * (1 + pct.hpPct);
+    const spd = (a.nerve * 1.2 + flat.spd) * (1 + pct.spdPct);
+    const crit = Math.min(0.6, 0.05 + a.intelligence * 0.0008 + pct.critPct);
+    const eva = Math.min(0.6, a.nerve * 0.0012 + pct.evaPct);
+    const skillMult = 1 + a.spirit * 0.006 + pct.skillPct;
+    return {
+      atk: Math.round(atk), def: Math.round(def), hp: Math.round(hp), spd: Math.round(spd),
+      crit, critDmg: 2.0 + pct.critDmg, eva, skillMult,
+      lifesteal: pct.lifesteal, resPct: pct.resPct || 0, attrs: a,
+    };
+  }
+  function playerPower() {
+    const st = effectivePlayerStats();
+    return Math.round(st.atk * 2 + st.def + st.hp * 0.2 + st.spd * 3);
+  }
+  function choosePlayerBloodline(id) {
+    if (!D.BLOODLINES[id]) return { ok: false, msg: '血统不存在' };
+    if (S.player.bloodline) return { ok: false, msg: '血统一旦选择不可更改' };
+    S.player.bloodline = id;
+    save();
+    return { ok: true, msg: `已觉醒${id}血统` };
+  }
+  function upgradePlayerBloodline() {
+    if (!S.player.bloodline) return { ok: false, msg: '尚未选择血统' };
+    if (S.player.bloodlineLv >= D.BLOODLINE_MAX) return { ok: false, msg: '血统已满级' };
+    let cost = D.bloodlineCost(S.player.bloodlineLv);
+    const discount = Math.min(0.4, S.buildings.geneLab * 0.01);
+    cost = { bloodCrystal: Math.ceil(cost.bloodCrystal * (1 - discount)), points: Math.ceil(cost.points * (1 - discount)) };
+    if (!spend(cost)) return { ok: false, msg: '血统结晶或点数不足' };
+    S.player.bloodlineLv++;
+    save();
+    return { ok: true, msg: `血统 Lv.${S.player.bloodlineLv}` };
+  }
   function teamPower() {
-    return S.party.filter(Boolean).reduce((sum, id) => sum + power(id), 0);
+    return playerPower() + S.party.filter(Boolean).reduce((sum, id) => sum + power(id), 0);
   }
   function factionBuffs(partyIds) {
     const count = {};
@@ -355,7 +455,7 @@ window.Core = (function () {
   /* ================= 装备操作 ================= */
   function grantEquip(worldId, rarity, slot) {
     const uid = 'eq' + Date.now().toString(36) + '_' + (uidCounter++);
-    const slots = slot ? [slot] : ['weapon', 'armor', 'accessory'];
+    const slots = slot ? [slot] : D.DROP_SLOTS;
     const s = slots[Math.floor(Math.random() * slots.length)];
     const eq = D.makeEquip(worldId, s, rarity, uid);
     S.equips[uid] = eq;
@@ -371,7 +471,14 @@ window.Core = (function () {
   }
   function equipItem(charId, uid) {
     const eq = S.equips[uid];
-    if (!eq || !S.chars[charId]) return false;
+    if (!eq) return false;
+    if (charId === '@player') {
+      if (!D.PLAYER_SLOTS.includes(eq.slot)) return false;
+    } else {
+      if (!S.chars[charId]) return false;
+      if (!D.RECRUIT_SLOTS.includes(eq.slot)) return false;   // 头/手/腿仅主角可用
+    }
+    if (!S.equipped[charId]) S.equipped[charId] = { weapon: null, armor: null, accessory: null };
     S.equipped[charId][eq.slot] = uid;
     save();
     return true;
@@ -434,7 +541,7 @@ window.Core = (function () {
     return 'R';
   }
   function pickCharOfRarity(rar, pool) {
-    let poolChars = D.characters.filter(c => c.rarity === rar && !c.hidden && c.id !== 'C001');
+    let poolChars = D.characters.filter(c => c.rarity === rar && !c.hidden);
     if (pool === 'limited') poolChars = poolChars.concat(D.characters.filter(c => c.hidden));
     return poolChars[Math.floor(Math.random() * poolChars.length)];
   }
@@ -803,6 +910,7 @@ window.Core = (function () {
     addChar, addShards, levelCost, levelUp, useExpItem, starUp, skillUp, SKILL_CHIP_COST,
     bloodlineUpgrade, geneLockInfo, geneLockUnlock,
     equipStats, effectiveStats, power, teamPower, factionBuffs,
+    effectivePlayerStats, playerPower, choosePlayerBloodline, upgradePlayerBloodline,
     grantEquip, equipItem, unequipItem, enhanceCost, enhance, decompose, inventoryEquips,
     recruitOnce, recruitTen, freeRecruit, freeRecruitAvailable, ssrTicketUse,
     idleRates, settleOffline, onlineTick, idleBankGains, claimIdle, addPlayerExp, offlineCapHours, offlineEfficiency,

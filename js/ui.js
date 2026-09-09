@@ -16,6 +16,10 @@ window.UI = (function () {
   function rarityTag(r) { return `<span class="rtext-${r}" style="font-weight:700">${r}</span>`; }
   function cname(id) { return C().charName(id); }
   function charAvatar(id, size) {
+    if (id === '@player') {
+      const nm = cname(id);
+      return `<div class="avatar" style="border-color:var(--gold);color:var(--gold);${size ? `width:${size}px;height:${size}px;font-size:${size * 0.44}px;` : ''}">${esc(nm[0])}</div>`;
+    }
     const ch = D.charById[id];
     const nm = cname(id);
     return `<div class="avatar" style="border-color:${D.RARITY_COLOR[ch.rarity]};color:${D.RARITY_COLOR[ch.rarity]};${size ? `width:${size}px;height:${size}px;font-size:${size * 0.44}px;` : ''}">${esc(nm[0])}</div>`;
@@ -114,8 +118,8 @@ window.UI = (function () {
     const expNeed = D.EXP_TABLE[S.player.level] || 1;
     const gl = D.GENE_LOCKS[S.player.geneLock - 1];
     return `
-    <div class="card">
-      <h3>⛩ 个人房间 <span class="sub">战力 ${fmt(C().teamPower())}</span></h3>
+    <div class="card" data-protag="1" style="cursor:pointer">
+      <h3>⛩ 个人房间 <span class="sub">${cname('@player')} · 主角战力 ${fmt(C().playerPower())} · 队伍 ${fmt(C().teamPower())} ›</span></h3>
       <div class="kv"><span class="k">玩家经验</span><span>${fmt(S.player.exp)} / ${fmt(expNeed)}</span></div>
       <div class="bar exp" style="margin:6px 0 10px"><i style="width:${Math.min(100, S.player.exp / expNeed * 100)}%"></i></div>
       <div class="kv"><span class="k">基因锁</span><span>${gl ? `${S.player.geneLock}阶·${gl.name}` : '未解锁'}</span></div>
@@ -241,7 +245,7 @@ window.UI = (function () {
   /* ---------- 关卡探索 ---------- */
   function startRun(worldId, diff, stageIdx) {
     const S = C().S;
-    if (!S.party.filter(Boolean).length) { toast('请先在【队伍】中上阵角色'); return; }
+    // 主角必上阵，无需检查
     const stage = stageIdx + 1;
     const route = window.Dungeon.genRoute(worldId, stage);
     run = {
@@ -251,6 +255,7 @@ window.UI = (function () {
       buffs: {},
       kills: 0,
     };
+    run.hpPct['@player'] = 1;
     S.party.filter(Boolean).forEach(id => { run.hpPct[id] = 1; });
     dungeonView = { page: 'run' };
     render();
@@ -267,9 +272,8 @@ window.UI = (function () {
     const w = D.WORLDS.find(x => x.id === run.worldId);
     const totalSteps = run.route.steps.length + 1;
     const prog = Array.from({ length: totalSteps }, (_, i) => `<i class="${i < run.step ? 'done' : ''}"></i>`).join('');
-    const partyHp = C().S.party.filter(Boolean).map(id => {
-      const ch = D.charById[id];
-      const pct = run.hpPct[id];
+    const partyHp = ['@player', ...C().S.party.filter(Boolean)].map(id => {
+      const pct = run.hpPct[id] !== undefined ? run.hpPct[id] : 1;
       return `<div style="flex:1"><div style="font-size:10px;color:var(--dim);text-align:center">${cname(id)}</div><div class="bar hp ${pct < 0.35 ? 'low' : ''}"><i style="width:${pct * 100}%"></i></div></div>`;
     }).join('');
     // 路线图全览
@@ -362,6 +366,14 @@ window.UI = (function () {
   function partyScreen() {
     const S = C().S;
     const fb = C().factionBuffs(S.party);
+    const pst = C().effectivePlayerStats();
+    const protag = `
+      <div class="pslot filled" data-protag="1" style="border-color:var(--gold);cursor:pointer">
+        <span class="pos-tag">主角 · 前排</span>
+        ${charAvatar('@player', 40)}
+        <div class="pname">${cname('@player')}</div>
+        <div class="pmeta">Lv.${S.player.level} · 战力${fmt(C().playerPower())}</div>
+      </div>`;
     const slots = S.party.map((id, i) => {
       const pos = i < 2 ? '前排' : '后排';
       if (!id) return `<div class="pslot" data-slot="${i}"><span class="pos-tag">${pos}</span><div style="text-align:center;color:var(--dim);padding-top:34px;font-size:12px">＋ 上阵</div></div>`;
@@ -381,9 +393,10 @@ window.UI = (function () {
     const fbCount = Object.entries(fb.count).map(([f, n]) => `${f}×${n}`).join(' ');
     return `
       <div class="card">
-        <h3>⚔️ 轮回小队 <span class="sub">总战力 ${fmt(C().teamPower())}</span></h3>
+        <h3>⚔️ 轮回小队 <span class="sub">总战力 ${fmt(C().teamPower())}（主角必上阵）</span></h3>
+        <div style="margin-bottom:10px">${protag}</div>
         <div class="party-slots">${slots}</div>
-        <div style="margin-top:10px;font-size:11px;color:var(--dim)">前排受击概率更高 · 后排相对安全</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--dim)">主角（你）永远参战 · 前排受击概率更高 · 后排相对安全</div>
       </div>
       <div class="card">
         <h3>🔗 阵营羁绊</h3>
@@ -406,6 +419,91 @@ window.UI = (function () {
           </div>`;
         }).join('') || '<div class="empty">尚未上阵任何角色</div>'}
       </div>`;
+  }
+  /* ================= 主角详情 ================= */
+  function protagonistDetail() {
+    const S = C().S;
+    const P = D.PROTAGONIST;
+    const st = C().effectivePlayerStats();
+    const eq = S.equipped['@player'] || {};
+    const gl = S.player.geneLock;
+    const blCost = S.player.bloodline && S.player.bloodlineLv < D.BLOODLINE_MAX ? D.bloodlineCost(S.player.bloodlineLv) : null;
+    const w = modal(`${cname('@player')}（主角）`, `
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px">
+        ${charAvatar('@player', 56)}
+        <div>
+          <div><b style="font-size:16px">${cname('@player')}</b> <span class="tag" style="color:var(--gold);border-color:var(--gold)">轮回者本人</span></div>
+          <div style="font-size:11px;color:var(--dim);margin-top:3px">Lv.${S.player.level}（玩家等级）· 战力 ${fmt(C().playerPower())}</div>
+          <div style="font-size:11px;color:var(--dim)">基因锁 ${gl > 0 ? D.GENE_LOCKS[gl - 1].name : '未解锁'} · ${S.player.bloodline ? S.player.bloodline + '血统 Lv.' + S.player.bloodlineLv : '未选择血统'}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:10px">主角与招募角色成长体系独立：随玩家等级成长、无星级碎片、6 装备槽、血统自选、基因锁每阶全属性额外+3%</div>
+      <div class="stat-6">
+        <div class="cell"><div class="v">${fmt(st.atk)}</div><div class="k">攻击</div></div>
+        <div class="cell"><div class="v">${fmt(st.def)}</div><div class="k">防御</div></div>
+        <div class="cell"><div class="v">${fmt(st.hp)}</div><div class="k">生命</div></div>
+        <div class="cell"><div class="v">${fmt(st.spd)}</div><div class="k">速度</div></div>
+        <div class="cell"><div class="v">${Math.round(st.crit * 100)}%</div><div class="k">暴击</div></div>
+        <div class="cell"><div class="v">${Math.round(st.eva * 100)}%</div><div class="k">闪避</div></div>
+      </div>
+      <div class="section-title">技能（基因锁强化）</div>
+      ${[P.skills.s1, P.skills.s2, P.skills.ult].map((sk, i) => `
+        <div class="skill-row"><div class="sname">${['技能', '技能', '必杀'][i]}·${sk.name} <span class="tag">Lv.${Math.min(10, 1 + gl * 2)}</span></div>
+        <div class="sdesc">${sk.desc}（基因锁每阶 +2 级效果）</div></div>`).join('')}
+      <div class="skill-row"><div class="sname">被动·${P.skills.passive.name}</div><div class="sdesc">${P.skills.passive.desc}</div></div>
+      <div class="section-title">血统</div>
+      ${S.player.bloodline ? `
+        <div style="font-size:12px;margin-bottom:6px">${S.player.bloodline} Lv.${S.player.bloodlineLv}/${D.BLOODLINE_MAX} <span style="color:var(--dim);font-size:11px">${D.BLOODLINES[S.player.bloodline].desc}</span></div>
+        ${blCost ? `<button class="btn small" data-pblup="1">血统升级（❥${blCost.bloodCrystal} + ◈${fmt(blCost.points)}）</button>` : '<div style="color:var(--gold);font-size:12px">已满级</div>'}
+      ` : `
+        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">选择一种血统觉醒（不可更改）</div>
+        <div class="grid2">${Object.entries(D.BLOODLINES).map(([id, bl]) => `<button class="btn small" data-pbl="${id}">${id}<br><span style="font-size:10px;font-weight:400;color:var(--dim)">${bl.desc.split('。')[0]}</span></button>`).join('')}</div>
+      `}
+      <div class="section-title">装备（主角专属 6 槽）</div>
+      ${D.PLAYER_SLOTS.map(slot => {
+        const uid = eq[slot];
+        const e = uid && S.equips[uid];
+        return `<div class="list-row" data-peqslot="${slot}" style="cursor:pointer">
+          <span class="tag">${D.EQUIP_SLOTS[slot]}</span>
+          <div class="grow">${e ? `<div class="t1 rtext-${e.rarity}">${e.name} +${e.enhance}</div><div class="t2">${equipBrief(e)}</div>` : '<div class="t2">未装备</div>'}</div>
+          ${e ? `<button class="btn small ghost" data-punequip="${slot}">卸下</button>` : ''}
+        </div>`;
+      }).join('')}
+      <div class="btn-row" style="margin-top:12px"><button class="btn small ghost" data-rename="1">✏️ 修改名字</button></div>
+    `);
+    const blBtn = w.querySelector('[data-pblup]');
+    if (blBtn) blBtn.onclick = () => {
+      if (!C().isUnlocked('bloodline')) { toast('🔒 ' + C().unlockTip('bloodline')); return; }
+      const r = C().upgradePlayerBloodline();
+      toast(r.msg);
+      closeModal(w); if (r.ok) protagonistDetail();
+      renderTopbar();
+    };
+    w.querySelectorAll('[data-pbl]').forEach(b => b.onclick = () => {
+      if (!C().isUnlocked('bloodline')) { toast('🔒 ' + C().unlockTip('bloodline')); return; }
+      const r = C().choosePlayerBloodline(b.dataset.pbl);
+      toast(r.msg, 2200);
+      closeModal(w); if (r.ok) protagonistDetail();
+    });
+    w.querySelectorAll('[data-peqslot]').forEach(el => el.onclick = () => { closeModal(w); pickEquipFor('@player', el.dataset.peqslot, () => protagonistDetail()); });
+    w.querySelectorAll('[data-punequip]').forEach(b => b.onclick = ev => {
+      ev.stopPropagation();
+      C().unequipItem('@player', b.dataset.punequip);
+      closeModal(w); protagonistDetail();
+    });
+    w.querySelector('[data-rename]').onclick = () => {
+      closeModal(w);
+      const rw = modal('修改名字', `
+        <input id="rn-input" maxlength="12" value="${esc(S.player.name)}" style="width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:15px;outline:none;margin-bottom:12px" />
+        <button class="btn primary block" data-ok>确认修改</button>`, { center: true });
+      rw.querySelector('[data-ok]').onclick = () => {
+        if (C().setPlayerName(rw.querySelector('#rn-input').value)) {
+          toast('名字已修改');
+          closeModal(rw);
+          protagonistDetail(); refresh();
+        } else toast('名字不能为空');
+      };
+    };
   }
   function pickPartyChar(slotIdx) {
     const S = C().S;
@@ -584,10 +682,12 @@ window.UI = (function () {
       closeModal(w); charDetail(id);
     });
   }
-  function pickEquipFor(charId, slot) {
+  function pickEquipFor(charId, slot, reopen) {
     const S = C().S;
-    const list = C().inventoryEquips().filter(e => e.slot === slot);
-    const w = modal(`选择${D.EQUIP_SLOTS[slot]}`, list.map(eq => {
+    const allowed = charId === '@player' ? D.PLAYER_SLOTS : D.RECRUIT_SLOTS;
+    const list = C().inventoryEquips().filter(e => e.slot === slot && allowed.includes(e.slot));
+    const back = reopen || (() => charDetail(charId));
+    const w = modal(`选择${D.EQUIP_SLOTS[slot]}（${charId === '@player' ? cname('@player') : cname(charId)}）`, list.map(eq => {
       const equippedBy = Object.entries(S.equipped).find(([cid, slots]) => slots[slot] === eq.uid);
       return `<div class="list-row" data-eq="${eq.uid}" style="cursor:pointer">
         <div class="grow"><div class="t1 rtext-${eq.rarity}">${eq.name} +${eq.enhance}</div>
@@ -595,9 +695,9 @@ window.UI = (function () {
       </div>`;
     }).join('') || '<div class="empty">背包中没有该部位装备</div>');
     w.querySelectorAll('[data-eq]').forEach(el => el.onclick = () => {
-      C().equipItem(charId, el.dataset.eq);
-      toast('已装备');
-      closeModal(w); charDetail(charId);
+      if (C().equipItem(charId, el.dataset.eq)) toast('已装备');
+      else toast('该装备部位不适用');
+      closeModal(w); back();
     });
   }
 
@@ -606,7 +706,7 @@ window.UI = (function () {
   function equipScreen() {
     const S = C().S;
     const list = C().inventoryEquips();
-    const filters = [['all', '全部'], ['weapon', '武器'], ['armor', '防具'], ['accessory', '饰品'], ['SSR', 'SSR+']];
+    const filters = [['all', '全部'], ['weapon', '武器'], ['armor', '胸甲'], ['head', '头部'], ['hands', '手部'], ['legs', '腿部'], ['accessory', '饰品'], ['SSR', 'SSR+']];
     let shown = list;
     if (equipFilter === 'SSR') shown = list.filter(e => ['SSR', 'UR'].includes(e.rarity));
     else if (equipFilter !== 'all') shown = list.filter(e => e.slot === equipFilter);
@@ -669,8 +769,15 @@ window.UI = (function () {
     };
     w.querySelector('[data-equipto]').onclick = () => {
       closeModal(w);
-      const chars = Object.keys(S.chars);
-      const w2 = modal('装备给…', chars.map(id => {
+      const canPlayer = D.PLAYER_SLOTS.includes(eq.slot);
+      const candidates = (canPlayer ? ['@player'] : []).concat(Object.keys(S.chars));
+      const w2 = modal('装备给…', candidates.map(id => {
+        if (id === '@player') {
+          return `<div class="list-row" data-to="@player" style="cursor:pointer">
+            ${charAvatar('@player', 36)}
+            <div class="grow"><div class="t1">${cname('@player')}（主角）</div><div class="t2">Lv.${S.player.level} · 战力${fmt(C().playerPower())}</div></div>
+          </div>`;
+        }
         const ch = D.charById[id];
         return `<div class="list-row" data-to="${id}" style="cursor:pointer">
           ${charAvatar(id, 36)}
@@ -678,8 +785,8 @@ window.UI = (function () {
         </div>`;
       }).join(''));
       w2.querySelectorAll('[data-to]').forEach(el => el.onclick = () => {
-        C().equipItem(el.dataset.to, uid);
-        toast('已装备');
+        if (C().equipItem(el.dataset.to, uid)) toast('已装备');
+        else toast('该装备部位不适用');
         closeModal(w2);
         render();
       });
@@ -1025,14 +1132,30 @@ window.UI = (function () {
   function buildAllies(hpPctMap, extraBuffs) {
     const S = C().S;
     const fb = C().factionBuffs(S.party);
-    return S.party.filter(Boolean).filter(id => !hpPctMap || (hpPctMap[id] === undefined || hpPctMap[id] > 0.01)).map((id, i) => {
+    const buffAtk = (extraBuffs && extraBuffs.atkPct) || 0;
+    const allies = [];
+    // 主角必上阵
+    if (!hpPctMap || hpPctMap['@player'] === undefined || hpPctMap['@player'] > 0.01) {
+      const pst = C().effectivePlayerStats();
+      const gl = S.player.geneLock;
+      const pFullHp = pst.hp;
+      const pHp = hpPctMap && hpPctMap['@player'] !== undefined ? Math.max(1, Math.round(pFullHp * hpPctMap['@player'])) : pFullHp;
+      allies.push(Object.assign({}, pst, {
+        name: cname('@player'), kind: 'warrior', faction: null,
+        position: 'front',
+        skills: D.PROTAGONIST.skills, skillLv: [Math.min(10, 1 + gl * 2), Math.min(10, 1 + gl * 2), Math.min(10, 1 + gl * 2)],
+        atk: Math.round(pst.atk * (1 + buffAtk)),
+        hp: pHp, maxHp: pFullHp,
+        charId: '@player',
+      }));
+    }
+    S.party.filter(Boolean).filter(id => !hpPctMap || (hpPctMap[id] === undefined || hpPctMap[id] > 0.01)).forEach(id => {
       const base = D.charById[id];
       const eff = C().effectiveStats(id);
       const idx = S.party.indexOf(id);
-      const buffAtk = (extraBuffs && extraBuffs.atkPct) || 0;
       const fullHp = Math.round(eff.hp * (1 + fb.hpPct));
       const hp = hpPctMap && hpPctMap[id] !== undefined ? Math.max(1, Math.round(fullHp * hpPctMap[id])) : fullHp;
-      return Object.assign({}, eff, {
+      allies.push(Object.assign({}, eff, {
         name: cname(id), kind: base.kind, faction: base.faction,
         position: idx < 2 ? 'front' : 'back',
         skills: base.skills, skillLv: S.chars[id].skillLv,
@@ -1040,8 +1163,9 @@ window.UI = (function () {
         hp, maxHp: fullHp,
         skillMult: eff.skillMult + fb.skillPct,
         charId: id,
-      });
+      }));
     });
+    return allies;
   }
   // 战斗配置：{ title, allies, enemies, worldId, maxRounds, onEnd(win, result, hpLeft) }
   function startBattle(cfg) {
@@ -1292,6 +1416,7 @@ window.UI = (function () {
         }
         const g = Dun.grantRewards(run.worldId, run.diff, run.stage, kind);
         window.Core.addCharExp(C().S.party.filter(Boolean), g.rewards.exp);
+        C().addPlayerExp(Math.round(g.rewards.exp * 0.5));
         C().battleSettle({}, true, kind === 'elite');
         // 更新队伍血量
         start_allies(units);
@@ -1324,6 +1449,7 @@ window.UI = (function () {
         if (!win) return { rewards: [], sub: '再接再厉', after: () => endRun(false) };
         const g = Dun.grantRewards(run.worldId, run.diff, run.stage, kind);
         window.Core.addCharExp(C().S.party.filter(Boolean), g.rewards.exp * 2);
+        C().addPlayerExp(g.rewards.exp);
         C().battleSettle({}, true, isBoss);
         // 星级：1星保底；无人阵亡+1；回合≤20+1
         const anyDead = Object.values(units).some(u => u.side === 'ally' && u.hp <= 0);
@@ -1354,7 +1480,7 @@ window.UI = (function () {
   }
   function fightCorridor() {
     const S = C().S;
-    if (!S.party.filter(Boolean).length) { toast('请先上阵角色'); return; }
+    // 主角必上阵，无需检查
     const floor = S.corridor.floor;
     const spec = D.corridorEnemy(floor);
     const allies = buildAllies();
@@ -1372,6 +1498,7 @@ window.UI = (function () {
         C().addCur('corridor', rw.corridor);
         if (rw.bloodCrystal) C().addCur('bloodCrystal', rw.bloodCrystal);
         window.Core.addCharExp(C().S.party.filter(Boolean), 50 + floor * 5);
+        C().addPlayerExp(30 + floor * 3);
         C().battleSettle({}, true, spec.isBoss);
         S.corridor.floor++;
         S.corridor.best = Math.max(S.corridor.best, floor);
@@ -1522,6 +1649,7 @@ window.UI = (function () {
       });
     });
     root.querySelectorAll('[data-slot]').forEach(el => el.onclick = () => pickPartyChar(+el.dataset.slot));
+    root.querySelectorAll('[data-protag]').forEach(el => el.onclick = () => protagonistDetail());
     root.querySelectorAll('[data-remove]').forEach(el => el.onclick = ev => {
       ev.stopPropagation();
       const S = C().S;
@@ -1549,6 +1677,7 @@ window.UI = (function () {
         <button class="btn small" data-gm="unlocks">解锁全部功能</button>
         <button class="btn small" data-gm="worlds">解锁全部世界</button>
         <button class="btn small" data-gm="clearworld">当前世界普通全通</button>
+        <button class="btn small" data-gm="plvup">主角(玩家) Lv+10</button>
         <button class="btn small" data-gm="lvup">全体角色 Lv+10</button>
         <button class="btn small" data-gm="skill">全体技能升满</button>
         <button class="btn small" data-gm="equip">获得 5 件 SSR 装备</button>
@@ -1575,6 +1704,8 @@ window.UI = (function () {
         Core.refreshUnlocks();
       } else if (act === 'lvup') {
         Object.values(S.chars).forEach(c => { c.lv = Math.min(100, c.lv + 10); });
+      } else if (act === 'plvup') {
+        S.player.level = Math.min(100, S.player.level + 10);
       } else if (act === 'skill') {
         Object.values(S.chars).forEach(c => { c.skillLv = [10, 10, 10]; });
       } else if (act === 'equip') {

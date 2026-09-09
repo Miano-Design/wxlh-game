@@ -18,10 +18,12 @@ function t(name, cond) { if (cond) { pass++; } else { fail++; console.log('FAIL:
 // 1. 新游戏
 Core.newGame();
 t('初始点数 50000', Core.S.cur.points === 50000);
-t('初始仅主角1人', Object.keys(Core.S.chars).length === 1);
-t('队伍仅主角', Core.S.party.filter(Boolean).length === 1 && Core.S.party[0] === 'C001');
+t('初始无招募角色', Object.keys(Core.S.chars).length === 0);
+t('招募位全空（主角必上阵不占位）', Core.S.party.filter(Boolean).length === 0);
 t('主角未命名', Core.S.player.name === '');
-t('命名主角', Core.setPlayerName('测试者') && Core.charName('C001') === '测试者');
+t('命名主角', Core.setPlayerName('测试者') && Core.charName('@player') === '测试者');
+t('主角独立属性', (() => { const st = Core.effectivePlayerStats(); return st.atk > 0 && st.hp > 0; })());
+t('主角6装备槽', D.PLAYER_SLOTS.length === 6 && D.RECRUIT_SLOTS.length === 3);
 t('W01解锁', Core.S.worlds.W01 && Core.S.worlds.W01.unlocked);
 t('招募初始锁定', !Core.isUnlocked('recruit'));
 
@@ -70,13 +72,15 @@ for (let i = 0; i < 120; i++) {
 t('100抽必有UR(保底)', urCount >= 1);
 t('招募计数', results >= 100);
 
-// 6. 战斗：强队打 W01 第一关必胜
+// 6. 战斗：强队打 W01 第一关必胜（含主角）
 Object.keys(Core.S.chars).forEach(id => { Core.S.chars[id].lv = 30; });
-const allies = Core.S.party.filter(Boolean).map((id, i) => {
+const pst = Core.effectivePlayerStats();
+const allies = [Object.assign({ name: '主角', kind: 'warrior', faction: null, position: 'front', skills: D.PROTAGONIST.skills, skillLv: [1, 1, 1], maxHp: pst.hp, charId: '@player' }, pst)]
+  .concat(Core.S.party.filter(Boolean).map((id, i) => {
   const base = D.charById[id];
   const eff = Core.effectiveStats(id);
-  return Object.assign({ name: base.name, kind: base.kind, faction: base.faction, position: i < 2 ? 'front' : 'back', skills: base.skills, skillLv: Core.S.chars[id].skillLv }, eff);
-});
+  return Object.assign({ name: base.name, kind: base.kind, faction: base.faction, position: i < 2 ? 'front' : 'back', skills: base.skills, skillLv: Core.S.chars[id].skillLv, maxHp: eff.hp }, eff);
+}));
 const enemies = Dungeon.makeEnemies('W01', 'normal', 1, 'combat');
 const res = Battle.run({ allies, enemies, worldId: 'W01', maxRounds: 30 });
 t('Lv30打W01-1胜利', res.win);
@@ -99,7 +103,7 @@ t('第三关未解锁', !Core.stageUnlocked('W01', 'normal', 2));
 t('通关1关后解锁招募', sc.newUnlocks.includes('轮回者招募') && Core.isUnlocked('recruit'));
 
 // 9b. 主线任务
-Core.S.chars['C001'].lv = 5;
+Core.S.chars['C021'].lv = 5;
 const qs = Core.mainQuestState();
 t('主线q01可完成', qs.find(x => x.q.id === 'q01').done);
 t('主线q02可完成', qs.find(x => x.q.id === 'q02').done);
@@ -159,3 +163,17 @@ console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
+// 10b. 主角成长体系
+{
+  const before = Core.effectivePlayerStats();
+  Core.S.player.level = 20;
+  const after = Core.effectivePlayerStats();
+  t('主角随玩家等级成长', after.atk > before.atk && after.hp > before.hp);
+  t('主角血统选择', Core.choosePlayerBloodline('狼人').ok);
+  Core.addCur('bloodCrystal', 10000); Core.addCur('points', 1000000);
+  t('主角血统升级', Core.upgradePlayerBloodline().ok && Core.S.player.bloodlineLv === 1);
+  t('血统不可更改', !Core.choosePlayerBloodline('魔法').ok);
+  const eq6 = Core.grantEquip('W01', 'SR', 'head');
+  t('头部装备仅主角可用', Core.equipItem('@player', eq6.equip.uid) && !Core.equipItem('C021', eq6.equip.uid));
+  Core.S.player.level = 1;
+}

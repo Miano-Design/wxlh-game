@@ -69,18 +69,25 @@ t('世界详情渲染', () => {
   Core.stageComplete('W01', 'normal', 0, 3);
   UI.render();
 });
+t('主线任务卡在首页出现领取', () => {
+  Core.addChar('C021');
+  Core.S.chars['C021'].lv = 6;
+  UI._setTab('home');
+  const html = byId['view'].innerHTML;
+  if (!html.includes('领取奖励') && !html.includes('去完成')) throw new Error('主线卡异常');
+});
 t('招募流程', () => {
   Core.S.unlocks.recruit = true;
   const r = Core.recruitOnce('normal');
   if (r.error) throw new Error(r.error);
 });
-t('主线任务卡在首页出现领取', () => {
-  Core.S.chars['C001'].lv = 6;
-  UI._setTab('home');
+t('队伍页含主角', () => {
+  UI._setTab('party');
   const html = byId['view'].innerHTML;
-  if (!html.includes('领取奖励') && !html.includes('去完成')) throw new Error('主线卡异常');
+  if (!html.includes('主角')) throw new Error('缺少主角位');
 });
 t('锁定功能按钮显示', () => {
+  UI._setTab('home');
   const html = byId['view'].innerHTML;
   if (!html.includes('🔒')) throw new Error('应有锁定按钮');
 });
@@ -90,9 +97,8 @@ t('GM 面板函数存在', () => {
   UI._setTab('dungeon');
 });
 t('战斗播放可启动', () => {
-  const base = D.charById['C001'];
-  const eff = Core.effectiveStats('C001');
-  const ally = Object.assign({ name: '测试', kind: base.kind, faction: base.faction, position: 'front', skills: base.skills, skillLv: [1, 1, 1] }, eff, { maxHp: eff.hp });
+  const eff = Core.effectivePlayerStats();
+  const ally = Object.assign({ name: '测试', kind: 'warrior', faction: null, position: 'front', skills: D.PROTAGONIST.skills, skillLv: [1, 1, 1] }, eff, { maxHp: eff.hp });
   const enemy = window.Dungeon.makeEnemies('W01', 'normal', 1, 'combat');
   const res = window.Battle.run({ allies: [ally], enemies: enemy, worldId: 'W01' });
   if (!res.frames.length) throw new Error('无战斗帧');
