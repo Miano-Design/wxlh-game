@@ -11,3 +11,4 @@ coverage/
 /dist
 /*.zip
 *.bak.*
+GM_DOC.md

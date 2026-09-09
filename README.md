@@ -1,41 +1,38 @@
-# 无限轮回 — 原型（静态 Web）
+# 无限轮回
 
-这是基于需求文档的最小原型，可直接部署到 GitHub Pages 供手机访问。
+以主神空间为基地、以恐怖世界为副本的单机放置 Roguelite 手游（纯静态网页，手机竖屏）。
 
-快速部署步骤：
+**在线试玩**：https://miano-design.github.io/wxlh-game/
 
-1. 在 GitHub 上创建一个新的空仓库（例如：`wxlh-game`）。
-2. 将本项目推送到该仓库（在本地 `wxlh-game` 目录运行）：
+## 玩法
 
-```bash
-# 编辑 deploy.sh，将 ORIGIN_URL 替换为你的仓库地址
-chmod +x deploy.sh
-./deploy.sh
-```
+- 🌀 **轮回副本**：14 个恐怖世界 × 3 难度 × 12 关，随机路线 + 随机事件 + Boss 机制战
+- 👥 **角色收集**：60 名轮回者，六维属性 / 升星 / 技能 / 六大血统 / 基因锁五阶
+- ⚔️ **回合战斗**：速度出手、暴击闪避、10 种异常状态、阵营克制、Boss 70%/30% 阶段
+- 🎒 **装备养成**：6 种品质、随机词条、世界套装、+20 强化、分解回收
+- ⏳ **放置挂机**：在线/离线收益、基地五大建筑加成、防改时间
+- ♾ **无限回廊**：无限爬塔终局玩法 + 回廊商店
+- ♻ **转生系统**：永久天赋树，轮回重生
+- 📜 **主线/日常任务**：主线链引导 + 功能随进度解锁
 
-或手动：
-
-```bash
-git init
-git add .
-git commit -m "Initial prototype"
-git branch -M main
-git remote add origin https://github.com/<YOUR_USERNAME>/<YOUR_REPO>.git
-git push -u origin main
-```
-
-3. 自动部署（推荐）：已提供 GitHub Actions 工作流 `.github/workflows/gh-pages.yml`，它会在 `main` 分支有 push 时，将 `wxlh-game` 目录内容发布到 GitHub Pages（使用 `gh-pages` 分支）。
-
-4. 启用 GitHub Pages：
-- 进入仓库设置 → Pages，选择 `gh-pages` 分支（或选择自动生成的选项）。页面地址会显示在界面上。
-
-本地预览：
+## 本地运行
 
 ```bash
 python3 -m http.server 8000
-# 在手机浏览器打开 http://<你的电脑局域网IP>:8000 或本机 http://localhost:8000
+# 打开 http://localhost:8000
 ```
 
-下一步建议：
-- 将 `V5.0《完整内容数据库》` 中的数值迁入 `js/config.js`，并实现事件/血统/装备模块。
-- 我可以代你完成第一轮核心玩法实现并提交到仓库。
+## 测试
+
+```bash
+node scripts/test_game.js   # 逻辑测试
+node scripts/test_ui.js     # 界面冒烟测试
+```
+
+## 存档
+
+存档保存在浏览器 localStorage（saveVersion 5.0），支持 3 个手动存档槽 + JSON 导出/导入。
+
+## 部署
+
+GitHub Pages 直接从 `main` 分支发布，推送即更新。
