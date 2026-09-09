@@ -85,7 +85,8 @@ window.UI = (function () {
     document.getElementById('tb-lv').textContent = 'Lv.' + S.player.level;
     document.getElementById('tb-gene').textContent = S.player.geneLock > 0 ? `基因锁·${D.GENE_LOCKS[S.player.geneLock - 1].name}` : '';
     const bar = document.getElementById('curbar');
-    bar.innerHTML = D.CURRENCIES.map(c => `<div class="cur-chip"><span style="color:${c.color}">${c.icon}</span><b>${fmt(S.cur[c.id])}</b></div>`).join('');
+    const main = D.CURRENCIES.filter(c => ['points', 'holy', 'otherworld'].includes(c.id));
+    bar.innerHTML = main.map(c => `<div class="cur-chip"><span style="color:${c.color}">${c.icon}</span><b>${fmt(S.cur[c.id])}</b></div>`).join('');
   }
   function renderNavbar() {
     const nav = document.getElementById('navbar');
@@ -452,6 +453,15 @@ window.UI = (function () {
         <div class="cell"><div class="v">${Math.round(st.crit * 100)}%</div><div class="k">暴击</div></div>
         <div class="cell"><div class="v">${Math.round(st.eva * 100)}%</div><div class="k">闪避</div></div>
       </div>
+      <div class="section-title">六维属性 <span style="color:var(--gold)">可用点数 ${S.player.attrPoints || 0}</span></div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:8px">每升 1 级获得 ${D.ATTR_POINTS_PER_LV} 点，每点 +${D.ATTR_POINT_VALUE} 维值</div>
+      ${D.ATTR_META.map(a => `
+        <div class="list-row">
+          <div class="grow"><div class="t1">${a.name} <span style="color:var(--dim);font-size:11px">${a.desc}</span></div>
+          <div class="t2">已分配 ${(S.player.attrs && S.player.attrs[a.id]) || 0} 点 → +${((S.player.attrs && S.player.attrs[a.id]) || 0) * D.ATTR_POINT_VALUE}</div></div>
+          <button class="btn small" data-attr="${a.id}" data-n="1" ${(S.player.attrPoints || 0) > 0 ? '' : 'disabled'}>+1</button>
+          <button class="btn small ghost" data-attr="${a.id}" data-n="10" ${(S.player.attrPoints || 0) >= 1 ? '' : 'disabled'}>+10</button>
+        </div>`).join('')}
       <div class="section-title">技能（基因锁强化）</div>
       ${[P.skills.s1, P.skills.s2, P.skills.ult].map((sk, i) => `
         <div class="skill-row"><div class="sname">${['技能', '技能', '必杀'][i]}·${sk.name} <span class="tag">Lv.${Math.min(10, 1 + gl * 2)}</span></div>
@@ -461,6 +471,8 @@ window.UI = (function () {
       ${S.player.bloodline ? `
         <div style="font-size:12px;margin-bottom:6px">${S.player.bloodline} Lv.${S.player.bloodlineLv}/${D.BLOODLINE_MAX} <span style="color:var(--dim);font-size:11px">${D.BLOODLINES[S.player.bloodline].desc}</span></div>
         ${blCost ? `<button class="btn small" data-pblup="1">血统升级（❥${blCost.bloodCrystal} + ◈${fmt(blCost.points)}）</button>` : '<div style="color:var(--gold);font-size:12px">已满级</div>'}
+      ` : S.player.level < D.BLOODLINE_UNLOCK_LV ? `
+        <div style="font-size:12px;color:var(--dim)">🔒 主角 Lv.${D.BLOODLINE_UNLOCK_LV} 觉醒血统（当前 Lv.${S.player.level}）</div>
       ` : `
         <div style="font-size:11px;color:var(--dim);margin-bottom:8px">选择一种血统觉醒（不可更改）</div>
         <div class="grid2">${Object.entries(D.BLOODLINES).map(([id, bl]) => `<button class="btn small" data-pbl="${id}">${id}<br><span style="font-size:10px;font-weight:400;color:var(--dim)">${bl.desc.split('。')[0]}</span></button>`).join('')}</div>
@@ -475,18 +487,49 @@ window.UI = (function () {
           ${e ? `<button class="btn small ghost" data-punequip="${slot}">卸下</button>` : ''}
         </div>`;
       }).join('')}
-      <div class="btn-row" style="margin-top:12px"><button class="btn small ghost" data-rename="1">✏️ 修改名字</button></div>
+      <div class="section-title">轮回者档案</div>
+      ${C().protagonistList().map((p, i) => `
+        <div class="list-row" style="${p.current ? 'border-color:var(--gold)' : ''}">
+          <div class="grow"><div class="t1">${esc(p.name)} ${p.current ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)">当前</span>' : ''}</div>
+          <div class="t2">Lv.${p.level} · ${p.bloodline ? p.bloodline + '血统 Lv.' + p.bloodlineLv : '未觉醒血统'}</div></div>
+          ${p.current ? '' : `<button class="btn small" data-switchprotag="${p.altIndex}">切换</button>`}
+        </div>`).join('')}
+      <div style="font-size:11px;color:var(--dim);margin:6px 0 8px">新建角色从 Lv.1 开始，可体验不同血统；世界进度、货币、队伍不受影响</div>
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn small" data-newprotag="1">➕ 新建角色</button>
+        <button class="btn small ghost" data-rename="1">✏️ 修改名字</button>
+      </div>
     `);
+    w.querySelectorAll('[data-attr]').forEach(b => b.onclick = () => {
+      const r = C().allocateAttr(b.dataset.attr, +b.dataset.n);
+      toast(r.msg);
+      closeModal(w); if (r.ok) protagonistDetail();
+    });
+    w.querySelectorAll('[data-switchprotag]').forEach(b => b.onclick = () => {
+      const r = C().switchProtagonist(+b.dataset.switchprotag);
+      toast(r.msg, 2200);
+      closeModal(w); if (r.ok) { protagonistDetail(); refresh(); render(); }
+    });
+    w.querySelector('[data-newprotag]').onclick = () => {
+      closeModal(w);
+      const nw = modal('新建角色', `
+        <div style="font-size:12px;color:var(--dim);margin-bottom:10px">当前角色会被保留，可随时切回。新角色从 Lv.1 开始，用于体验不同的血统路线。</div>
+        <input id="np-input" maxlength="12" placeholder="输入新角色名字（12字内）" style="width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:15px;outline:none;margin-bottom:12px" />
+        <button class="btn primary block" data-ok>创建并开始轮回</button>`, { center: true });
+      nw.querySelector('[data-ok]').onclick = () => {
+        const r = C().createProtagonist(nw.querySelector('#np-input').value);
+        toast(r.msg, 2400);
+        if (r.ok) { closeModal(nw); refresh(); render(); }
+      };
+    };
     const blBtn = w.querySelector('[data-pblup]');
     if (blBtn) blBtn.onclick = () => {
-      if (!C().isUnlocked('bloodline')) { toast('🔒 ' + C().unlockTip('bloodline')); return; }
       const r = C().upgradePlayerBloodline();
       toast(r.msg);
       closeModal(w); if (r.ok) protagonistDetail();
       renderTopbar();
     };
     w.querySelectorAll('[data-pbl]').forEach(b => b.onclick = () => {
-      if (!C().isUnlocked('bloodline')) { toast('🔒 ' + C().unlockTip('bloodline')); return; }
       const r = C().choosePlayerBloodline(b.dataset.pbl);
       toast(r.msg, 2200);
       closeModal(w); if (r.ok) protagonistDetail();
@@ -1037,15 +1080,37 @@ window.UI = (function () {
   function bagModal() {
     const S = C().S;
     const entries = Object.entries(S.items).filter(([, n]) => n > 0);
-    const w = modal('道具背包', entries.map(([k, n]) => {
-      const it = D.ITEMS[k];
-      if (!it) return '';
-      const usable = it.type === 'box';
-      return `<div class="list-row">
-        <div class="grow"><div class="t1">${it.name}</div><div class="t2">${it.desc || (it.type === 'exp' ? `+${fmt(it.exp)} EXP（角色详情页使用）` : it.type === 'material' ? '强化材料' : '战斗道具')} · 拥有 ${n}</div></div>
-        ${usable ? `<button class="btn small" data-openbox="${k}">开启</button>` : ''}
-      </div>`;
-    }).join('') || '<div class="empty">背包是空的</div>');
+    const usage = C().bagUsage();
+    const expandCost = D.bagExpandCost(S.bag.expands);
+    const typeIcon = { consumable: '🧪', exp: '📘', material: '⚙️', box: '🎁', buff: '💉' };
+    const w = modal('背包', `
+      <div class="kv" style="margin-bottom:4px"><span class="k">容量</span><span>${usage.used} / ${usage.cap}</span></div>
+      <div class="bar exp" style="margin-bottom:10px"><i style="width:${Math.min(100, usage.used / usage.cap * 100)}%;${usage.used / usage.cap > 0.9 ? 'background:var(--accent)' : ''}"></i></div>
+      <button class="btn small block" data-expand="1" style="margin-bottom:12px">🎒 扩容 +${D.BAG_EXPAND_SIZE} 格（◈${fmt(expandCost)}）</button>
+      <div class="section-title">货币</div>
+      <div class="bag-grid">
+        ${D.CURRENCIES.map(c => `<div class="bag-card"><div class="bico" style="color:${c.color}">${c.icon}</div><div class="bname">${c.name}</div><div class="bcount">${fmt(S.cur[c.id])}</div></div>`).join('')}
+      </div>
+      <div class="section-title">道具（${usage.itemStacks} 种 · 装备 ${usage.eqCount} 件在装备页）</div>
+      <div class="bag-grid">
+        ${entries.map(([k, n]) => {
+          const it = D.ITEMS[k];
+          if (!it) return '';
+          return `<div class="bag-card" ${it.type === 'box' ? `data-openbox="${k}" style="cursor:pointer;border-color:var(--gold)"` : ''} title="${esc(it.desc || '')}">
+            <div class="bico">${typeIcon[it.type] || '📦'}</div>
+            <div class="bname">${it.name}</div>
+            <div class="bcount">×${n}${it.type === 'box' ? ' · 点击开启' : ''}</div>
+          </div>`;
+        }).join('') || '<div class="empty" style="grid-column:1/-1">背包是空的</div>'}
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-top:10px">每种道具占 1 格，每件未装备的装备占 1 格。背包满时新装备将自动分解。</div>
+    `);
+    w.querySelector('[data-expand]').onclick = () => {
+      const r = C().buyBagCap();
+      toast(r.msg);
+      closeModal(w); if (r.ok) bagModal();
+      renderTopbar();
+    };
     w.querySelectorAll('[data-openbox]').forEach(b => b.onclick = () => {
       const r = C().openBox(b.dataset.openbox);
       if (r.ok && r.equip) toast(`获得 ${r.equip.rarity} ${r.equip.name}！`, 2500);
@@ -1128,7 +1193,7 @@ window.UI = (function () {
     w.querySelector('[data-reset]').onclick = () => {
       closeModal(w);
       confirmBox('删除进度', '将永久删除当前游戏进度（不影响手动存档槽），确定重新开始？', () => {
-        localStorage.removeItem('wxlh_save_v5');
+        C().wipeSave();
         location.reload();
       });
     };

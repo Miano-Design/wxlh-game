@@ -32,6 +32,24 @@ window.DATA = (function () {
     LEVEL_POINTS[lv] = Math.round(50 * Math.pow(1.075, lv - 1));
   }
 
+  /* ================= 主角六维（V5 §2.1） ================= */
+  const ATTR_META = [
+    { id: 'muscle',       name: '肌肉', desc: '物理攻击、生命' },
+    { id: 'immune',       name: '免疫', desc: '防御、异常抗性' },
+    { id: 'cell',         name: '细胞', desc: '生命、回复' },
+    { id: 'nerve',        name: '神经', desc: '速度、闪避、暴击' },
+    { id: 'intelligence', name: '智力', desc: '技能伤害、暴击率' },
+    { id: 'spirit',       name: '精神', desc: '技能效果、治疗' },
+  ];
+  const ATTR_POINTS_PER_LV = 3;   // 每升 1 级获得的属性点
+  const ATTR_POINT_VALUE = 2;     // 每点属性点增加的六维值
+  const BLOODLINE_UNLOCK_LV = 20; // 主角觉醒血统所需等级
+
+  /* ================= 背包容量 ================= */
+  const BAG_BASE_CAP = 100;
+  const BAG_EXPAND_SIZE = 50;
+  function bagExpandCost(expands) { return Math.round(20000 * Math.pow(1.6, expands)); }
+
   const CURRENCIES = [
     { id: 'points',     name: '点数',     icon: '◈', color: '#ffd76a' },
     { id: 'story',      name: '故事点',   icon: '❖', color: '#7ee0a3' },
@@ -652,6 +670,8 @@ window.DATA = (function () {
   return {
     ATTR_NAMES, RARITIES, RARITY_COLOR, STAR_MULT, RARITY_MAXSTAR, STAR_COST, DUP_SHARDS,
     FACTIONS, FACTION_COUNTER, EXP_TABLE, LEVEL_POINTS, CURRENCIES,
+    ATTR_META, ATTR_POINTS_PER_LV, ATTR_POINT_VALUE, BLOODLINE_UNLOCK_LV,
+    BAG_BASE_CAP, BAG_EXPAND_SIZE, bagExpandCost,
     ROLE_KIND, ATK_ATTR, characters, charById,
     WORLDS, DIFFICULTY, FIRST_CLEAR,
     EQUIP_SLOTS, EQUIP_RARITY_MULT, DECOMPOSE_GAIN, ENHANCE_RATE, SETS, AFFIX_POOL, makeEquip,

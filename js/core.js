@@ -8,11 +8,17 @@ window.Core = (function () {
   let uidCounter = 1;
 
   /* ================= 存档 ================= */
+  const ATTR_ZERO = () => ({ muscle: 0, immune: 0, cell: 0, nerve: 0, intelligence: 0, spirit: 0 });
+  function freshProtagonist(name) {
+    return { name: name || '', level: 1, exp: 0, bloodline: null, bloodlineLv: 0, attrPoints: 0, attrs: ATTR_ZERO() };
+  }
   function defaultState() {
     return {
       v: 5,
       createdAt: Date.now(),
-      player: { name: '轮回者', level: 1, exp: 0, geneLock: 0, reincarnations: 0, talents: { body: 0, energy: 0, nerve: 0, grace: 0 }, bloodline: null, bloodlineLv: 0 },
+      player: Object.assign(freshProtagonist('轮回者'), { geneLock: 0, reincarnations: 0, talents: { body: 0, energy: 0, nerve: 0, grace: 0 } }),
+      altPlayers: [],         // 新建的主角（体验不同血统），与当前主角可切换
+      bag: { cap: 100, expands: 0 },
       cur: { points: 0, story: 0, otherworld: 0, holy: 0, skillChip: 0, bloodCrystal: 0, corridor: 0, rp: 0 },
       chars: {},            // id → {lv, exp, star, shards, skillLv:[1,1,1], bloodlineLv}
       party: [null, null, null, null],   // 4 个招募位：0,1 前排；2,3 后排（主角必上阵，不占位）
@@ -38,9 +44,16 @@ window.Core = (function () {
     };
   }
 
+  let suppressSave = false;
   function save() {
+    if (suppressSave) return;
     S.idle.lastTs = Date.now();
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {}
+  }
+  // 彻底删除进度（阻止 beforeunload 等钩子重新写入）
+  function wipeSave() {
+    suppressSave = true;
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
   }
   function load() {
     try {
@@ -68,6 +81,11 @@ window.Core = (function () {
     if (!S.equipped['@player']) S.equipped['@player'] = { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null };
     S.player.bloodline = S.player.bloodline || null;
     S.player.bloodlineLv = S.player.bloodlineLv || 0;
+    S.player.attrs = Object.assign(ATTR_ZERO(), S.player.attrs || {});
+    S.player.attrPoints = S.player.attrPoints || 0;
+    S.altPlayers = Array.isArray(S.altPlayers) ? S.altPlayers : [];
+    S.altPlayers.forEach(p => { p.attrs = Object.assign(ATTR_ZERO(), p.attrs || {}); p.attrPoints = p.attrPoints || 0; });
+    if (!S.bag || !S.bag.cap) S.bag = { cap: D.BAG_BASE_CAP, expands: 0 };
   }
   function newGame() {
     S = defaultState();
@@ -139,8 +157,18 @@ window.Core = (function () {
   }
 
   /* ================= 道具 ================= */
+  // 背包占用 = 道具种类数 + 未装备装备件数
+  function bagUsage() {
+    const equippedUids = new Set();
+    Object.values(S.equipped || {}).forEach(slots => Object.values(slots || {}).forEach(uid => { if (uid) equippedUids.add(uid); }));
+    const eqCount = Object.keys(S.equips).filter(uid => !equippedUids.has(uid)).length;
+    const itemStacks = Object.values(S.items).filter(n => n > 0).length;
+    return { used: eqCount + itemStacks, eqCount, itemStacks, cap: S.bag.cap };
+  }
   function addItem(id, n = 1) {
+    if (!(S.items[id] > 0) && bagUsage().used >= S.bag.cap) return false; // 新堆叠需占格
     S.items[id] = (S.items[id] || 0) + n;
+    return true;
   }
   function removeItem(id, n = 1) {
     if ((S.items[id] || 0) < n) return false;
@@ -358,6 +386,9 @@ window.Core = (function () {
     const lvMult = 1 + (S.player.level - 1) * 0.035;
     const a = {};
     Object.keys(P.baseAttrs).forEach(k => { a[k] = P.baseAttrs[k] * lvMult; });
+    // 六维属性点加成（每点 +ATTR_POINT_VALUE）
+    const pa = S.player.attrs || {};
+    Object.keys(a).forEach(k => { a[k] += (pa[k] || 0) * D.ATTR_POINT_VALUE; });
     const pct = { atkPct: 0, hpPct: 0, defPct: 0, spdPct: 0, critPct: 0, critDmg: 0, skillPct: 0, evaPct: 0.05, resPct: 0, lifesteal: 0 };
     // 基因锁（全队加成 + 主角每阶额外3%）
     if (S.player.geneLock >= 1) { pct.atkPct += 0.05; pct.hpPct += 0.05; pct.defPct += 0.05; pct.spdPct += 0.05; }
@@ -422,6 +453,7 @@ window.Core = (function () {
   function choosePlayerBloodline(id) {
     if (!D.BLOODLINES[id]) return { ok: false, msg: '血统不存在' };
     if (S.player.bloodline) return { ok: false, msg: '血统一旦选择不可更改' };
+    if (S.player.level < D.BLOODLINE_UNLOCK_LV) return { ok: false, msg: `主角 Lv.${D.BLOODLINE_UNLOCK_LV} 才能觉醒血统（当前 Lv.${S.player.level}）` };
     S.player.bloodline = id;
     save();
     return { ok: true, msg: `已觉醒${id}血统` };
@@ -467,7 +499,23 @@ window.Core = (function () {
       addCur('otherworld', gain);
       return { sold: true, gain };
     }
+    // 背包已满 → 自动分解为异界结晶
+    if (bagUsage().used > S.bag.cap) {
+      const gain = D.DECOMPOSE_GAIN[rarity];
+      delete S.equips[uid];
+      addCur('otherworld', gain);
+      return { sold: true, gain, bagFull: true };
+    }
     return { equip: eq };
+  }
+
+  function buyBagCap() {
+    const cost = D.bagExpandCost(S.bag.expands);
+    if (!spend({ points: cost })) return { ok: false, msg: `点数不足（需 ◈${cost}）` };
+    S.bag.expands++;
+    S.bag.cap += D.BAG_EXPAND_SIZE;
+    save();
+    return { ok: true, msg: `背包扩容至 ${S.bag.cap} 格` };
   }
   function equipItem(charId, uid) {
     const eq = S.equips[uid];
@@ -681,7 +729,56 @@ window.Core = (function () {
     while (S.player.level < 100 && S.player.exp >= D.EXP_TABLE[S.player.level]) {
       S.player.exp -= D.EXP_TABLE[S.player.level];
       S.player.level++;
+      S.player.attrPoints = (S.player.attrPoints || 0) + D.ATTR_POINTS_PER_LV;
     }
+  }
+
+  // 六维属性点分配（每点 +ATTR_POINT_VALUE 维值）
+  function allocateAttr(attrId, n = 1) {
+    if (!D.ATTR_META.some(a => a.id === attrId)) return { ok: false, msg: '属性不存在' };
+    n = Math.min(n, S.player.attrPoints || 0);
+    if (n <= 0) return { ok: false, msg: '没有可用属性点' };
+    S.player.attrPoints -= n;
+    S.player.attrs[attrId] = (S.player.attrs[attrId] || 0) + n;
+    save();
+    return { ok: true, msg: `${D.ATTR_META.find(a => a.id === attrId).name} +${n * D.ATTR_POINT_VALUE}` };
+  }
+
+  /* ================= 多主角（新建角色体验不同血统） ================= */
+  const PROTAGONIST_KEYS = ['name', 'level', 'exp', 'bloodline', 'bloodlineLv', 'attrPoints', 'attrs'];
+  function snapshotProtagonist() {
+    const p = {};
+    PROTAGONIST_KEYS.forEach(k => { p[k] = S.player[k]; });
+    p.attrs = Object.assign(ATTR_ZERO(), p.attrs);
+    return p;
+  }
+  function restoreProtagonist(p) {
+    PROTAGONIST_KEYS.forEach(k => { S.player[k] = p[k]; });
+    S.player.attrs = Object.assign(ATTR_ZERO(), p.attrs);
+  }
+  function protagonistList() {
+    return [
+      Object.assign(snapshotProtagonist(), { current: true }),
+      ...S.altPlayers.map((p, i) => Object.assign({}, p, { altIndex: i })),
+    ];
+  }
+  function createProtagonist(name) {
+    name = (name || '').trim();
+    if (!name) return { ok: false, msg: '名字不能为空' };
+    if (S.altPlayers.length >= 6) return { ok: false, msg: '最多创建 6 个额外角色' };
+    S.altPlayers.push(snapshotProtagonist());
+    restoreProtagonist(freshProtagonist(name));
+    save();
+    return { ok: true, msg: `新角色「${name}」已创建，从 Lv.1 开始轮回` };
+  }
+  function switchProtagonist(altIndex) {
+    const alt = S.altPlayers[altIndex];
+    if (!alt) return { ok: false, msg: '角色不存在' };
+    const cur = snapshotProtagonist();
+    S.altPlayers[altIndex] = cur;
+    restoreProtagonist(alt);
+    save();
+    return { ok: true, msg: `已切换为「${S.player.name}」` };
   }
 
   /* ================= 建筑 ================= */
@@ -905,12 +1002,14 @@ window.Core = (function () {
 
   return {
     get S() { return S; },
-    save, load, newGame, exportSave, importSave, saveSlot, loadSlot, slotInfo,
+    save, load, newGame, wipeSave, exportSave, importSave, saveSlot, loadSlot, slotInfo,
     addCur, canAfford, spend, addItem, removeItem,
+    bagUsage, buyBagCap,
     addChar, addShards, levelCost, levelUp, useExpItem, starUp, skillUp, SKILL_CHIP_COST,
     bloodlineUpgrade, geneLockInfo, geneLockUnlock,
     equipStats, effectiveStats, power, teamPower, factionBuffs,
     effectivePlayerStats, playerPower, choosePlayerBloodline, upgradePlayerBloodline,
+    allocateAttr, protagonistList, createProtagonist, switchProtagonist,
     grantEquip, equipItem, unequipItem, enhanceCost, enhance, decompose, inventoryEquips,
     recruitOnce, recruitTen, freeRecruit, freeRecruitAvailable, ssrTicketUse,
     idleRates, settleOffline, onlineTick, idleBankGains, claimIdle, addPlayerExp, offlineCapHours, offlineEfficiency,

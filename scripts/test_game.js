@@ -161,8 +161,6 @@ const w3boss = Dungeon.makeEnemies('W03', 'normal', 12, 'boss');
 const w3res = Battle.run({ allies: allies2, enemies: w3boss, worldId: 'W03', maxRounds: 50 });
 console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}`);
 
-console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
 // 10b. 主角成长体系
 {
   const before = Core.effectivePlayerStats();
@@ -177,3 +175,63 @@ process.exit(fail ? 1 : 0);
   t('头部装备仅主角可用', Core.equipItem('@player', eq6.equip.uid) && !Core.equipItem('C021', eq6.equip.uid));
   Core.S.player.level = 1;
 }
+
+// 18. 六维属性点
+{
+  Core.S.player.attrPoints = 0;
+  Core.addPlayerExp(0);
+  const lv0 = Core.S.player.level;
+  Core.S.player.exp = 0;
+  Core.addPlayerExp(D.EXP_TABLE[lv0] + 1);
+  t('升级获得属性点', Core.S.player.attrPoints === D.ATTR_POINTS_PER_LV);
+  const atk0 = Core.effectivePlayerStats().atk;
+  const r = Core.allocateAttr('muscle', 3);
+  t('分配属性点', r.ok && Core.S.player.attrPoints === 0);
+  t('肌肉加点提升攻击', Core.effectivePlayerStats().atk > atk0);
+  t('点数不足不能分配', !Core.allocateAttr('nerve', 1).ok);
+}
+
+// 19. 血统等级门槛
+{
+  Core.S.player.level = 1; Core.S.player.bloodline = null; Core.S.player.bloodlineLv = 0;
+  t('Lv.1 不能觉醒血统', !Core.choosePlayerBloodline('狼人').ok);
+  Core.S.player.level = D.BLOODLINE_UNLOCK_LV;
+  t('Lv.20 可觉醒血统', Core.choosePlayerBloodline('狼人').ok);
+}
+
+// 20. 新建角色（多主角）
+{
+  const oldName = Core.S.player.name;
+  const r = Core.createProtagonist('第二世');
+  t('新建角色', r.ok && Core.S.player.name === '第二世' && Core.S.player.level === 1 && !Core.S.player.bloodline);
+  t('旧角色保留', Core.protagonistList().length === 2 && Core.protagonistList()[1].name === oldName);
+  Core.S.player.level = 5;
+  t('切换角色', Core.switchProtagonist(0).ok && Core.S.player.name === oldName);
+  t('切回后等级还原', Core.switchProtagonist(0).ok && Core.S.player.name === '第二世' && Core.S.player.level === 5);
+  Core.switchProtagonist(0); // 切回原主角
+}
+
+// 21. 背包容量
+{
+  const u0 = Core.bagUsage();
+  t('背包容量初始100', u0.cap === 100);
+  Core.S.bag.cap = u0.used; // 强制塞满
+  Core.S.settings.autoSellN = false; Core.S.settings.autoSellR = false;
+  t('背包满时新道具失败', Core.addItem('heal_l') === false);
+  t('已满的堆叠仍可叠加', Core.addItem('heal_s') === true);
+  const eqFull = Core.grantEquip('W01', 'N');
+  t('背包满时装备自动分解', eqFull.sold === true && eqFull.bagFull === true);
+  Core.S.bag.cap = 100;
+  Core.addCur('points', 100000);
+  const cap0 = Core.bagUsage().cap;
+  t('购买扩容', Core.buyBagCap().ok && Core.bagUsage().cap === cap0 + D.BAG_EXPAND_SIZE);
+}
+
+// 22. 删除进度不再被 beforeunload 回写
+{
+  Core.wipeSave();
+  t('wipeSave 后 save 被抑制', (Core.save(), !store['wxlh_save_v5']));
+}
+
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);
