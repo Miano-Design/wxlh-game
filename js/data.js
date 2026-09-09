@@ -47,6 +47,7 @@ window.DATA = (function () {
 
   /* ================= 背包容量 ================= */
   const BAG_BASE_CAP = 100;
+  const SWEEP_DAILY_CAP = 30;   // 每日扫荡上限
   const BAG_EXPAND_SIZE = 50;
   function bagExpandCost(expands) { return Math.round(20000 * Math.pow(1.6, expands)); }
 
@@ -756,7 +757,7 @@ window.DATA = (function () {
     ATTR_NAMES, RARITIES, RARITY_COLOR, STAR_MULT, RARITY_MAXSTAR, STAR_COST, DUP_SHARDS,
     FACTIONS, FACTION_COUNTER, EXP_TABLE, LEVEL_POINTS, CURRENCIES,
     ATTR_META, ATTR_POINTS_PER_LV, ATTR_POINT_VALUE, BLOODLINE_UNLOCK_LV,
-    BAG_BASE_CAP, BAG_EXPAND_SIZE, bagExpandCost,
+    BAG_BASE_CAP, BAG_EXPAND_SIZE, bagExpandCost, SWEEP_DAILY_CAP,
     BLOODLINE_SKILLS, KIND_NAMES, CLASS_SETS, SIGNATURE_EQUIPS, makeSignatureEquip,
     ROLE_KIND, ATK_ATTR, characters, charById,
     WORLDS, DIFFICULTY, FIRST_CLEAR,

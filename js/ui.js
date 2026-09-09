@@ -138,6 +138,9 @@ window.UI = (function () {
   function render() {
     const fn = { home: homeScreen, dungeon: dungeonScreen, party: partyScreen, chars: charsScreen, equip: equipScreen }[curTab];
     $view().innerHTML = `<div class="screen">${fn()}</div>`;
+    // 副本探索中隐藏底部导航，防止误触丢失进度
+    const inRun = curTab === 'dungeon' && dungeonView.page === 'run';
+    document.getElementById('navbar').style.display = inRun ? 'none' : '';
     bindScreen();
     refresh();
   }
@@ -157,14 +160,6 @@ window.UI = (function () {
       <div class="kv"><span class="k">基因锁</span><span>${gl ? `${S.player.geneLock}阶·${gl.name}` : '未解锁'}</span></div>
       <div class="kv"><span class="k">转生次数</span><span>${S.player.reincarnations}</span></div>
     </div>
-    <div class="card">
-      <h3>⏳ 轮回挂机 <span class="sub">${r.pointsPerMin.toFixed(1)} 点/分 · ${r.expPerMin.toFixed(1)} EXP/分</span></h3>
-      <div class="kv"><span class="k">已累积</span><span id="idle-time">${formatDuration(bank.seconds)}</span></div>
-      <div class="kv"><span class="k">待领取</span><span id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}</span></div>
-      <div class="kv"><span class="k">离线规则</span><span>效率 ${Math.round(C().offlineEfficiency() * 100)}% · 上限 ${C().offlineCapHours().toFixed(1)}小时</span></div>
-      <button class="btn primary block" style="margin-top:10px" id="idle-claim-btn" data-act="claim-idle" ${bank.seconds < 60 ? 'disabled' : ''}>一键领取挂机收益</button>
-    </div>
-    ${questCard()}
     <div class="grid2">
       ${featureBtn('open-recruit', '✦ 轮回者招募', 'recruit')}
       ${featureBtn('open-shop', '🏪 兑换大厅', 'shop')}
@@ -174,6 +169,14 @@ window.UI = (function () {
       ${featureBtn('open-reincarn', '♾ 转生', 'reincarn')}
       <button class="btn" data-act="open-bag">🧰 道具背包</button>
       <button class="btn" data-act="open-settings">⚙️ 设置存档</button>
+    </div>
+    ${questCard()}
+    <div class="card">
+      <h3>⏳ 轮回挂机 <span class="sub">${r.pointsPerMin.toFixed(1)} 点/分 · ${r.expPerMin.toFixed(1)} EXP/分</span></h3>
+      <div class="kv"><span class="k">已累积</span><span id="idle-time">${formatDuration(bank.seconds)}</span></div>
+      <div class="kv"><span class="k">待领取</span><span id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}</span></div>
+      <div class="kv"><span class="k">离线规则</span><span>效率 ${Math.round(C().offlineEfficiency() * 100)}% · 上限 ${C().offlineCapHours().toFixed(1)}小时</span></div>
+      <button class="btn primary block" style="margin-top:10px" id="idle-claim-btn" data-act="claim-idle" ${bank.seconds < 60 ? 'disabled' : ''}>一键领取挂机收益</button>
     </div>`;
   }
   function featureBtn(act, label, unlockId) {
@@ -271,7 +274,7 @@ window.UI = (function () {
         ${D.DIFFICULTY.map(d => `<button class="btn small ${diff === d.id ? 'active' : ''}" data-diff="${d.id}" ${d.id !== 'normal' && !C().worldCleared(w.id, d.id === 'hard' ? 'normal' : 'hard') ? 'disabled' : ''}>${d.name}${d.id !== 'normal' ? ` ×${d.mult}` : ''}</button>`).join('')}
       </div>
       <div class="stage-grid">${cells}</div>
-      ${canSweep ? `<button class="btn block" style="margin-top:12px" data-act="sweep">⏩ 扫荡最新关 ×10</button>` : ''}
+      ${canSweep ? `<button class="btn block" style="margin-top:12px" data-act="sweep" ${C().sweepLeft() <= 0 ? 'disabled' : ''}>⏩ 扫荡最新关 ×10（今日剩余 ${C().sweepLeft()}/${D.SWEEP_DAILY_CAP} 次）</button>` : ''}
     `;
   }
 
@@ -339,7 +342,6 @@ window.UI = (function () {
         </div></div>`;
     }
     return `
-      <button class="btn ghost small" data-act="abandon-run" style="margin-bottom:8px">‹ 放弃本次探索</button>
       <div class="card">
         <h3>${WORLD_ICONS[w.theme]} ${w.name} · ${{ normal: '普通', hard: '困难', hell: '地狱' }[run.diff]} ${run.stage}/12</h3>
         <div class="route-progress">${prog}</div>
@@ -348,7 +350,9 @@ window.UI = (function () {
         ${Object.keys(run.buffs).length ? `<div style="margin-top:8px;font-size:11px;color:var(--green)">探索增益：${Object.entries(run.buffs).map(([k, v]) => `攻击+${Math.round(v * 100)}%`).join(' ')}</div>` : ''}
       </div>
       ${mapHtml}
-      ${body}`;
+      ${body}
+      <div style="height:84px"></div>
+      <div class="run-bar"><button class="btn block" data-act="abandon-run">🚪 撤离副本（已获奖励保留）</button></div>`;
   }
 
   /* ---------- 战前侦查 ---------- */
@@ -953,7 +957,7 @@ window.UI = (function () {
           <button class="btn small" data-pull1="${pid}">抽 1 次（${p.cost.holy ? '✦' + p.cost.holy : '◈' + fmt(p.cost.points)}）</button>
           <button class="btn small gold" data-pull10="${pid}">十连（${pid === 'normal' ? '◈4.5万' : '✦900'}·保SR）</button>
         </div>
-        ${pid !== 'normal' ? `<div style="font-size:10px;color:var(--dim);margin-top:6px">保底计数 ${pid === 'limited' ? S.recruit.pityLim : S.recruit.pityAdv}/100（50抽内必SSR）</div>` : ''}
+        ${pid !== 'normal' ? `<div style="font-size:10px;color:var(--dim);margin-top:6px">SSR保底 ${pid === 'limited' ? S.recruit.pityLimS : S.recruit.pityAdvS}/50 · UR保底 ${pid === 'limited' ? S.recruit.pityLim : S.recruit.pityAdv}/100（同池继承）</div>` : ''}
       </div>`).join('')}
       ${S.ssrTicket > 0 ? `<button class="btn gold block" data-ssrpick="1">🎫 使用SSR自选券（剩 ${S.ssrTicket}）</button>` : ''}
     `);
@@ -1742,7 +1746,15 @@ window.UI = (function () {
         case 'open-corridor-shop': shopModal('corridor'); break;
         case 'fight-corridor': fightCorridor(); break;
         case 'back-worlds': dungeonView = { page: 'worlds' }; run = null; render(); break;
-        case 'abandon-run': run = null; dungeonView = { page: 'world', worldId: dungeonView.worldId, diff: dungeonView.diff }; render(); break;
+        case 'abandon-run':
+          confirmBox('撤离副本', '确定撤离？本次探索进度将丢失，已获得的奖励会保留。', () => {
+            const wid = run ? run.worldId : dungeonView.worldId;
+            const df = run ? run.diff : (dungeonView.diff || 'normal');
+            run = null;
+            dungeonView = { page: 'world', worldId: wid, diff: df };
+            render();
+          });
+          break;
         case 'sweep': {
           const st = S.worlds[dungeonView.worldId].stages[dungeonView.diff];
           let last = 0;
@@ -1756,7 +1768,7 @@ window.UI = (function () {
           }));
           const chips = Object.entries(agg).filter(([k]) => k !== '_equips').map(([k, v]) => k === 'exp' ? `EXP+${fmt(v)}` : `${curIcon(k)}+${fmt(v)}`);
           if (agg._equips) chips.push(`🗡装备×${agg._equips}`);
-          modal('扫荡结果（×10）', `<div class="reward-chips" style="margin:10px 0">${chips.map(c => `<span class="reward-chip">${c}</span>`).join('')}</div>`, { center: true });
+          modal(`扫荡结果（×${r.count}）`, `${r.capped ? '<div style="font-size:11px;color:var(--gold);margin-bottom:6px">已达今日扫荡上限</div>' : ''}<div class="reward-chips" style="margin:10px 0">${chips.map(c => `<span class="reward-chip">${c}</span>`).join('')}</div>`, { center: true });
           refresh();
           break;
         }

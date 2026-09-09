@@ -51,6 +51,7 @@ t('战力>0', Core.power('C021') > 0);
 // 4. 装备
 const eq = Core.grantEquip('W01', 'SR', 'weapon');
 t('装备生成', !!eq.equip);
+eq.equip.set = null; eq.equip.classSet = null; // 固定为普通装备，排除套装随机性
 Core.equipItem('C021', eq.equip.uid);
 const st2 = Core.effectiveStats('C021');
 t('装备提升攻击', st2.atk > st.atk);
@@ -320,7 +321,24 @@ console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}
   delete Core.S.equips['x1'];
 }
 
-// 27. 批量分解
+// 27. 扫荡每日上限
+{
+  Core.S.worlds.W01.stages.normal[0] = 3; // 确保已通关第1关
+  Core.S.sweep = { date: Core.dailyDate(), count: 0 };
+  t('初始剩余30次', Core.sweepLeft() === 30);
+  const r1 = Dungeon.sweep('W01', 'normal', 1, 10);
+  t('扫荡10次成功', r1.ok && r1.count === 10 && Core.sweepLeft() === 20);
+  Core.S.sweep.count = 28;
+  const r2 = Dungeon.sweep('W01', 'normal', 1, 10);
+  t('超出上限只扫剩余2次', r2.ok && r2.count === 2 && r2.capped === true);
+  const r3 = Dungeon.sweep('W01', 'normal', 1, 10);
+  t('用完拒绝扫荡', !r3.ok);
+  Core.S.sweep.date = '2000-01-01'; // 模拟跨天
+  t('跨天自动重置', Core.sweepLeft() === 30);
+  Core.S.sweep = { date: Core.dailyDate(), count: 0 };
+}
+
+// 28. 批量分解
 {
   const before = Core.S.cur.otherworld;
   const ids = [];

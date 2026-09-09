@@ -220,7 +220,10 @@ body {
 .kv { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 1px dashed #ffffff0d; }
 .kv:last-child { border-bottom: none; }
 .kv .k { color: var(--dim); }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+
+/* ---------- 副本探索中底栏（替代导航，防误触） ---------- */
+.run-bar { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 8px); left: 50%; transform: translateX(-50%); width: calc(100% - 16px); max-width: 504px; z-index: 45; background: rgba(18,22,34,.97); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; backdrop-filter: blur(10px); box-shadow: 0 -4px 20px rgba(0,0,0,.45); }
 .pill-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
 .pill-tabs::-webkit-scrollbar { display: none; }
 .pill { flex: 0 0 auto; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 12px; color: var(--dim); cursor: pointer; }

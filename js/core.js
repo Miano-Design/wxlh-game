@@ -28,8 +28,9 @@ window.Core = (function () {
       buildings: { core: 1, training: 1, medical: 1, workshop: 1, geneLab: 1 },
       worlds: {},           // worldId → {unlocked, stages: {normal:[stars×12], hard, hell}}
       corridor: { floor: 1, best: 0 },
-      recruit: { pityAdv: 0, pityLim: 0, lastFree: '' },
+      recruit: { pityAdv: 0, pityLim: 0, pityAdvS: 0, pityLimS: 0, lastFree: '' },
       shop: { dailyDate: '', dailyItems: [], bought: {} },
+      sweep: { date: '', count: 0 },
       tasks: { date: '', daily: {}, claimed: {}, allClaimed: false },
       login: { day: 0, lastClaim: '' },
       idle: { bankSec: 0, lastTs: Date.now() },
@@ -69,6 +70,8 @@ window.Core = (function () {
   // 旧档迁移：C001 林默不再是主角占位，主角为独立实体
   function migrate() {
     S.stats = Object.assign(defaultState().stats, S.stats || {});
+    S.recruit = Object.assign(defaultState().recruit, S.recruit || {});
+    S.sweep = Object.assign(defaultState().sweep, S.sweep || {});
     if (S.chars && S.chars['C001']) {
       // 转移 C001 装备到主角
       const old = (S.equipped && S.equipped['C001']) || {};
@@ -668,13 +671,17 @@ window.Core = (function () {
     S.stats.recruits++;
     task('recruit1', 1);
     const pityKey = pool === 'limited' ? 'pityLim' : 'pityAdv';
+    const pitySsrKey = pool === 'limited' ? 'pityLimS' : 'pityAdvS';
     let rar = rollRarityInPool(pool);
     if (pool !== 'normal') {
+      // 双保底独立计数：UR 保底不被 SSR 打断；SSR 保底被 SSR 及以上重置
       S.recruit[pityKey]++;
+      S.recruit[pitySsrKey]++;
       if (S.recruit[pityKey] >= D.PITY.UR) rar = 'UR';
-      else if (S.recruit[pityKey] >= D.PITY.SSR && D.RARITIES.indexOf(rar) < 3) rar = 'SSR';
+      else if (S.recruit[pitySsrKey] >= D.PITY.SSR && D.RARITIES.indexOf(rar) < 3) rar = 'SSR';
+      if (D.RARITIES.indexOf(rar) >= 3) S.recruit[pitySsrKey] = 0;
     }
-    if (D.RARITIES.indexOf(rar) >= 3) S.recruit[pityKey] = 0;
+    if (D.RARITIES.indexOf(rar) >= 4) S.recruit[pityKey] = 0;
     const base = pickCharOfRarity(rar, pool);
     const res = addChar(base.id);
     save();
@@ -1006,6 +1013,11 @@ window.Core = (function () {
     return { ok: true, equip: res.equip, sold: res.sold };
   }
   function dailyDate() { return new Date().toISOString().slice(0, 10); }
+  // 今日剩余扫荡次数（跨天自动重置）
+  function sweepLeft() {
+    if (S.sweep.date !== dailyDate()) return D.SWEEP_DAILY_CAP;
+    return Math.max(0, D.SWEEP_DAILY_CAP - (S.sweep.count || 0));
+  }
 
   /* ================= 任务 / 登录 ================= */
   function ensureDaily() {
@@ -1123,7 +1135,7 @@ window.Core = (function () {
     refreshUnlocks, isUnlocked, unlockTip,
     mainQuestState, currentQuest, claimQuest,
     setPlayerName, charName,
-    buyShopItem, openBox, dailyDate,
+    buyShopItem, openBox, dailyDate, sweepLeft,
     ensureDaily, task, claimTask, claimAllTasks, loginReward,
     canReincarnate, reincarnate, buyTalent,
     battleSettle, addCharExp,

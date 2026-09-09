@@ -163,10 +163,16 @@ window.Dungeon = (function () {
     if (!Core.S.worlds[worldId] || Core.S.worlds[worldId].stages[diff][stage - 1] <= 0) {
       return { ok: false, msg: '通关后才能扫荡' };
     }
+    // 每日扫荡上限
+    if (Core.S.sweep.date !== Core.dailyDate()) { Core.S.sweep.date = Core.dailyDate(); Core.S.sweep.count = 0; }
+    const left = D.SWEEP_DAILY_CAP - Core.S.sweep.count;
+    if (left <= 0) { Core.save(); return { ok: false, msg: `今日扫荡次数已用完（${D.SWEEP_DAILY_CAP}/${D.SWEEP_DAILY_CAP}）` }; }
+    const n = Math.min(times, left);
     const total = [];
-    for (let i = 0; i < times; i++) total.push(grantRewards(worldId, diff, stage, stage === 12 ? 'boss' : stage % 4 === 0 ? 'elite' : 'combat'));
+    for (let i = 0; i < n; i++) total.push(grantRewards(worldId, diff, stage, stage === 12 ? 'boss' : stage % 4 === 0 ? 'elite' : 'combat'));
+    Core.S.sweep.count += n;
     Core.save();
-    return { ok: true, total };
+    return { ok: true, total, count: n, capped: n < times };
   }
 
   return { makeEnemies, battleRewards, grantRewards, genRoute, nodeReward, sweep, diffMult, stageMult, THEME_FACTION };
