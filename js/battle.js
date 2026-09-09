@@ -204,6 +204,16 @@ window.Battle = (function () {
         act(u, foes, friends, frames, mech, cfg);
         if (!checkEnd()) break;
       }
+      // Boss 复活检查（需遍历所有 Boss，含已死亡）
+      if (mech.bossRevive) {
+        for (const boss of enemies.filter(e => e.isBoss)) {
+          if (!boss.revived && boss.hp <= 0) {
+            boss.revived = true;
+            boss.hp = Math.round(boss.maxHp * 0.3);
+            frames.push({ type: 'revive', boss: boss.uid, text: `${boss.name} 从灰烬中复活！` });
+          }
+        }
+      }
       // Boss 阶段
       for (const boss of enemies.filter(e => e.isBoss && e.hp > 0)) {
         const ratio = boss.hp / boss.maxHp;
@@ -217,11 +227,6 @@ window.Battle = (function () {
           boss.atk *= 1.3;
           boss.spd *= 1.2;
           frames.push({ type: 'phase', boss: boss.uid, phase: 30, text: `${boss.name} 狂暴了！` });
-        }
-        if (mech.bossRevive && !boss.revived && boss.hp <= 0) {
-          boss.revived = true;
-          boss.hp = Math.round(boss.maxHp * 0.3);
-          frames.push({ type: 'revive', boss: boss.uid, text: `${boss.name} 从灰烬中复活！` });
         }
         if (mech.bossSummon && !boss.summoned && ratio <= 0.5) {
           boss.summoned = true;
@@ -324,8 +329,9 @@ window.Battle = (function () {
         const hits = sk.hits || 1;
         for (let h = 0; h < hits; h++) {
           const ts = targetsOf(sk.target).filter(Boolean);
+          let dealt = 0;
           ts.forEach(t => {
-            dealDamage(u, t, mult, { pierce: sk.pierce, sureCrit: sk.sureCrit, execute: sk.execute, hitMod: cfg.allyHitMod || 0 }, frames);
+            dealt += dealDamage(u, t, mult, { pierce: sk.pierce, sureCrit: sk.sureCrit, execute: sk.execute, hitMod: cfg.allyHitMod || 0 }, frames);
             if (sk.status && t.hp > 0) {
               const st = sk.status;
               if (!st.chance || Math.random() < st.chance) {
@@ -334,8 +340,12 @@ window.Battle = (function () {
               }
             }
           });
+          if (sk.lifesteal && dealt > 0) {
+            const healed = Math.round(dealt * sk.lifesteal);
+            u.hp = Math.min(u.maxHp, u.hp + healed);
+            frames.push({ type: 'heal', source: u.uid, target: u.uid, amount: healed, lifesteal: true });
+          }
         }
-        if (sk.lifesteal) { /* 伤害内已含基础吸血，这里追加 */ }
         break;
       }
       case 'heal': {

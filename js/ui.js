@@ -127,10 +127,10 @@ window.UI = (function () {
     </div>
     <div class="card">
       <h3>⏳ 轮回挂机 <span class="sub">${r.pointsPerMin.toFixed(1)} 点/分 · ${r.expPerMin.toFixed(1)} EXP/分</span></h3>
-      <div class="kv"><span class="k">已累积</span><span>${formatDuration(bank.seconds)}</span></div>
-      <div class="kv"><span class="k">待领取</span><span>◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}</span></div>
+      <div class="kv"><span class="k">已累积</span><span id="idle-time">${formatDuration(bank.seconds)}</span></div>
+      <div class="kv"><span class="k">待领取</span><span id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}</span></div>
       <div class="kv"><span class="k">离线规则</span><span>效率 ${Math.round(C().offlineEfficiency() * 100)}% · 上限 ${C().offlineCapHours().toFixed(1)}小时</span></div>
-      <button class="btn primary block" style="margin-top:10px" data-act="claim-idle" ${bank.seconds < 60 ? 'disabled' : ''}>一键领取挂机收益</button>
+      <button class="btn primary block" style="margin-top:10px" id="idle-claim-btn" data-act="claim-idle" ${bank.seconds < 60 ? 'disabled' : ''}>一键领取挂机收益</button>
     </div>
     ${questCard()}
     <div class="grid2">
@@ -185,12 +185,13 @@ window.UI = (function () {
   }
   function worldsList() {
     const S = C().S;
+    const corridorLocked = !C().isUnlocked('corridor');
     const corridor = `
-      <div class="card world-card" data-act="open-corridor" style="cursor:pointer;border-color:#8be9e955">
+      <div class="card world-card ${corridorLocked ? 'locked' : ''}" data-act="open-corridor" style="cursor:pointer;border-color:#8be9e955;${corridorLocked ? 'opacity:.55' : ''}">
         <div class="world-ico">♾</div>
         <div class="grow">
           <div class="t1">无限回廊 <span class="tag">终局挑战</span></div>
-          <div class="t2">当前第 ${S.corridor.floor} 层 · 历史最高 ${S.corridor.best} 层</div>
+          <div class="t2">${corridorLocked ? '🔒 ' + C().unlockTip('corridor') : `当前第 ${S.corridor.floor} 层 · 历史最高 ${S.corridor.best} 层`}</div>
         </div>
         <span style="color:var(--dim)">›</span>
       </div>`;
@@ -276,6 +277,10 @@ window.UI = (function () {
       const pct = run.hpPct[id] !== undefined ? run.hpPct[id] : 1;
       return `<div style="flex:1"><div style="font-size:10px;color:var(--dim);text-align:center">${cname(id)}</div><div class="bar hp ${pct < 0.35 ? 'low' : ''}"><i style="width:${pct * 100}%"></i></div></div>`;
     }).join('');
+    const potions = ['heal_s', 'heal_m', 'heal_l'].filter(id => (C().S.items[id] || 0) > 0);
+    const potionBar = potions.length ? `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      ${potions.map(id => `<button class="btn small" data-potion="${id}">🧪 ${D.ITEMS[id].name} ×${C().S.items[id]}</button>`).join('')}
+    </div>` : '';
     // 路线图全览
     const mapHtml = `<div class="card" style="padding:10px 14px"><div style="display:flex;align-items:center;gap:4px;overflow-x:auto">
       ${run.route.steps.map((opts, i) => `
@@ -307,6 +312,7 @@ window.UI = (function () {
         <h3>${WORLD_ICONS[w.theme]} ${w.name} · ${{ normal: '普通', hard: '困难', hell: '地狱' }[run.diff]} ${run.stage}/12</h3>
         <div class="route-progress">${prog}</div>
         <div style="display:flex;gap:6px">${partyHp}</div>
+        ${potionBar}
         ${Object.keys(run.buffs).length ? `<div style="margin-top:8px;font-size:11px;color:var(--green)">探索增益：${Object.entries(run.buffs).map(([k, v]) => `攻击+${Math.round(v * 100)}%`).join(' ')}</div>` : ''}
       </div>
       ${mapHtml}
@@ -616,7 +622,7 @@ window.UI = (function () {
         <button class="btn small" data-blup="1" ${!blCost ? 'disabled' : ''}>血统升级${blCost ? `（❥${blCost.bloodCrystal} + ◈${fmt(blCost.points)}）` : ''}</button>
       </div>
       <div class="section-title">装备</div>
-      ${['weapon', 'armor', 'accessory'].map(slot => {
+      ${D.RECRUIT_SLOTS.map(slot => {
         const uid = S.equipped[id] && S.equipped[id][slot];
         const eq = uid && S.equips[uid];
         return `<div class="list-row" data-eqslot="${slot}" style="cursor:pointer">
@@ -1488,7 +1494,7 @@ window.UI = (function () {
     if (spec.isBoss) enemies.push({ name: '回廊之影', hp: Math.round(spec.hp * 0.3), atk: Math.round(spec.atk * 0.5), def: Math.round(spec.def * 0.5), spd: 70, faction: null, eva: 0.05 });
     startBattle({
       title: `无限回廊 · 第 ${floor} 层`,
-      allies, enemies, worldId: 'W14',
+      allies, enemies, worldId: null,
       maxRounds: spec.isBoss ? 50 : 30,
       onEnd(win, res) {
         if (!win) return { rewards: [], sub: `止步于第 ${floor} 层`, after: () => {} };
@@ -1648,6 +1654,18 @@ window.UI = (function () {
         doFinalBattle(enemies);
       });
     });
+    root.querySelectorAll('[data-potion]').forEach(el => el.onclick = () => {
+      if (!run) return;
+      const id = el.dataset.potion;
+      const pct = { heal_s: 0.2, heal_m: 0.4, heal_l: 0.7 }[id] || 0;
+      if (!pct) return;
+      if (!C().removeItem(id)) { toast('道具不足'); return; }
+      Object.keys(run.hpPct).forEach(cid => { run.hpPct[cid] = Math.min(1, run.hpPct[cid] + pct); });
+      C().task('item1', 1);
+      C().save();
+      toast(`🧪 ${D.ITEMS[id].name}：全队恢复 ${pct * 100}% 生命`);
+      render();
+    });
     root.querySelectorAll('[data-slot]').forEach(el => el.onclick = () => pickPartyChar(+el.dataset.slot));
     root.querySelectorAll('[data-protag]').forEach(el => el.onclick = () => protagonistDetail());
     root.querySelectorAll('[data-remove]').forEach(el => el.onclick = ev => {
@@ -1767,7 +1785,7 @@ window.UI = (function () {
         你被神秘存在选中，成为了<b style="color:var(--accent)">轮回者</b>。<br><br>
         在这里，你将：<br>
         🌀 进入恐怖世界执行轮回任务<br>
-        👥 招募轮回者，组建四人小队<br>
+        👥 招募轮回者，组建五人小队（主角必上阵）<br>
         🧬 解锁血统与基因锁，突破极限<br>
         ♾ 挑战无限回廊，寻找离开的方法<br><br>
         新手补给已发放：◈50,000 · ✦1,000 · 经验模块×20 · 治疗剂×10<br><br>
@@ -1806,6 +1824,17 @@ window.UI = (function () {
     init() { refresh(); render(); },
     render, refresh, toast, modal, closeModal,
     showOfflineGains, showLoginReward, showTutorial, showCharCreate,
+    tickIdle() {
+      if (curTab !== 'home') return;
+      const timeEl = document.getElementById('idle-time');
+      if (!timeEl) return;
+      const bank = C().idleBankGains();
+      timeEl.textContent = formatDuration(bank.seconds);
+      const gainsEl = document.getElementById('idle-gains');
+      if (gainsEl) gainsEl.textContent = `◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}`;
+      const btn = document.getElementById('idle-claim-btn');
+      if (btn && bank.seconds >= 60 && btn.disabled) btn.disabled = false;
+    },
     get tab() { return curTab; },
     _setTab: setTab,
   };

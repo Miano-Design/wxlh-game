@@ -103,7 +103,7 @@ t('第三关未解锁', !Core.stageUnlocked('W01', 'normal', 2));
 t('通关1关后解锁招募', sc.newUnlocks.includes('轮回者招募') && Core.isUnlocked('recruit'));
 
 // 9b. 主线任务
-Core.S.chars['C021'].lv = 5;
+Core.S.stats.battles = 1;
 const qs = Core.mainQuestState();
 t('主线q01可完成', qs.find(x => x.q.id === 'q01').done);
 t('主线q02可完成', qs.find(x => x.q.id === 'q02').done);

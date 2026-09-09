@@ -333,9 +333,9 @@ window.DATA = (function () {
 
   /* ================= 道具 ================= */
   const ITEMS = {
-    heal_s: { name: '小型治疗剂', type: 'consumable', desc: '战斗中回复 20% 生命' },
-    heal_m: { name: '中型治疗剂', type: 'consumable', desc: '战斗中回复 40% 生命' },
-    heal_l: { name: '大型治疗剂', type: 'consumable', desc: '战斗中回复 70% 生命' },
+    heal_s: { name: '小型治疗剂', type: 'consumable', desc: '副本探索中使用：全队回复 20% 生命' },
+    heal_m: { name: '中型治疗剂', type: 'consumable', desc: '副本探索中使用：全队回复 40% 生命' },
+    heal_l: { name: '大型治疗剂', type: 'consumable', desc: '副本探索中使用：全队回复 70% 生命' },
     buff_muscle: { name: '肌肉强化剂', type: 'consumable', desc: '本场战斗肌肉+15%' },
     buff_nerve: { name: '神经刺激剂', type: 'consumable', desc: '本场战斗速度+20%' },
     exp_s: { name: '初级经验模块', type: 'exp', exp: 500 },
@@ -562,8 +562,8 @@ window.DATA = (function () {
   /* ================= 主线任务 ================= */
   // check: (S, helpers) => bool；reward 自动结算，点击领取
   const MAIN_QUESTS = [
-    { id: 'q01', name: '熟悉身体', desc: '使用经验道具，将主角升到 Lv.5', reward: { points: 1000 },
-      check: S => Object.values(S.chars).some(c => c.lv >= 5) },
+    { id: 'q01', name: '熟悉身体', desc: '完成 1 场战斗', reward: { points: 1000 },
+      check: S => S.stats.battles >= 1 },
     { id: 'q02', name: '初临蜂巢', desc: '通关 生化蜂巢·第1关', reward: { holy: 100 }, unlock: 'recruit',
       check: S => S.worlds.W01 && S.worlds.W01.stages.normal[0] > 0 },
     { id: 'q03', name: '第一位同伴', desc: '进行 1 次招募', reward: { points: 2000 },
@@ -586,8 +586,8 @@ window.DATA = (function () {
       check: S => S.corridor.floor >= 2 },
     { id: 'q12', name: '新的恐怖', desc: '通关 异形巢穴·第1关', reward: { bloodCrystal: 50 }, unlock: 'bloodline',
       check: S => S.worlds.W02 && S.worlds.W02.stages.normal[0] > 0 },
-    { id: 'q13', name: '血脉觉醒', desc: '升级 1 次血统', reward: { points: 5000 },
-      check: S => Object.values(S.chars).some(c => c.bloodlineLv >= 1) },
+    { id: 'q13', name: '血脉觉醒', desc: '升级 1 次血统（主角或招募角色）', reward: { points: 5000 },
+      check: S => S.player.bloodlineLv >= 1 || Object.values(S.chars).some(c => c.bloodlineLv >= 1) },
     { id: 'q14', name: '巢穴女王', desc: '通关 异形巢穴·第12关', reward: { holy: 300, otherworld: 200 },
       check: S => S.worlds.W02 && S.worlds.W02.stages.normal[11] > 0 },
     { id: 'q15', name: '轮回者之路', desc: '通关 咒怨凶宅·第12关', reward: { holy: 500, rp: 0 }, unlock: 'reincarn',

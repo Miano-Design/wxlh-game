@@ -39,13 +39,8 @@
         Core.save();
         UI.refresh();
       }
-      // 主界面挂机区实时刷新
-      if (UI.tab === 'home') {
-        const el = document.querySelector('[data-act="claim-idle"]');
-        if (el && Core.idleBankGains().seconds >= 60 && el.disabled) {
-          UI.render();
-        }
-      }
+      // 主界面挂机区实时刷新（不重渲染整页）
+      UI.tickIdle();
     }, 1000);
     // 页面隐藏时立即保存
     document.addEventListener('visibilitychange', () => {
