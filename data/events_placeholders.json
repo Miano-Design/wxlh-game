@@ -1,16 +1,791 @@
 {
-  "meta": {"generatedFrom":"V3_audit","count":30},
+  "meta": {
+    "generatedFrom": "V3_audit",
+    "count": 30
+  },
   "events": [
     {
-      "id":"EVENT_0001",
-      "title":"占位事件 1",
-      "world":"W01",
-      "description":"这是自动生成的占位事件，请用完整内容替换。",
-      "choices":[
-        {"id":"c1","text":"选择A","outcome":{"gain":{"points":100},"note":"示例奖励"}},
-        {"id":"c2","text":"选择B","outcome":{"gain":{"holy_crystal":1},"note":"示例奖励"}}
+      "id": "EVENT_0001",
+      "title": "占位事件 1",
+      "world": "W01",
+      "description": "这是自动生成的占位事件，请用完整内容替换。",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "选择A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            },
+            "note": "示例奖励"
+          }
+        },
+        {
+          "id": "c2",
+          "text": "选择B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            },
+            "note": "示例奖励"
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0002",
+      "title": "占位事件 2",
+      "world": "W02",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0003",
+      "title": "占位事件 3",
+      "world": "W03",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0004",
+      "title": "占位事件 4",
+      "world": "W04",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0005",
+      "title": "占位事件 5",
+      "world": "W05",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0006",
+      "title": "占位事件 6",
+      "world": "W06",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0007",
+      "title": "占位事件 7",
+      "world": "W07",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0008",
+      "title": "占位事件 8",
+      "world": "W08",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0009",
+      "title": "占位事件 9",
+      "world": "W09",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0010",
+      "title": "占位事件 10",
+      "world": "W10",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0011",
+      "title": "占位事件 11",
+      "world": "W11",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0012",
+      "title": "占位事件 12",
+      "world": "W12",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0013",
+      "title": "占位事件 13",
+      "world": "W13",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0014",
+      "title": "占位事件 14",
+      "world": "W14",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0015",
+      "title": "占位事件 15",
+      "world": "W01",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0016",
+      "title": "占位事件 16",
+      "world": "W02",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0017",
+      "title": "占位事件 17",
+      "world": "W03",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0018",
+      "title": "占位事件 18",
+      "world": "W04",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0019",
+      "title": "占位事件 19",
+      "world": "W05",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0020",
+      "title": "占位事件 20",
+      "world": "W06",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0021",
+      "title": "占位事件 21",
+      "world": "W07",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0022",
+      "title": "占位事件 22",
+      "world": "W08",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0023",
+      "title": "占位事件 23",
+      "world": "W09",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0024",
+      "title": "占位事件 24",
+      "world": "W10",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0025",
+      "title": "占位事件 25",
+      "world": "W11",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0026",
+      "title": "占位事件 26",
+      "world": "W12",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0027",
+      "title": "占位事件 27",
+      "world": "W13",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0028",
+      "title": "占位事件 28",
+      "world": "W14",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0029",
+      "title": "占位事件 29",
+      "world": "W01",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "EVENT_0030",
+      "title": "占位事件 30",
+      "world": "W02",
+      "description": "自动占位事件，后续替换",
+      "choices": [
+        {
+          "id": "c1",
+          "text": "A",
+          "outcome": {
+            "gain": {
+              "points": 100
+            }
+          }
+        },
+        {
+          "id": "c2",
+          "text": "B",
+          "outcome": {
+            "gain": {
+              "holy_crystal": 1
+            }
+          }
+        }
       ]
     }
   ],
-  "note":"后续使用策划提供的事件逐条替换。"
+  "note": "后续使用策划提供的事件逐条替换。"
 }

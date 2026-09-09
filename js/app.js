@@ -81,6 +81,8 @@
   document.addEventListener('DOMContentLoaded', ()=>{
     GameCore.init();
     const s = GameCore.getState(); renderResources(s); renderParty(s);
+    // ensure modal is attached directly to body to avoid stacking issues
+    try{ const modalNode = el('event-modal'); if(modalNode && modalNode.parentNode !== document.body){ document.body.appendChild(modalNode); } }catch(e){}
     function renderAll(){ const s = GameCore.getState(); renderResources(s); renderParty(s); renderIdle(s); renderInventory(s); renderEquips(s); }
 
     renderAll();
@@ -127,7 +129,13 @@
     });
     el('btn-exit-dungeon').addEventListener('click', ()=>{ currentDungeon=null; showPanel('home'); renderAll(); });
 
-    el('btn-close-event').addEventListener('click', ()=>{ closeEventModal(); });
+    // support click/touch/pointer for close button
+    const closeBtn = el('btn-close-event');
+    if(closeBtn){
+      closeBtn.addEventListener('click', ()=>{ closeEventModal(); });
+      closeBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); closeEventModal(); });
+      closeBtn.addEventListener('pointerdown', (e)=>{ e.preventDefault(); closeEventModal(); });
+    }
 
     // 招募
     el('btn-recruit-one').addEventListener('click', ()=>{

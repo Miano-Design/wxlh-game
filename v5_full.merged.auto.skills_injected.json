@@ -1,6 +1,4 @@
-// Auto-generated v5data.js - generated from v5_full.merged.auto.events_injected.json
-window.V5 = (function(){
-  const data = {
+{
   "expTable": [
     0,
     100,
@@ -5459,788 +5457,6 @@ window.V5 = (function(){
           "gain": {}
         }
       ]
-    },
-    {
-      "id": "EVENT_0001",
-      "title": "占位事件 1",
-      "world": "W01",
-      "description": "这是自动生成的占位事件，请用完整内容替换。",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "选择A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            },
-            "note": "示例奖励"
-          }
-        },
-        {
-          "id": "c2",
-          "text": "选择B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            },
-            "note": "示例奖励"
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0002",
-      "title": "占位事件 2",
-      "world": "W02",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0003",
-      "title": "占位事件 3",
-      "world": "W03",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0004",
-      "title": "占位事件 4",
-      "world": "W04",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0005",
-      "title": "占位事件 5",
-      "world": "W05",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0006",
-      "title": "占位事件 6",
-      "world": "W06",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0007",
-      "title": "占位事件 7",
-      "world": "W07",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0008",
-      "title": "占位事件 8",
-      "world": "W08",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0009",
-      "title": "占位事件 9",
-      "world": "W09",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0010",
-      "title": "占位事件 10",
-      "world": "W10",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0011",
-      "title": "占位事件 11",
-      "world": "W11",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0012",
-      "title": "占位事件 12",
-      "world": "W12",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0013",
-      "title": "占位事件 13",
-      "world": "W13",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0014",
-      "title": "占位事件 14",
-      "world": "W14",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0015",
-      "title": "占位事件 15",
-      "world": "W01",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0016",
-      "title": "占位事件 16",
-      "world": "W02",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0017",
-      "title": "占位事件 17",
-      "world": "W03",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0018",
-      "title": "占位事件 18",
-      "world": "W04",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0019",
-      "title": "占位事件 19",
-      "world": "W05",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0020",
-      "title": "占位事件 20",
-      "world": "W06",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0021",
-      "title": "占位事件 21",
-      "world": "W07",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0022",
-      "title": "占位事件 22",
-      "world": "W08",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0023",
-      "title": "占位事件 23",
-      "world": "W09",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0024",
-      "title": "占位事件 24",
-      "world": "W10",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0025",
-      "title": "占位事件 25",
-      "world": "W11",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0026",
-      "title": "占位事件 26",
-      "world": "W12",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0027",
-      "title": "占位事件 27",
-      "world": "W13",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0028",
-      "title": "占位事件 28",
-      "world": "W14",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0029",
-      "title": "占位事件 29",
-      "world": "W01",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "EVENT_0030",
-      "title": "占位事件 30",
-      "world": "W02",
-      "description": "自动占位事件，后续替换",
-      "choices": [
-        {
-          "id": "c1",
-          "text": "A",
-          "outcome": {
-            "gain": {
-              "points": 100
-            }
-          }
-        },
-        {
-          "id": "c2",
-          "text": "B",
-          "outcome": {
-            "gain": {
-              "holy_crystal": 1
-            }
-          }
-        }
-      ]
     }
   ],
   "dungeons": [
@@ -6268,7 +5484,13 @@ window.V5 = (function(){
       "cell": 62,
       "nerve": 52,
       "intelligence": 45,
-      "spirit": 40
+      "spirit": 40,
+      "skills": [
+        "SK_C001_1",
+        "SK_C001_2",
+        "SK_C001_3",
+        "SK_C001_4"
+      ]
     },
     {
       "id": "C002",
@@ -6282,7 +5504,13 @@ window.V5 = (function(){
       "cell": 70,
       "nerve": 45,
       "intelligence": 38,
-      "spirit": 35
+      "spirit": 35,
+      "skills": [
+        "SK_C002_1",
+        "SK_C002_2",
+        "SK_C002_3",
+        "SK_C002_4"
+      ]
     },
     {
       "id": "C003",
@@ -6296,7 +5524,13 @@ window.V5 = (function(){
       "cell": 45,
       "nerve": 55,
       "intelligence": 75,
-      "spirit": 70
+      "spirit": 70,
+      "skills": [
+        "SK_C003_1",
+        "SK_C003_2",
+        "SK_C003_3",
+        "SK_C003_4"
+      ]
     },
     {
       "id": "C004",
@@ -6310,7 +5544,13 @@ window.V5 = (function(){
       "cell": 65,
       "nerve": 52,
       "intelligence": 58,
-      "spirit": 72
+      "spirit": 72,
+      "skills": [
+        "SK_C004_1",
+        "SK_C004_2",
+        "SK_C004_3",
+        "SK_C004_4"
+      ]
     },
     {
       "id": "C005",
@@ -6324,7 +5564,13 @@ window.V5 = (function(){
       "cell": 50,
       "nerve": 70,
       "intelligence": 62,
-      "spirit": 40
+      "spirit": 40,
+      "skills": [
+        "SK_C005_1",
+        "SK_C005_2",
+        "SK_C005_3",
+        "SK_C005_4"
+      ]
     },
     {
       "id": "C006",
@@ -6338,7 +5584,13 @@ window.V5 = (function(){
       "cell": 48,
       "nerve": 65,
       "intelligence": 70,
-      "spirit": 78
+      "spirit": 78,
+      "skills": [
+        "SK_C006_1",
+        "SK_C006_2",
+        "SK_C006_3",
+        "SK_C006_4"
+      ]
     },
     {
       "id": "C007",
@@ -6352,7 +5604,13 @@ window.V5 = (function(){
       "cell": 72,
       "nerve": 60,
       "intelligence": 40,
-      "spirit": 35
+      "spirit": 35,
+      "skills": [
+        "SK_C007_1",
+        "SK_C007_2",
+        "SK_C007_3",
+        "SK_C007_4"
+      ]
     },
     {
       "id": "C008",
@@ -6366,7 +5624,13 @@ window.V5 = (function(){
       "cell": 75,
       "nerve": 38,
       "intelligence": 35,
-      "spirit": 30
+      "spirit": 30,
+      "skills": [
+        "SK_C008_1",
+        "SK_C008_2",
+        "SK_C008_3",
+        "SK_C008_4"
+      ]
     },
     {
       "id": "C009",
@@ -6380,7 +5644,13 @@ window.V5 = (function(){
       "cell": 60,
       "nerve": 72,
       "intelligence": 58,
-      "spirit": 55
+      "spirit": 55,
+      "skills": [
+        "SK_C009_1",
+        "SK_C009_2",
+        "SK_C009_3",
+        "SK_C009_4"
+      ]
     },
     {
       "id": "C010",
@@ -6394,7 +5664,13 @@ window.V5 = (function(){
       "cell": 48,
       "nerve": 62,
       "intelligence": 82,
-      "spirit": 78
+      "spirit": 78,
+      "skills": [
+        "SK_C010_1",
+        "SK_C010_2",
+        "SK_C010_3",
+        "SK_C010_4"
+      ]
     },
     {
       "id": "C011",
@@ -6408,7 +5684,13 @@ window.V5 = (function(){
       "cell": 55,
       "nerve": 75,
       "intelligence": 70,
-      "spirit": 85
+      "spirit": 85,
+      "skills": [
+        "SK_C011_1",
+        "SK_C011_2",
+        "SK_C011_3",
+        "SK_C011_4"
+      ]
     },
     {
       "id": "C012",
@@ -6422,7 +5704,13 @@ window.V5 = (function(){
       "cell": 58,
       "nerve": 80,
       "intelligence": 68,
-      "spirit": 40
+      "spirit": 40,
+      "skills": [
+        "SK_C012_1",
+        "SK_C012_2",
+        "SK_C012_3",
+        "SK_C012_4"
+      ]
     },
     {
       "id": "C013",
@@ -6436,7 +5724,13 @@ window.V5 = (function(){
       "cell": 70,
       "nerve": 68,
       "intelligence": 55,
-      "spirit": 60
+      "spirit": 60,
+      "skills": [
+        "SK_C013_1",
+        "SK_C013_2",
+        "SK_C013_3",
+        "SK_C013_4"
+      ]
     },
     {
       "id": "C014",
@@ -6450,7 +5744,13 @@ window.V5 = (function(){
       "cell": 80,
       "nerve": 42,
       "intelligence": 38,
-      "spirit": 32
+      "spirit": 32,
+      "skills": [
+        "SK_C014_1",
+        "SK_C014_2",
+        "SK_C014_3",
+        "SK_C014_4"
+      ]
     },
     {
       "id": "C015",
@@ -6464,7 +5764,13 @@ window.V5 = (function(){
       "cell": 72,
       "nerve": 58,
       "intelligence": 70,
-      "spirit": 88
+      "spirit": 88,
+      "skills": [
+        "SK_C015_1",
+        "SK_C015_2",
+        "SK_C015_3",
+        "SK_C015_4"
+      ]
     },
     {
       "id": "C016",
@@ -6478,7 +5784,13 @@ window.V5 = (function(){
       "cell": 62,
       "nerve": 55,
       "intelligence": 75,
-      "spirit": 58
+      "spirit": 58,
+      "skills": [
+        "SK_C016_1",
+        "SK_C016_2",
+        "SK_C016_3",
+        "SK_C016_4"
+      ]
     },
     {
       "id": "C017",
@@ -6492,7 +5804,13 @@ window.V5 = (function(){
       "cell": 65,
       "nerve": 62,
       "intelligence": 48,
-      "spirit": 38
+      "spirit": 38,
+      "skills": [
+        "SK_C017_1",
+        "SK_C017_2",
+        "SK_C017_3",
+        "SK_C017_4"
+      ]
     },
     {
       "id": "C018",
@@ -6506,7 +5824,13 @@ window.V5 = (function(){
       "cell": 52,
       "nerve": 70,
       "intelligence": 75,
-      "spirit": 82
+      "spirit": 82,
+      "skills": [
+        "SK_C018_1",
+        "SK_C018_2",
+        "SK_C018_3",
+        "SK_C018_4"
+      ]
     },
     {
       "id": "C019",
@@ -6520,7 +5844,13 @@ window.V5 = (function(){
       "cell": 55,
       "nerve": 65,
       "intelligence": 72,
-      "spirit": 68
+      "spirit": 68,
+      "skills": [
+        "SK_C019_1",
+        "SK_C019_2",
+        "SK_C019_3",
+        "SK_C019_4"
+      ]
     },
     {
       "id": "C020",
@@ -6534,7 +5864,13 @@ window.V5 = (function(){
       "cell": 70,
       "nerve": 68,
       "intelligence": 45,
-      "spirit": 55
+      "spirit": 55,
+      "skills": [
+        "SK_C020_1",
+        "SK_C020_2",
+        "SK_C020_3",
+        "SK_C020_4"
+      ]
     },
     {
       "id": "C021",
@@ -6548,7 +5884,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C021_1",
+        "SK_C021_2",
+        "SK_C021_3",
+        "SK_C021_4"
+      ]
     },
     {
       "id": "C022",
@@ -6562,7 +5904,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C022_1",
+        "SK_C022_2",
+        "SK_C022_3",
+        "SK_C022_4"
+      ]
     },
     {
       "id": "C023",
@@ -6576,7 +5924,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C023_1",
+        "SK_C023_2",
+        "SK_C023_3",
+        "SK_C023_4"
+      ]
     },
     {
       "id": "C024",
@@ -6590,7 +5944,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C024_1",
+        "SK_C024_2",
+        "SK_C024_3",
+        "SK_C024_4"
+      ]
     },
     {
       "id": "C025",
@@ -6604,7 +5964,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C025_1",
+        "SK_C025_2",
+        "SK_C025_3",
+        "SK_C025_4"
+      ]
     },
     {
       "id": "C026",
@@ -6618,7 +5984,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C026_1",
+        "SK_C026_2",
+        "SK_C026_3",
+        "SK_C026_4"
+      ]
     },
     {
       "id": "C027",
@@ -6632,7 +6004,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C027_1",
+        "SK_C027_2",
+        "SK_C027_3",
+        "SK_C027_4"
+      ]
     },
     {
       "id": "C028",
@@ -6646,7 +6024,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C028_1",
+        "SK_C028_2",
+        "SK_C028_3",
+        "SK_C028_4"
+      ]
     },
     {
       "id": "C029",
@@ -6660,7 +6044,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C029_1",
+        "SK_C029_2",
+        "SK_C029_3",
+        "SK_C029_4"
+      ]
     },
     {
       "id": "C030",
@@ -6674,7 +6064,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C030_1",
+        "SK_C030_2",
+        "SK_C030_3",
+        "SK_C030_4"
+      ]
     },
     {
       "id": "C031",
@@ -6688,7 +6084,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C031_1",
+        "SK_C031_2",
+        "SK_C031_3",
+        "SK_C031_4"
+      ]
     },
     {
       "id": "C032",
@@ -6702,7 +6104,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C032_1",
+        "SK_C032_2",
+        "SK_C032_3",
+        "SK_C032_4"
+      ]
     },
     {
       "id": "C033",
@@ -6716,7 +6124,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C033_1",
+        "SK_C033_2",
+        "SK_C033_3",
+        "SK_C033_4"
+      ]
     },
     {
       "id": "C034",
@@ -6730,7 +6144,13 @@ window.V5 = (function(){
       "cell": 0,
       "nerve": 0,
       "intelligence": 0,
-      "spirit": 0
+      "spirit": 0,
+      "skills": [
+        "SK_C034_1",
+        "SK_C034_2",
+        "SK_C034_3",
+        "SK_C034_4"
+      ]
     },
     {
       "id": "C035",
@@ -6744,7 +6164,13 @@ window.V5 = (function(){
       "cell": 70,
       "nerve": 60,
       "intelligence": 50,
-      "spirit": 45
+      "spirit": 45,
+      "skills": [
+        "SK_C035_1",
+        "SK_C035_2",
+        "SK_C035_3",
+        "SK_C035_4"
+      ]
     },
     {
       "id": "C036",
@@ -6758,7 +6184,13 @@ window.V5 = (function(){
       "cell": 50,
       "nerve": 60,
       "intelligence": 88,
-      "spirit": 70
+      "spirit": 70,
+      "skills": [
+        "SK_C036_1",
+        "SK_C036_2",
+        "SK_C036_3",
+        "SK_C036_4"
+      ]
     },
     {
       "id": "C037",
@@ -6772,7 +6204,13 @@ window.V5 = (function(){
       "cell": 80,
       "nerve": 50,
       "intelligence": 65,
-      "spirit": 85
+      "spirit": 85,
+      "skills": [
+        "SK_C037_1",
+        "SK_C037_2",
+        "SK_C037_3",
+        "SK_C037_4"
+      ]
     },
     {
       "id": "C038",
@@ -6786,7 +6224,13 @@ window.V5 = (function(){
       "cell": 100,
       "nerve": 40,
       "intelligence": 30,
-      "spirit": 30
+      "spirit": 30,
+      "skills": [
+        "SK_C038_1",
+        "SK_C038_2",
+        "SK_C038_3",
+        "SK_C038_4"
+      ]
     },
     {
       "id": "C039",
@@ -6800,7 +6244,13 @@ window.V5 = (function(){
       "cell": 55,
       "nerve": 85,
       "intelligence": 70,
-      "spirit": 45
+      "spirit": 45,
+      "skills": [
+        "SK_C039_1",
+        "SK_C039_2",
+        "SK_C039_3",
+        "SK_C039_4"
+      ]
     },
     {
       "id": "C040",
@@ -6814,7 +6264,13 @@ window.V5 = (function(){
       "cell": 60,
       "nerve": 70,
       "intelligence": 80,
-      "spirit": 78
+      "spirit": 78,
+      "skills": [
+        "SK_C040_1",
+        "SK_C040_2",
+        "SK_C040_3",
+        "SK_C040_4"
+      ]
     },
     {
       "id": "C041",
@@ -6828,7 +6284,13 @@ window.V5 = (function(){
       "cell": 90,
       "nerve": 95,
       "intelligence": 60,
-      "spirit": 50
+      "spirit": 50,
+      "skills": [
+        "SK_C041_1",
+        "SK_C041_2",
+        "SK_C041_3",
+        "SK_C041_4"
+      ]
     },
     {
       "id": "C042",
@@ -6842,7 +6304,13 @@ window.V5 = (function(){
       "cell": 70,
       "nerve": 60,
       "intelligence": 72,
-      "spirit": 80
+      "spirit": 80,
+      "skills": [
+        "SK_C042_1",
+        "SK_C042_2",
+        "SK_C042_3",
+        "SK_C042_4"
+      ]
     },
     {
       "id": "C043",
@@ -6856,7 +6324,13 @@ window.V5 = (function(){
       "cell": 60,
       "nerve": 110,
       "intelligence": 60,
-      "spirit": 45
+      "spirit": 45,
+      "skills": [
+        "SK_C043_1",
+        "SK_C043_2",
+        "SK_C043_3",
+        "SK_C043_4"
+      ]
     },
     {
       "id": "C044",
@@ -6870,7 +6344,13 @@ window.V5 = (function(){
       "cell": 60,
       "nerve": 65,
       "intelligence": 90,
-      "spirit": 88
+      "spirit": 88,
+      "skills": [
+        "SK_C044_1",
+        "SK_C044_2",
+        "SK_C044_3",
+        "SK_C044_4"
+      ]
     },
     {
       "id": "C045",
@@ -6884,7 +6364,13 @@ window.V5 = (function(){
       "cell": 80,
       "nerve": 60,
       "intelligence": 55,
-      "spirit": 50
+      "spirit": 50,
+      "skills": [
+        "SK_C045_1",
+        "SK_C045_2",
+        "SK_C045_3",
+        "SK_C045_4"
+      ]
     },
     {
       "id": "C046",
@@ -6898,7 +6384,13 @@ window.V5 = (function(){
       "cell": 60,
       "nerve": 70,
       "intelligence": 80,
-      "spirit": 50
+      "spirit": 50,
+      "skills": [
+        "SK_C046_1",
+        "SK_C046_2",
+        "SK_C046_3",
+        "SK_C046_4"
+      ]
     },
     {
       "id": "C047",
@@ -6912,7 +6404,13 @@ window.V5 = (function(){
       "cell": 70,
       "nerve": 60,
       "intelligence": 48,
-      "spirit": 40
+      "spirit": 40,
+      "skills": [
+        "SK_C047_1",
+        "SK_C047_2",
+        "SK_C047_3",
+        "SK_C047_4"
+      ]
     },
     {
       "id": "C048",
@@ -6926,7 +6424,13 @@ window.V5 = (function(){
       "cell": 65,
       "nerve": 75,
       "intelligence": 78,
-      "spirit": 72
+      "spirit": 72,
+      "skills": [
+        "SK_C048_1",
+        "SK_C048_2",
+        "SK_C048_3",
+        "SK_C048_4"
+      ]
     },
     {
       "id": "C049",
@@ -6940,7 +6444,13 @@ window.V5 = (function(){
       "cell": 60,
       "nerve": 60,
       "intelligence": 85,
-      "spirit": 80
+      "spirit": 80,
+      "skills": [
+        "SK_C049_1",
+        "SK_C049_2",
+        "SK_C049_3",
+        "SK_C049_4"
+      ]
     },
     {
       "id": "C050",
@@ -6954,7 +6464,13 @@ window.V5 = (function(){
       "cell": 120,
       "nerve": 50,
       "intelligence": 95,
-      "spirit": 110
+      "spirit": 110,
+      "skills": [
+        "SK_C050_1",
+        "SK_C050_2",
+        "SK_C050_3",
+        "SK_C050_4"
+      ]
     },
     {
       "id": "C051",
@@ -6968,7 +6484,13 @@ window.V5 = (function(){
       "cell": 65,
       "nerve": 60,
       "intelligence": 62,
-      "spirit": 70
+      "spirit": 70,
+      "skills": [
+        "SK_C051_1",
+        "SK_C051_2",
+        "SK_C051_3",
+        "SK_C051_4"
+      ]
     },
     {
       "id": "C052",
@@ -6982,7 +6504,13 @@ window.V5 = (function(){
       "cell": 60,
       "nerve": 100,
       "intelligence": 85,
-      "spirit": 50
+      "spirit": 50,
+      "skills": [
+        "SK_C052_1",
+        "SK_C052_2",
+        "SK_C052_3",
+        "SK_C052_4"
+      ]
     },
     {
       "id": "C053",
@@ -6996,7 +6524,13 @@ window.V5 = (function(){
       "cell": 80,
       "nerve": 70,
       "intelligence": 60,
-      "spirit": 45
+      "spirit": 45,
+      "skills": [
+        "SK_C053_1",
+        "SK_C053_2",
+        "SK_C053_3",
+        "SK_C053_4"
+      ]
     },
     {
       "id": "C054",
@@ -7010,7 +6544,13 @@ window.V5 = (function(){
       "cell": 60,
       "nerve": 70,
       "intelligence": 88,
-      "spirit": 85
+      "spirit": 85,
+      "skills": [
+        "SK_C054_1",
+        "SK_C054_2",
+        "SK_C054_3",
+        "SK_C054_4"
+      ]
     },
     {
       "id": "C055",
@@ -7024,7 +6564,13 @@ window.V5 = (function(){
       "cell": 70,
       "nerve": 78,
       "intelligence": 60,
-      "spirit": 45
+      "spirit": 45,
+      "skills": [
+        "SK_C055_1",
+        "SK_C055_2",
+        "SK_C055_3",
+        "SK_C055_4"
+      ]
     },
     {
       "id": "C056",
@@ -7038,7 +6584,13 @@ window.V5 = (function(){
       "cell": 90,
       "nerve": 45,
       "intelligence": 40,
-      "spirit": 38
+      "spirit": 38,
+      "skills": [
+        "SK_C056_1",
+        "SK_C056_2",
+        "SK_C056_3",
+        "SK_C056_4"
+      ]
     },
     {
       "id": "C057",
@@ -7052,7 +6604,13 @@ window.V5 = (function(){
       "cell": 85,
       "nerve": 80,
       "intelligence": 50,
-      "spirit": 45
+      "spirit": 45,
+      "skills": [
+        "SK_C057_1",
+        "SK_C057_2",
+        "SK_C057_3",
+        "SK_C057_4"
+      ]
     },
     {
       "id": "C058",
@@ -7066,7 +6624,13 @@ window.V5 = (function(){
       "cell": 58,
       "nerve": 68,
       "intelligence": 92,
-      "spirit": 88
+      "spirit": 88,
+      "skills": [
+        "SK_C058_1",
+        "SK_C058_2",
+        "SK_C058_3",
+        "SK_C058_4"
+      ]
     },
     {
       "id": "C059",
@@ -7080,7 +6644,13 @@ window.V5 = (function(){
       "cell": 72,
       "nerve": 60,
       "intelligence": 50,
-      "spirit": 48
+      "spirit": 48,
+      "skills": [
+        "SK_C059_1",
+        "SK_C059_2",
+        "SK_C059_3",
+        "SK_C059_4"
+      ]
     },
     {
       "id": "C060",
@@ -7094,7 +6664,13 @@ window.V5 = (function(){
       "cell": 150,
       "nerve": 120,
       "intelligence": 100,
-      "spirit": 100
+      "spirit": 100,
+      "skills": [
+        "SK_C060_1",
+        "SK_C060_2",
+        "SK_C060_3",
+        "SK_C060_4"
+      ]
     }
   ],
   "recruitRates": {
@@ -10996,6 +10572,1926 @@ window.V5 = (function(){
           "6. 普攻",
           "```"
         ]
+      },
+      "SK_C001_1": {
+        "id": "SK_C001_1",
+        "name": "占位技能_C001_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C001"
+        ]
+      },
+      "SK_C001_2": {
+        "id": "SK_C001_2",
+        "name": "占位技能_C001_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C001"
+        ]
+      },
+      "SK_C001_3": {
+        "id": "SK_C001_3",
+        "name": "占位技能_C001_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C001"
+        ]
+      },
+      "SK_C001_4": {
+        "id": "SK_C001_4",
+        "name": "占位技能_C001_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C001"
+        ]
+      },
+      "SK_C002_1": {
+        "id": "SK_C002_1",
+        "name": "占位技能_C002_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C002"
+        ]
+      },
+      "SK_C002_2": {
+        "id": "SK_C002_2",
+        "name": "占位技能_C002_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C002"
+        ]
+      },
+      "SK_C002_3": {
+        "id": "SK_C002_3",
+        "name": "占位技能_C002_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C002"
+        ]
+      },
+      "SK_C002_4": {
+        "id": "SK_C002_4",
+        "name": "占位技能_C002_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C002"
+        ]
+      },
+      "SK_C003_1": {
+        "id": "SK_C003_1",
+        "name": "占位技能_C003_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C003"
+        ]
+      },
+      "SK_C003_2": {
+        "id": "SK_C003_2",
+        "name": "占位技能_C003_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C003"
+        ]
+      },
+      "SK_C003_3": {
+        "id": "SK_C003_3",
+        "name": "占位技能_C003_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C003"
+        ]
+      },
+      "SK_C003_4": {
+        "id": "SK_C003_4",
+        "name": "占位技能_C003_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C003"
+        ]
+      },
+      "SK_C004_1": {
+        "id": "SK_C004_1",
+        "name": "占位技能_C004_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C004"
+        ]
+      },
+      "SK_C004_2": {
+        "id": "SK_C004_2",
+        "name": "占位技能_C004_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C004"
+        ]
+      },
+      "SK_C004_3": {
+        "id": "SK_C004_3",
+        "name": "占位技能_C004_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C004"
+        ]
+      },
+      "SK_C004_4": {
+        "id": "SK_C004_4",
+        "name": "占位技能_C004_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C004"
+        ]
+      },
+      "SK_C005_1": {
+        "id": "SK_C005_1",
+        "name": "占位技能_C005_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C005"
+        ]
+      },
+      "SK_C005_2": {
+        "id": "SK_C005_2",
+        "name": "占位技能_C005_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C005"
+        ]
+      },
+      "SK_C005_3": {
+        "id": "SK_C005_3",
+        "name": "占位技能_C005_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C005"
+        ]
+      },
+      "SK_C005_4": {
+        "id": "SK_C005_4",
+        "name": "占位技能_C005_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C005"
+        ]
+      },
+      "SK_C006_1": {
+        "id": "SK_C006_1",
+        "name": "占位技能_C006_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C006"
+        ]
+      },
+      "SK_C006_2": {
+        "id": "SK_C006_2",
+        "name": "占位技能_C006_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C006"
+        ]
+      },
+      "SK_C006_3": {
+        "id": "SK_C006_3",
+        "name": "占位技能_C006_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C006"
+        ]
+      },
+      "SK_C006_4": {
+        "id": "SK_C006_4",
+        "name": "占位技能_C006_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C006"
+        ]
+      },
+      "SK_C007_1": {
+        "id": "SK_C007_1",
+        "name": "占位技能_C007_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C007"
+        ]
+      },
+      "SK_C007_2": {
+        "id": "SK_C007_2",
+        "name": "占位技能_C007_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C007"
+        ]
+      },
+      "SK_C007_3": {
+        "id": "SK_C007_3",
+        "name": "占位技能_C007_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C007"
+        ]
+      },
+      "SK_C007_4": {
+        "id": "SK_C007_4",
+        "name": "占位技能_C007_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C007"
+        ]
+      },
+      "SK_C008_1": {
+        "id": "SK_C008_1",
+        "name": "占位技能_C008_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C008"
+        ]
+      },
+      "SK_C008_2": {
+        "id": "SK_C008_2",
+        "name": "占位技能_C008_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C008"
+        ]
+      },
+      "SK_C008_3": {
+        "id": "SK_C008_3",
+        "name": "占位技能_C008_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C008"
+        ]
+      },
+      "SK_C008_4": {
+        "id": "SK_C008_4",
+        "name": "占位技能_C008_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C008"
+        ]
+      },
+      "SK_C009_1": {
+        "id": "SK_C009_1",
+        "name": "占位技能_C009_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C009"
+        ]
+      },
+      "SK_C009_2": {
+        "id": "SK_C009_2",
+        "name": "占位技能_C009_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C009"
+        ]
+      },
+      "SK_C009_3": {
+        "id": "SK_C009_3",
+        "name": "占位技能_C009_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C009"
+        ]
+      },
+      "SK_C009_4": {
+        "id": "SK_C009_4",
+        "name": "占位技能_C009_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C009"
+        ]
+      },
+      "SK_C010_1": {
+        "id": "SK_C010_1",
+        "name": "占位技能_C010_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C010"
+        ]
+      },
+      "SK_C010_2": {
+        "id": "SK_C010_2",
+        "name": "占位技能_C010_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C010"
+        ]
+      },
+      "SK_C010_3": {
+        "id": "SK_C010_3",
+        "name": "占位技能_C010_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C010"
+        ]
+      },
+      "SK_C010_4": {
+        "id": "SK_C010_4",
+        "name": "占位技能_C010_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C010"
+        ]
+      },
+      "SK_C011_1": {
+        "id": "SK_C011_1",
+        "name": "占位技能_C011_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C011"
+        ]
+      },
+      "SK_C011_2": {
+        "id": "SK_C011_2",
+        "name": "占位技能_C011_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C011"
+        ]
+      },
+      "SK_C011_3": {
+        "id": "SK_C011_3",
+        "name": "占位技能_C011_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C011"
+        ]
+      },
+      "SK_C011_4": {
+        "id": "SK_C011_4",
+        "name": "占位技能_C011_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C011"
+        ]
+      },
+      "SK_C012_1": {
+        "id": "SK_C012_1",
+        "name": "占位技能_C012_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C012"
+        ]
+      },
+      "SK_C012_2": {
+        "id": "SK_C012_2",
+        "name": "占位技能_C012_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C012"
+        ]
+      },
+      "SK_C012_3": {
+        "id": "SK_C012_3",
+        "name": "占位技能_C012_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C012"
+        ]
+      },
+      "SK_C012_4": {
+        "id": "SK_C012_4",
+        "name": "占位技能_C012_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C012"
+        ]
+      },
+      "SK_C013_1": {
+        "id": "SK_C013_1",
+        "name": "占位技能_C013_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C013"
+        ]
+      },
+      "SK_C013_2": {
+        "id": "SK_C013_2",
+        "name": "占位技能_C013_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C013"
+        ]
+      },
+      "SK_C013_3": {
+        "id": "SK_C013_3",
+        "name": "占位技能_C013_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C013"
+        ]
+      },
+      "SK_C013_4": {
+        "id": "SK_C013_4",
+        "name": "占位技能_C013_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C013"
+        ]
+      },
+      "SK_C014_1": {
+        "id": "SK_C014_1",
+        "name": "占位技能_C014_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C014"
+        ]
+      },
+      "SK_C014_2": {
+        "id": "SK_C014_2",
+        "name": "占位技能_C014_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C014"
+        ]
+      },
+      "SK_C014_3": {
+        "id": "SK_C014_3",
+        "name": "占位技能_C014_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C014"
+        ]
+      },
+      "SK_C014_4": {
+        "id": "SK_C014_4",
+        "name": "占位技能_C014_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C014"
+        ]
+      },
+      "SK_C015_1": {
+        "id": "SK_C015_1",
+        "name": "占位技能_C015_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C015"
+        ]
+      },
+      "SK_C015_2": {
+        "id": "SK_C015_2",
+        "name": "占位技能_C015_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C015"
+        ]
+      },
+      "SK_C015_3": {
+        "id": "SK_C015_3",
+        "name": "占位技能_C015_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C015"
+        ]
+      },
+      "SK_C015_4": {
+        "id": "SK_C015_4",
+        "name": "占位技能_C015_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C015"
+        ]
+      },
+      "SK_C016_1": {
+        "id": "SK_C016_1",
+        "name": "占位技能_C016_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C016"
+        ]
+      },
+      "SK_C016_2": {
+        "id": "SK_C016_2",
+        "name": "占位技能_C016_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C016"
+        ]
+      },
+      "SK_C016_3": {
+        "id": "SK_C016_3",
+        "name": "占位技能_C016_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C016"
+        ]
+      },
+      "SK_C016_4": {
+        "id": "SK_C016_4",
+        "name": "占位技能_C016_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C016"
+        ]
+      },
+      "SK_C017_1": {
+        "id": "SK_C017_1",
+        "name": "占位技能_C017_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C017"
+        ]
+      },
+      "SK_C017_2": {
+        "id": "SK_C017_2",
+        "name": "占位技能_C017_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C017"
+        ]
+      },
+      "SK_C017_3": {
+        "id": "SK_C017_3",
+        "name": "占位技能_C017_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C017"
+        ]
+      },
+      "SK_C017_4": {
+        "id": "SK_C017_4",
+        "name": "占位技能_C017_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C017"
+        ]
+      },
+      "SK_C018_1": {
+        "id": "SK_C018_1",
+        "name": "占位技能_C018_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C018"
+        ]
+      },
+      "SK_C018_2": {
+        "id": "SK_C018_2",
+        "name": "占位技能_C018_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C018"
+        ]
+      },
+      "SK_C018_3": {
+        "id": "SK_C018_3",
+        "name": "占位技能_C018_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C018"
+        ]
+      },
+      "SK_C018_4": {
+        "id": "SK_C018_4",
+        "name": "占位技能_C018_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C018"
+        ]
+      },
+      "SK_C019_1": {
+        "id": "SK_C019_1",
+        "name": "占位技能_C019_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C019"
+        ]
+      },
+      "SK_C019_2": {
+        "id": "SK_C019_2",
+        "name": "占位技能_C019_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C019"
+        ]
+      },
+      "SK_C019_3": {
+        "id": "SK_C019_3",
+        "name": "占位技能_C019_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C019"
+        ]
+      },
+      "SK_C019_4": {
+        "id": "SK_C019_4",
+        "name": "占位技能_C019_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C019"
+        ]
+      },
+      "SK_C020_1": {
+        "id": "SK_C020_1",
+        "name": "占位技能_C020_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C020"
+        ]
+      },
+      "SK_C020_2": {
+        "id": "SK_C020_2",
+        "name": "占位技能_C020_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C020"
+        ]
+      },
+      "SK_C020_3": {
+        "id": "SK_C020_3",
+        "name": "占位技能_C020_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C020"
+        ]
+      },
+      "SK_C020_4": {
+        "id": "SK_C020_4",
+        "name": "占位技能_C020_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C020"
+        ]
+      },
+      "SK_C021_1": {
+        "id": "SK_C021_1",
+        "name": "占位技能_C021_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C021"
+        ]
+      },
+      "SK_C021_2": {
+        "id": "SK_C021_2",
+        "name": "占位技能_C021_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C021"
+        ]
+      },
+      "SK_C021_3": {
+        "id": "SK_C021_3",
+        "name": "占位技能_C021_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C021"
+        ]
+      },
+      "SK_C021_4": {
+        "id": "SK_C021_4",
+        "name": "占位技能_C021_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C021"
+        ]
+      },
+      "SK_C022_1": {
+        "id": "SK_C022_1",
+        "name": "占位技能_C022_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C022"
+        ]
+      },
+      "SK_C022_2": {
+        "id": "SK_C022_2",
+        "name": "占位技能_C022_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C022"
+        ]
+      },
+      "SK_C022_3": {
+        "id": "SK_C022_3",
+        "name": "占位技能_C022_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C022"
+        ]
+      },
+      "SK_C022_4": {
+        "id": "SK_C022_4",
+        "name": "占位技能_C022_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C022"
+        ]
+      },
+      "SK_C023_1": {
+        "id": "SK_C023_1",
+        "name": "占位技能_C023_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C023"
+        ]
+      },
+      "SK_C023_2": {
+        "id": "SK_C023_2",
+        "name": "占位技能_C023_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C023"
+        ]
+      },
+      "SK_C023_3": {
+        "id": "SK_C023_3",
+        "name": "占位技能_C023_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C023"
+        ]
+      },
+      "SK_C023_4": {
+        "id": "SK_C023_4",
+        "name": "占位技能_C023_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C023"
+        ]
+      },
+      "SK_C024_1": {
+        "id": "SK_C024_1",
+        "name": "占位技能_C024_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C024"
+        ]
+      },
+      "SK_C024_2": {
+        "id": "SK_C024_2",
+        "name": "占位技能_C024_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C024"
+        ]
+      },
+      "SK_C024_3": {
+        "id": "SK_C024_3",
+        "name": "占位技能_C024_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C024"
+        ]
+      },
+      "SK_C024_4": {
+        "id": "SK_C024_4",
+        "name": "占位技能_C024_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C024"
+        ]
+      },
+      "SK_C025_1": {
+        "id": "SK_C025_1",
+        "name": "占位技能_C025_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C025"
+        ]
+      },
+      "SK_C025_2": {
+        "id": "SK_C025_2",
+        "name": "占位技能_C025_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C025"
+        ]
+      },
+      "SK_C025_3": {
+        "id": "SK_C025_3",
+        "name": "占位技能_C025_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C025"
+        ]
+      },
+      "SK_C025_4": {
+        "id": "SK_C025_4",
+        "name": "占位技能_C025_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C025"
+        ]
+      },
+      "SK_C026_1": {
+        "id": "SK_C026_1",
+        "name": "占位技能_C026_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C026"
+        ]
+      },
+      "SK_C026_2": {
+        "id": "SK_C026_2",
+        "name": "占位技能_C026_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C026"
+        ]
+      },
+      "SK_C026_3": {
+        "id": "SK_C026_3",
+        "name": "占位技能_C026_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C026"
+        ]
+      },
+      "SK_C026_4": {
+        "id": "SK_C026_4",
+        "name": "占位技能_C026_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C026"
+        ]
+      },
+      "SK_C027_1": {
+        "id": "SK_C027_1",
+        "name": "占位技能_C027_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C027"
+        ]
+      },
+      "SK_C027_2": {
+        "id": "SK_C027_2",
+        "name": "占位技能_C027_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C027"
+        ]
+      },
+      "SK_C027_3": {
+        "id": "SK_C027_3",
+        "name": "占位技能_C027_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C027"
+        ]
+      },
+      "SK_C027_4": {
+        "id": "SK_C027_4",
+        "name": "占位技能_C027_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C027"
+        ]
+      },
+      "SK_C028_1": {
+        "id": "SK_C028_1",
+        "name": "占位技能_C028_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C028"
+        ]
+      },
+      "SK_C028_2": {
+        "id": "SK_C028_2",
+        "name": "占位技能_C028_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C028"
+        ]
+      },
+      "SK_C028_3": {
+        "id": "SK_C028_3",
+        "name": "占位技能_C028_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C028"
+        ]
+      },
+      "SK_C028_4": {
+        "id": "SK_C028_4",
+        "name": "占位技能_C028_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C028"
+        ]
+      },
+      "SK_C029_1": {
+        "id": "SK_C029_1",
+        "name": "占位技能_C029_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C029"
+        ]
+      },
+      "SK_C029_2": {
+        "id": "SK_C029_2",
+        "name": "占位技能_C029_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C029"
+        ]
+      },
+      "SK_C029_3": {
+        "id": "SK_C029_3",
+        "name": "占位技能_C029_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C029"
+        ]
+      },
+      "SK_C029_4": {
+        "id": "SK_C029_4",
+        "name": "占位技能_C029_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C029"
+        ]
+      },
+      "SK_C030_1": {
+        "id": "SK_C030_1",
+        "name": "占位技能_C030_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C030"
+        ]
+      },
+      "SK_C030_2": {
+        "id": "SK_C030_2",
+        "name": "占位技能_C030_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C030"
+        ]
+      },
+      "SK_C030_3": {
+        "id": "SK_C030_3",
+        "name": "占位技能_C030_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C030"
+        ]
+      },
+      "SK_C030_4": {
+        "id": "SK_C030_4",
+        "name": "占位技能_C030_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C030"
+        ]
+      },
+      "SK_C031_1": {
+        "id": "SK_C031_1",
+        "name": "占位技能_C031_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C031"
+        ]
+      },
+      "SK_C031_2": {
+        "id": "SK_C031_2",
+        "name": "占位技能_C031_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C031"
+        ]
+      },
+      "SK_C031_3": {
+        "id": "SK_C031_3",
+        "name": "占位技能_C031_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C031"
+        ]
+      },
+      "SK_C031_4": {
+        "id": "SK_C031_4",
+        "name": "占位技能_C031_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C031"
+        ]
+      },
+      "SK_C032_1": {
+        "id": "SK_C032_1",
+        "name": "占位技能_C032_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C032"
+        ]
+      },
+      "SK_C032_2": {
+        "id": "SK_C032_2",
+        "name": "占位技能_C032_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C032"
+        ]
+      },
+      "SK_C032_3": {
+        "id": "SK_C032_3",
+        "name": "占位技能_C032_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C032"
+        ]
+      },
+      "SK_C032_4": {
+        "id": "SK_C032_4",
+        "name": "占位技能_C032_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C032"
+        ]
+      },
+      "SK_C033_1": {
+        "id": "SK_C033_1",
+        "name": "占位技能_C033_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C033"
+        ]
+      },
+      "SK_C033_2": {
+        "id": "SK_C033_2",
+        "name": "占位技能_C033_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C033"
+        ]
+      },
+      "SK_C033_3": {
+        "id": "SK_C033_3",
+        "name": "占位技能_C033_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C033"
+        ]
+      },
+      "SK_C033_4": {
+        "id": "SK_C033_4",
+        "name": "占位技能_C033_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C033"
+        ]
+      },
+      "SK_C034_1": {
+        "id": "SK_C034_1",
+        "name": "占位技能_C034_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C034"
+        ]
+      },
+      "SK_C034_2": {
+        "id": "SK_C034_2",
+        "name": "占位技能_C034_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C034"
+        ]
+      },
+      "SK_C034_3": {
+        "id": "SK_C034_3",
+        "name": "占位技能_C034_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C034"
+        ]
+      },
+      "SK_C034_4": {
+        "id": "SK_C034_4",
+        "name": "占位技能_C034_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C034"
+        ]
+      },
+      "SK_C035_1": {
+        "id": "SK_C035_1",
+        "name": "占位技能_C035_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C035"
+        ]
+      },
+      "SK_C035_2": {
+        "id": "SK_C035_2",
+        "name": "占位技能_C035_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C035"
+        ]
+      },
+      "SK_C035_3": {
+        "id": "SK_C035_3",
+        "name": "占位技能_C035_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C035"
+        ]
+      },
+      "SK_C035_4": {
+        "id": "SK_C035_4",
+        "name": "占位技能_C035_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C035"
+        ]
+      },
+      "SK_C036_1": {
+        "id": "SK_C036_1",
+        "name": "占位技能_C036_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C036"
+        ]
+      },
+      "SK_C036_2": {
+        "id": "SK_C036_2",
+        "name": "占位技能_C036_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C036"
+        ]
+      },
+      "SK_C036_3": {
+        "id": "SK_C036_3",
+        "name": "占位技能_C036_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C036"
+        ]
+      },
+      "SK_C036_4": {
+        "id": "SK_C036_4",
+        "name": "占位技能_C036_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C036"
+        ]
+      },
+      "SK_C037_1": {
+        "id": "SK_C037_1",
+        "name": "占位技能_C037_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C037"
+        ]
+      },
+      "SK_C037_2": {
+        "id": "SK_C037_2",
+        "name": "占位技能_C037_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C037"
+        ]
+      },
+      "SK_C037_3": {
+        "id": "SK_C037_3",
+        "name": "占位技能_C037_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C037"
+        ]
+      },
+      "SK_C037_4": {
+        "id": "SK_C037_4",
+        "name": "占位技能_C037_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C037"
+        ]
+      },
+      "SK_C038_1": {
+        "id": "SK_C038_1",
+        "name": "占位技能_C038_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C038"
+        ]
+      },
+      "SK_C038_2": {
+        "id": "SK_C038_2",
+        "name": "占位技能_C038_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C038"
+        ]
+      },
+      "SK_C038_3": {
+        "id": "SK_C038_3",
+        "name": "占位技能_C038_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C038"
+        ]
+      },
+      "SK_C038_4": {
+        "id": "SK_C038_4",
+        "name": "占位技能_C038_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C038"
+        ]
+      },
+      "SK_C039_1": {
+        "id": "SK_C039_1",
+        "name": "占位技能_C039_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C039"
+        ]
+      },
+      "SK_C039_2": {
+        "id": "SK_C039_2",
+        "name": "占位技能_C039_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C039"
+        ]
+      },
+      "SK_C039_3": {
+        "id": "SK_C039_3",
+        "name": "占位技能_C039_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C039"
+        ]
+      },
+      "SK_C039_4": {
+        "id": "SK_C039_4",
+        "name": "占位技能_C039_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C039"
+        ]
+      },
+      "SK_C040_1": {
+        "id": "SK_C040_1",
+        "name": "占位技能_C040_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C040"
+        ]
+      },
+      "SK_C040_2": {
+        "id": "SK_C040_2",
+        "name": "占位技能_C040_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C040"
+        ]
+      },
+      "SK_C040_3": {
+        "id": "SK_C040_3",
+        "name": "占位技能_C040_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C040"
+        ]
+      },
+      "SK_C040_4": {
+        "id": "SK_C040_4",
+        "name": "占位技能_C040_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C040"
+        ]
+      },
+      "SK_C041_1": {
+        "id": "SK_C041_1",
+        "name": "占位技能_C041_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C041"
+        ]
+      },
+      "SK_C041_2": {
+        "id": "SK_C041_2",
+        "name": "占位技能_C041_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C041"
+        ]
+      },
+      "SK_C041_3": {
+        "id": "SK_C041_3",
+        "name": "占位技能_C041_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C041"
+        ]
+      },
+      "SK_C041_4": {
+        "id": "SK_C041_4",
+        "name": "占位技能_C041_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C041"
+        ]
+      },
+      "SK_C042_1": {
+        "id": "SK_C042_1",
+        "name": "占位技能_C042_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C042"
+        ]
+      },
+      "SK_C042_2": {
+        "id": "SK_C042_2",
+        "name": "占位技能_C042_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C042"
+        ]
+      },
+      "SK_C042_3": {
+        "id": "SK_C042_3",
+        "name": "占位技能_C042_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C042"
+        ]
+      },
+      "SK_C042_4": {
+        "id": "SK_C042_4",
+        "name": "占位技能_C042_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C042"
+        ]
+      },
+      "SK_C043_1": {
+        "id": "SK_C043_1",
+        "name": "占位技能_C043_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C043"
+        ]
+      },
+      "SK_C043_2": {
+        "id": "SK_C043_2",
+        "name": "占位技能_C043_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C043"
+        ]
+      },
+      "SK_C043_3": {
+        "id": "SK_C043_3",
+        "name": "占位技能_C043_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C043"
+        ]
+      },
+      "SK_C043_4": {
+        "id": "SK_C043_4",
+        "name": "占位技能_C043_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C043"
+        ]
+      },
+      "SK_C044_1": {
+        "id": "SK_C044_1",
+        "name": "占位技能_C044_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C044"
+        ]
+      },
+      "SK_C044_2": {
+        "id": "SK_C044_2",
+        "name": "占位技能_C044_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C044"
+        ]
+      },
+      "SK_C044_3": {
+        "id": "SK_C044_3",
+        "name": "占位技能_C044_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C044"
+        ]
+      },
+      "SK_C044_4": {
+        "id": "SK_C044_4",
+        "name": "占位技能_C044_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C044"
+        ]
+      },
+      "SK_C045_1": {
+        "id": "SK_C045_1",
+        "name": "占位技能_C045_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C045"
+        ]
+      },
+      "SK_C045_2": {
+        "id": "SK_C045_2",
+        "name": "占位技能_C045_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C045"
+        ]
+      },
+      "SK_C045_3": {
+        "id": "SK_C045_3",
+        "name": "占位技能_C045_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C045"
+        ]
+      },
+      "SK_C045_4": {
+        "id": "SK_C045_4",
+        "name": "占位技能_C045_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C045"
+        ]
+      },
+      "SK_C046_1": {
+        "id": "SK_C046_1",
+        "name": "占位技能_C046_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C046"
+        ]
+      },
+      "SK_C046_2": {
+        "id": "SK_C046_2",
+        "name": "占位技能_C046_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C046"
+        ]
+      },
+      "SK_C046_3": {
+        "id": "SK_C046_3",
+        "name": "占位技能_C046_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C046"
+        ]
+      },
+      "SK_C046_4": {
+        "id": "SK_C046_4",
+        "name": "占位技能_C046_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C046"
+        ]
+      },
+      "SK_C047_1": {
+        "id": "SK_C047_1",
+        "name": "占位技能_C047_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C047"
+        ]
+      },
+      "SK_C047_2": {
+        "id": "SK_C047_2",
+        "name": "占位技能_C047_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C047"
+        ]
+      },
+      "SK_C047_3": {
+        "id": "SK_C047_3",
+        "name": "占位技能_C047_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C047"
+        ]
+      },
+      "SK_C047_4": {
+        "id": "SK_C047_4",
+        "name": "占位技能_C047_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C047"
+        ]
+      },
+      "SK_C048_1": {
+        "id": "SK_C048_1",
+        "name": "占位技能_C048_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C048"
+        ]
+      },
+      "SK_C048_2": {
+        "id": "SK_C048_2",
+        "name": "占位技能_C048_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C048"
+        ]
+      },
+      "SK_C048_3": {
+        "id": "SK_C048_3",
+        "name": "占位技能_C048_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C048"
+        ]
+      },
+      "SK_C048_4": {
+        "id": "SK_C048_4",
+        "name": "占位技能_C048_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C048"
+        ]
+      },
+      "SK_C049_1": {
+        "id": "SK_C049_1",
+        "name": "占位技能_C049_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C049"
+        ]
+      },
+      "SK_C049_2": {
+        "id": "SK_C049_2",
+        "name": "占位技能_C049_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C049"
+        ]
+      },
+      "SK_C049_3": {
+        "id": "SK_C049_3",
+        "name": "占位技能_C049_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C049"
+        ]
+      },
+      "SK_C049_4": {
+        "id": "SK_C049_4",
+        "name": "占位技能_C049_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C049"
+        ]
+      },
+      "SK_C050_1": {
+        "id": "SK_C050_1",
+        "name": "占位技能_C050_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C050"
+        ]
+      },
+      "SK_C050_2": {
+        "id": "SK_C050_2",
+        "name": "占位技能_C050_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C050"
+        ]
+      },
+      "SK_C050_3": {
+        "id": "SK_C050_3",
+        "name": "占位技能_C050_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C050"
+        ]
+      },
+      "SK_C050_4": {
+        "id": "SK_C050_4",
+        "name": "占位技能_C050_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C050"
+        ]
+      },
+      "SK_C051_1": {
+        "id": "SK_C051_1",
+        "name": "占位技能_C051_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C051"
+        ]
+      },
+      "SK_C051_2": {
+        "id": "SK_C051_2",
+        "name": "占位技能_C051_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C051"
+        ]
+      },
+      "SK_C051_3": {
+        "id": "SK_C051_3",
+        "name": "占位技能_C051_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C051"
+        ]
+      },
+      "SK_C051_4": {
+        "id": "SK_C051_4",
+        "name": "占位技能_C051_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C051"
+        ]
+      },
+      "SK_C052_1": {
+        "id": "SK_C052_1",
+        "name": "占位技能_C052_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C052"
+        ]
+      },
+      "SK_C052_2": {
+        "id": "SK_C052_2",
+        "name": "占位技能_C052_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C052"
+        ]
+      },
+      "SK_C052_3": {
+        "id": "SK_C052_3",
+        "name": "占位技能_C052_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C052"
+        ]
+      },
+      "SK_C052_4": {
+        "id": "SK_C052_4",
+        "name": "占位技能_C052_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C052"
+        ]
+      },
+      "SK_C053_1": {
+        "id": "SK_C053_1",
+        "name": "占位技能_C053_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C053"
+        ]
+      },
+      "SK_C053_2": {
+        "id": "SK_C053_2",
+        "name": "占位技能_C053_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C053"
+        ]
+      },
+      "SK_C053_3": {
+        "id": "SK_C053_3",
+        "name": "占位技能_C053_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C053"
+        ]
+      },
+      "SK_C053_4": {
+        "id": "SK_C053_4",
+        "name": "占位技能_C053_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C053"
+        ]
+      },
+      "SK_C054_1": {
+        "id": "SK_C054_1",
+        "name": "占位技能_C054_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C054"
+        ]
+      },
+      "SK_C054_2": {
+        "id": "SK_C054_2",
+        "name": "占位技能_C054_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C054"
+        ]
+      },
+      "SK_C054_3": {
+        "id": "SK_C054_3",
+        "name": "占位技能_C054_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C054"
+        ]
+      },
+      "SK_C054_4": {
+        "id": "SK_C054_4",
+        "name": "占位技能_C054_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C054"
+        ]
+      },
+      "SK_C055_1": {
+        "id": "SK_C055_1",
+        "name": "占位技能_C055_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C055"
+        ]
+      },
+      "SK_C055_2": {
+        "id": "SK_C055_2",
+        "name": "占位技能_C055_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C055"
+        ]
+      },
+      "SK_C055_3": {
+        "id": "SK_C055_3",
+        "name": "占位技能_C055_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C055"
+        ]
+      },
+      "SK_C055_4": {
+        "id": "SK_C055_4",
+        "name": "占位技能_C055_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C055"
+        ]
+      },
+      "SK_C056_1": {
+        "id": "SK_C056_1",
+        "name": "占位技能_C056_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C056"
+        ]
+      },
+      "SK_C056_2": {
+        "id": "SK_C056_2",
+        "name": "占位技能_C056_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C056"
+        ]
+      },
+      "SK_C056_3": {
+        "id": "SK_C056_3",
+        "name": "占位技能_C056_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C056"
+        ]
+      },
+      "SK_C056_4": {
+        "id": "SK_C056_4",
+        "name": "占位技能_C056_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C056"
+        ]
+      },
+      "SK_C057_1": {
+        "id": "SK_C057_1",
+        "name": "占位技能_C057_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C057"
+        ]
+      },
+      "SK_C057_2": {
+        "id": "SK_C057_2",
+        "name": "占位技能_C057_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C057"
+        ]
+      },
+      "SK_C057_3": {
+        "id": "SK_C057_3",
+        "name": "占位技能_C057_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C057"
+        ]
+      },
+      "SK_C057_4": {
+        "id": "SK_C057_4",
+        "name": "占位技能_C057_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C057"
+        ]
+      },
+      "SK_C058_1": {
+        "id": "SK_C058_1",
+        "name": "占位技能_C058_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C058"
+        ]
+      },
+      "SK_C058_2": {
+        "id": "SK_C058_2",
+        "name": "占位技能_C058_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C058"
+        ]
+      },
+      "SK_C058_3": {
+        "id": "SK_C058_3",
+        "name": "占位技能_C058_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C058"
+        ]
+      },
+      "SK_C058_4": {
+        "id": "SK_C058_4",
+        "name": "占位技能_C058_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C058"
+        ]
+      },
+      "SK_C059_1": {
+        "id": "SK_C059_1",
+        "name": "占位技能_C059_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C059"
+        ]
+      },
+      "SK_C059_2": {
+        "id": "SK_C059_2",
+        "name": "占位技能_C059_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C059"
+        ]
+      },
+      "SK_C059_3": {
+        "id": "SK_C059_3",
+        "name": "占位技能_C059_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C059"
+        ]
+      },
+      "SK_C059_4": {
+        "id": "SK_C059_4",
+        "name": "占位技能_C059_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C059"
+        ]
+      },
+      "SK_C060_1": {
+        "id": "SK_C060_1",
+        "name": "占位技能_C060_1",
+        "type": "active",
+        "example_description": [
+          "占位技能 1 for C060"
+        ]
+      },
+      "SK_C060_2": {
+        "id": "SK_C060_2",
+        "name": "占位技能_C060_2",
+        "type": "active",
+        "example_description": [
+          "占位技能 2 for C060"
+        ]
+      },
+      "SK_C060_3": {
+        "id": "SK_C060_3",
+        "name": "占位技能_C060_3",
+        "type": "passive",
+        "example_description": [
+          "占位技能 3 for C060"
+        ]
+      },
+      "SK_C060_4": {
+        "id": "SK_C060_4",
+        "name": "占位技能_C060_4",
+        "type": "passive",
+        "example_description": [
+          "占位技能 4 for C060"
+        ]
       }
     },
     "skills_template": {
@@ -12005,6 +13501,4 @@ window.V5 = (function(){
       }
     }
   ]
-};
-  return data;
-})();
+}

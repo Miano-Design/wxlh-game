@@ -1,0 +1,22 @@
+{
+  "source":"《无限轮回》V3.0 产品级补充需求与开发规范",
+  "summary":{
+    "core_goals":["低操作","高反馈","中等策略","长期成长"],
+    "priorities":{"S":["成长","探索","风险","奖励","选择","收集"]}
+  },
+  "mappings":{
+    "player_level":"config.js -> startPoints / expTable",
+    "character":"js/v5data.js.characters",
+    "equipments":"js/v5data.js.equipments",
+    "skills":"data/skills_template.json / v5._auto.skills_prefill",
+    "events":"js/v5data.js.events / data/events_template.json",
+    "worlds":"reports/worlds_extracted.json"
+  },
+  "required_items":{
+    "characters_count":">12 for first version, 60 present but some placeholders",
+    "equipments_count":"50+ recommended; currently 259 (including placeholders) — need real definitions",
+    "events_count":"30 recommended; extraction incomplete",
+    "bosses":"14 worlds x 1 boss each — need 3-phase definitions",
+    "skills_full_levels":"Each skill Lv1..Lv10 numeric fields missing for many skills"
+  }
+}
