@@ -20,6 +20,19 @@ window.Dungeon = (function () {
       faction, eva: 0.02 + (diff === 'hell' ? 0.03 : 0),
       resPct: diff === 'hell' ? 0.15 : diff === 'hard' ? 0.08 : 0,
     }, opts || {});
+    // 同名敌人加 A/B/C 后缀，敌情预告与战斗画面保持一致
+    const label = list => {
+      const count = {};
+      list.forEach(e => { count[e.name] = (count[e.name] || 0) + 1; });
+      const seen = {};
+      list.forEach(e => {
+        if (count[e.name] > 1) {
+          seen[e.name] = (seen[e.name] || 0) + 1;
+          e.name = e.name + ' ' + String.fromCharCode(64 + seen[e.name]);
+        }
+      });
+      return list;
+    };
     if (kind === 'boss') {
       const bossHp = w.bossHp[D.DIFFICULTY.findIndex(d => d.id === diff)] || w.bossHp[0];
       // Boss 血量按世界序号缩放（早期世界玩家战力低，避免数值碾压）
@@ -28,13 +41,13 @@ window.Dungeon = (function () {
       const list = [mk(w.boss, bossHp * bossHpMult, w.atk * 2.2 * diffMult(diff) * (1 + stage * 0.04), w.def * 1.8 * diffMult(diff) * (1 + stage * 0.05), { isBoss: true })];
       list.push(mk(w.enemies[0], w.hp * m * 1.5, w.atk * mAtk, w.def * mDef, {}));
       if (diff !== 'normal') list.push(mk(w.enemies[1], w.hp * m * 1.5, w.atk * mAtk, w.def * mDef, {}));
-      return list;
+      return label(list);
     }
     if (kind === 'elite') {
-      return [
+      return label([
         mk(w.elite, w.hp * 2.4 * m, w.atk * 1.5 * mAtk, w.def * 1.4 * mDef, { isElite: true }),
         mk(w.enemies[Math.floor(Math.random() * 3)], w.hp * m, w.atk * mAtk, w.def * mDef, {}),
-      ];
+      ]);
     }
     // 前期单人也能打：1关1只(70%)，2关1只(85%)，3关2只(85%)，4关2只(92%)，5关起满编，8关起3只
     if (stage <= 2) {
@@ -45,12 +58,12 @@ window.Dungeon = (function () {
       const weak = stage === 3 ? 0.85 : 0.92;
       const out = [];
       for (let i = 0; i < 2; i++) out.push(mk(w.enemies[i % w.enemies.length], w.hp * m * weak, w.atk * mAtk * weak, w.def * mDef * weak, {}));
-      return out;
+      return label(out);
     }
     const n = 2 + (stage >= 8 ? 1 : 0);
     const out = [];
     for (let i = 0; i < n; i++) out.push(mk(w.enemies[Math.floor(Math.random() * w.enemies.length)], w.hp * m, w.atk * mAtk, w.def * mDef, {}));
-    return out;
+    return label(out);
   }
 
   // 战斗奖励
@@ -99,6 +112,13 @@ window.Dungeon = (function () {
       const res = Core.grantEquip(worldId, rarity);
       if (res.equip) got.push({ k: 'equip', v: res.equip });
       else if (res.sold) got.push({ k: 'otherworld', v: res.gain, sold: true });
+    }
+    // 地狱 Boss：5% 掉落 SSR 伙伴专属装备
+    if (kind === 'boss' && diff === 'hell' && Math.random() < 0.05) {
+      const sig = D.SIGNATURE_EQUIPS[Math.floor(Math.random() * D.SIGNATURE_EQUIPS.length)];
+      const sigRes = Core.grantSignatureEquip(D.SIGNATURE_EQUIPS.indexOf(sig));
+      if (sigRes.equip) got.push({ k: 'equip', v: sigRes.equip, signature: true });
+      else if (sigRes.sold) got.push({ k: 'otherworld', v: sigRes.gain, sold: true });
     }
     if (r.exp) got.push({ k: 'exp', v: r.exp });
     return { rewards: r, got };

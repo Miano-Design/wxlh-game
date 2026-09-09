@@ -43,7 +43,7 @@ window.DATA = (function () {
   ];
   const ATTR_POINTS_PER_LV = 3;   // 每升 1 级获得的属性点
   const ATTR_POINT_VALUE = 2;     // 每点属性点增加的六维值
-  const BLOODLINE_UNLOCK_LV = 20; // 主角觉醒血统所需等级
+  const BLOODLINE_UNLOCK_LV = 10; // 主角觉醒血统所需等级
 
   /* ================= 背包容量 ================= */
   const BAG_BASE_CAP = 100;
@@ -299,9 +299,35 @@ window.DATA = (function () {
     SETS[w.id] = {
       name: w.name + '套装',
       b2: i % 2 === 0 ? { hpPct: 0.08 } : { atkPct: 0.08 },
-      b3: i % 2 === 0 ? { atkPct: 0.12, text: '生命+8%，攻击+12%' } : { hpPct: 0.12, text: '攻击+8%，生命+12%' },
+      b4: i % 2 === 0 ? { resPct: 0.15 } : { skillPct: 0.15 },
+      b6: i % 2 === 0 ? { atkPct: 0.20, hpPct: 0.20 } : { atkPct: 0.20, defPct: 0.20 },
+      text: i % 2 === 0 ? '2件:生命+8%　4件:异常抗性+15%　6件:攻击+20%·生命+20%' : '2件:攻击+8%　4件:技能伤害+15%　6件:攻击+20%·防御+20%',
     };
   });
+
+  /* ================= 职业套装（2/3 件，需定位匹配） ================= */
+  const KIND_NAMES = { warrior: '战士', tank: '坦克', mage: '法师', ranger: '射手', assassin: '刺客', support: '辅助', healer: '治疗', controller: '控制', vampire: '血族' };
+  const CLASS_SETS = {
+    warrior:    { name: '狂战套装', b2: { atkPct: 0.08 }, b3: { atkPct: 0.12, critPct: 0.05 }, text: '2件:攻击+8%　3件:攻击+12%·暴击+5%' },
+    tank:       { name: '守护套装', b2: { hpPct: 0.08 }, b3: { defPct: 0.15 }, text: '2件:生命+8%　3件:防御+15%' },
+    mage:       { name: '元素套装', b2: { skillPct: 0.08 }, b3: { skillPct: 0.15 }, text: '2件:技能伤害+8%　3件:技能伤害+15%' },
+    ranger:     { name: '疾风套装', b2: { spdPct: 0.08 }, b3: { critPct: 0.08 }, text: '2件:速度+8%　3件:暴击+8%' },
+    assassin:   { name: '影袭套装', b2: { critPct: 0.06 }, b3: { critDmg: 0.25 }, text: '2件:暴击+6%　3件:暴击伤害+25%' },
+    support:    { name: '鼓舞套装', b2: { hpPct: 0.06 }, b3: { skillPct: 0.10 }, text: '2件:生命+6%　3件:技能伤害+10%' },
+    healer:     { name: '圣愈套装', b2: { hpPct: 0.06 }, b3: { spiritPct: 0.15 }, text: '2件:生命+6%　3件:精神+15%' },
+    controller: { name: '咒缚套装', b2: { spdPct: 0.06 }, b3: { skillPct: 0.12 }, text: '2件:速度+6%　3件:技能伤害+12%' },
+    vampire:    { name: '猩红套装', b2: { lifesteal: 0.05 }, b3: { atkPct: 0.10 }, text: '2件:吸血+5%　3件:攻击+10%' },
+  };
+
+  /* ================= SSR 伙伴专属装备（UR，绑定角色） ================= */
+  const SIGNATURE_EQUIPS = [
+    { charId: 'C039', name: '猩红獠牙', slot: 'weapon', base: { atk: 320 }, affixes: [{ k: 'atkPct', v: 0.18 }, { k: 'lifesteal', v: 0.08 }], text: '沈夜专属：暗杀者的血之利刃' },
+    { charId: 'C040', name: '青萍古剑', slot: 'weapon', base: { atk: 320 }, affixes: [{ k: 'atkPct', v: 0.18 }, { k: 'skillPct', v: 0.12 }], text: '洛川专属：剑修本命飞剑' },
+    { charId: 'C041', name: '霜寒法杖', slot: 'weapon', base: { atk: 320 }, affixes: [{ k: 'skillPct', v: 0.22 }, { k: 'critPct', v: 0.05 }], text: '顾寒专属：极寒魔力凝聚' },
+    { charId: 'C042', name: '毁灭者重炮', slot: 'weapon', base: { atk: 340 }, affixes: [{ k: 'atkPct', v: 0.22 }, { k: 'critDmg', v: 0.20 }], text: '林渊专属：重火力压制' },
+    { charId: 'C046', name: '嗜血战斧', slot: 'weapon', base: { atk: 330 }, affixes: [{ k: 'atkPct', v: 0.20 }, { k: 'hpPct', v: 0.12 }], text: '韩烬专属：狂战不熄' },
+    { charId: 'C047', name: '虚空刺匕', slot: 'weapon', base: { atk: 330 }, affixes: [{ k: 'critPct', v: 0.08 }, { k: 'critDmg', v: 0.28 }], text: '白夜专属：一击致命' },
+  ];
   const EQUIP_NAMES = {
     weapon:   { bio: ['生化军刀', '脉冲步枪', '基因切割者'], ghost: ['镇魂铃', '驱邪短刃', '缚灵符剑'], mystic: ['秘银法杖', '圣光权杖', '咒纹长剑'], tech: ['磁轨枪', '粒子刀', '湮灭炮'], god: ['主神之刃', '轮回权杖', '试炼圣枪'] },
     armor:    { bio: ['防化作战服', '蜂巢护甲', '再生殖装'], ghost: ['符咒道袍', '怨念披风', '镇宅法衣'], mystic: ['秘陵铠甲', '圣甲护胸', '咒缚长袍'], tech: ['纳米装甲', '反应外骨骼', '相位护盾'], god: ['主神战甲', '轮回之袍', '试炼圣铠'] },
@@ -323,12 +349,17 @@ window.DATA = (function () {
   const AFFIX_BY_RARITY = { N: 0.25, R: 0.4, SR: 0.6, SSR: 0.8, UR: 1.0 }; // 词条取值位置（区间内）
 
   // 装备实例生成：worldTier 1-14，rarity 指定，slot 指定
-  function makeEquip(worldId, slot, rarity, uid) {
+  // opts: { setType: 'plain'|'world'|'class', classKind }
+  function makeEquip(worldId, slot, rarity, uid, opts) {
+    opts = opts || {};
     const w = WORLDS.find(x => x.id === worldId) || WORLDS[0];
     const tier = WORLDS.indexOf(w) + 1;
     const mult = EQUIP_RARITY_MULT[rarity];
+    const setType = opts.setType || (rarity === 'N' || rarity === 'R' ? 'plain' : 'world');
+    let name;
     const names = EQUIP_NAMES[slot][w.theme];
-    const name = names[Math.floor(Math.random() * names.length)];
+    if (setType === 'class') name = KIND_NAMES[opts.classKind] + '·' + names[Math.floor(Math.random() * names.length)];
+    else name = names[Math.floor(Math.random() * names.length)];
     const base = {};
     if (slot === 'weapon') base.atk = Math.round((22 + tier * 20) * mult);
     if (slot === 'armor') { base.def = Math.round((14 + tier * 13) * mult); base.hp = Math.round((220 + tier * 200) * mult); }
@@ -346,7 +377,18 @@ window.DATA = (function () {
       const pos = AFFIX_BY_RARITY[rarity] * (0.7 + Math.random() * 0.3);
       affixes.push({ k, v: +(pool.min + (pool.max - pool.min) * pos).toFixed(3) });
     }
-    return { uid, name, slot, rarity, set: worldId, enhance: 0, base, affixes };
+    return {
+      uid, name, slot, rarity, enhance: 0, base, affixes,
+      set: setType === 'world' ? worldId : null,
+      classSet: setType === 'class' ? opts.classKind : null,
+    };
+  }
+
+  // SSR 专属装备实例
+  function makeSignatureEquip(sigId, uid) {
+    const sig = SIGNATURE_EQUIPS[sigId];
+    if (!sig) return null;
+    return { uid, name: sig.name, slot: sig.slot, rarity: 'UR', enhance: 0, base: Object.assign({}, sig.base), affixes: sig.affixes.map(a => Object.assign({}, a)), set: null, classSet: null, charId: sig.charId, sigText: sig.text };
   }
 
   /* ================= 道具 ================= */
@@ -478,6 +520,47 @@ window.DATA = (function () {
   };
   const BLOODLINE_MAX = 30;
   const bloodlineCost = lv => ({ bloodCrystal: 10 + lv * 5, points: 2000 * (lv + 1) });
+
+  /* ================= 主角血统技能（觉醒后技能栏替换） ================= */
+  // 结构与普通角色技能一致，战斗引擎直接可用
+  const BLOODLINE_SKILLS = {
+    '血族': {
+      s1: { name: '猩红汲取', desc: '对单体造成 170% 伤害，并吸取伤害 25% 的生命', cd: 3, type: 'dmg', mult: 1.7, lifesteal: 0.25, target: 'enemy' },
+      s2: { name: '血怒', desc: '自身攻击+25%、吸血+15%，持续 3 回合', cd: 5, type: 'buff', buff: { atkPct: 0.25, lifesteal: 0.15, turns: 3 }, target: 'self' },
+      ult: { name: '永夜血宴', desc: '对敌方全体造成 260% 伤害，并吸取伤害 20% 的生命', type: 'dmg', mult: 2.6, lifesteal: 0.2, target: 'allEnemies' },
+      passive: { name: '血族本能', desc: '吸血效果随血统等级提升' },
+    },
+    '狼人': {
+      s1: { name: '裂地爪击', desc: '对单体造成 190% 伤害', cd: 3, type: 'dmg', mult: 1.9, target: 'enemy' },
+      s2: { name: '兽性咆哮', desc: '自身生命上限之外的坚韧：防御+40%、攻击+15%，持续 3 回合', cd: 5, type: 'buff', buff: { defPct: 0.4, atkPct: 0.15, turns: 3 }, target: 'self' },
+      ult: { name: '满月变身', desc: '对单体造成 420% 伤害，并附加流血 2 回合', type: 'dmg', mult: 4.2, status: { id: 'bleed', turns: 2 }, target: 'enemy' },
+      passive: { name: '狼人韧性', desc: '生命与防御随血统等级提升' },
+    },
+    '修真': {
+      s1: { name: '御剑术', desc: '御剑伤敌，对单体造成 180% 伤害（无视 20% 防御）', cd: 3, type: 'dmg', mult: 1.8, pierce: 0.2, target: 'enemy' },
+      s2: { name: '剑心通明', desc: '自身技能伤害+30%、速度+20%，持续 3 回合', cd: 5, type: 'buff', buff: { skillPct: 0.3, spdPct: 0.2, turns: 3 }, target: 'self' },
+      ult: { name: '万剑归宗', desc: '万剑齐发，对敌方全体造成 300% 伤害', type: 'dmg', mult: 3.0, target: 'allEnemies' },
+      passive: { name: '剑修根基', desc: '全属性随血统等级提升' },
+    },
+    '魔法': {
+      s1: { name: '奥术冲击', desc: '对单体造成 200% 技能伤害', cd: 3, type: 'dmg', mult: 2.0, target: 'enemy' },
+      s2: { name: '元素汇聚', desc: '自身技能伤害+45%，持续 3 回合', cd: 5, type: 'buff', buff: { skillPct: 0.45, turns: 3 }, target: 'self' },
+      ult: { name: '陨星坠落', desc: '召唤陨星，对敌方全体造成 340% 技能伤害', type: 'dmg', mult: 3.4, target: 'allEnemies' },
+      passive: { name: '魔力源泉', desc: '技能伤害随血统等级提升' },
+    },
+    '科技': {
+      s1: { name: '磁轨狙击', desc: '对单体造成 185% 伤害（高暴击）', cd: 3, type: 'dmg', mult: 1.85, sureCrit: false, target: 'enemy' },
+      s2: { name: '过载核心', desc: '自身攻击+30%、暴击+20%，持续 3 回合', cd: 5, type: 'buff', buff: { atkPct: 0.3, critPct: 0.2, turns: 3 }, target: 'self' },
+      ult: { name: '湮灭炮击', desc: '对单体造成 450% 伤害（无视 30% 防御）', type: 'dmg', mult: 4.5, pierce: 0.3, target: 'enemy' },
+      passive: { name: '机械专精', desc: '攻击与暴击随血统等级提升' },
+    },
+    '念动力': {
+      s1: { name: '精神穿刺', desc: '对单体造成 175% 伤害，30% 概率眩晕 1 回合', cd: 3, type: 'dmg', mult: 1.75, status: { id: 'stun', turns: 1, chance: 0.3 }, target: 'enemy' },
+      s2: { name: '念动屏障', desc: '自身速度+25%、闪避+15%，持续 3 回合', cd: 5, type: 'buff', buff: { spdPct: 0.25, evaPct: 0.15, turns: 3 }, target: 'self' },
+      ult: { name: '心灵风暴', desc: '对敌方全体造成 280% 伤害，25% 概率眩晕 1 回合', type: 'dmg', mult: 2.8, status: { id: 'stun', turns: 1, chance: 0.25 }, target: 'allEnemies' },
+      passive: { name: '念动掌控', desc: '速度与精神随血统等级提升' },
+    },
+  };
   const GENE_LOCKS = [
     { stage: 1, name: '初醒', desc: '全队全属性+5%，挂机收益+10%', req: '通关 生化蜂巢·普通', cost: { bloodCrystal: 100 } },
     { stage: 2, name: '强化', desc: '全队技能伤害+15%', req: '玩家Lv20 + 通关 咒怨凶宅·普通', cost: { bloodCrystal: 300 } },
@@ -580,7 +663,9 @@ window.DATA = (function () {
   /* ================= 主线任务 ================= */
   // check: (S, helpers) => bool；reward 自动结算，点击领取
   const MAIN_QUESTS = [
-    { id: 'q01', name: '熟悉身体', desc: '完成 1 场战斗', reward: { points: 1000 },
+    { id: 'q01', name: '熟悉身体', desc: '打开个人房间，查看主角属性面板', reward: { points: 500 },
+      check: S => (S.stats.profileViews || 0) >= 1 },
+    { id: 'q01b', name: '熟悉战斗', desc: '完成 1 场战斗', reward: { points: 1000 },
       check: S => S.stats.battles >= 1 },
     { id: 'q02', name: '初临蜂巢', desc: '通关 生化蜂巢·第1关', reward: { holy: 100 }, unlock: 'recruit',
       check: S => S.worlds.W01 && S.worlds.W01.stages.normal[0] > 0 },
@@ -600,7 +685,7 @@ window.DATA = (function () {
       check: S => Object.values(S.buildings).some(lv => lv >= 2) },
     { id: 'q10', name: '蜂巢之主', desc: '击杀 蜂巢母体（第12关）', reward: { holy: 200, bloodCrystal: 100 }, unlock: 'geneLock,corridor',
       check: S => S.worlds.W01 && S.worlds.W01.stages.normal[11] > 0 },
-    { id: 'q11', name: '回廊的呼唤', desc: '挑战 1 次无限回廊', reward: { story: 100 },
+    { id: 'q11', name: '回廊的呼唤', desc: '通关 无限回廊·第1层', reward: { story: 100 },
       check: S => S.corridor.floor >= 2 },
     { id: 'q12', name: '新的恐怖', desc: '通关 异形巢穴·第1关', reward: { bloodCrystal: 50 }, unlock: 'bloodline',
       check: S => S.worlds.W02 && S.worlds.W02.stages.normal[0] > 0 },
@@ -672,6 +757,7 @@ window.DATA = (function () {
     FACTIONS, FACTION_COUNTER, EXP_TABLE, LEVEL_POINTS, CURRENCIES,
     ATTR_META, ATTR_POINTS_PER_LV, ATTR_POINT_VALUE, BLOODLINE_UNLOCK_LV,
     BAG_BASE_CAP, BAG_EXPAND_SIZE, bagExpandCost,
+    BLOODLINE_SKILLS, KIND_NAMES, CLASS_SETS, SIGNATURE_EQUIPS, makeSignatureEquip,
     ROLE_KIND, ATK_ATTR, characters, charById,
     WORLDS, DIFFICULTY, FIRST_CLEAR,
     EQUIP_SLOTS, EQUIP_RARITY_MULT, DECOMPOSE_GAIN, ENHANCE_RATE, SETS, AFFIX_POOL, makeEquip,

@@ -103,9 +103,11 @@ t('第三关未解锁', !Core.stageUnlocked('W01', 'normal', 2));
 t('通关1关后解锁招募', sc.newUnlocks.includes('轮回者招募') && Core.isUnlocked('recruit'));
 
 // 9b. 主线任务
+Core.S.stats.profileViews = 1;
 Core.S.stats.battles = 1;
 const qs = Core.mainQuestState();
 t('主线q01可完成', qs.find(x => x.q.id === 'q01').done);
+t('主线q01b可完成', qs.find(x => x.q.id === 'q01b').done);
 t('主线q02可完成', qs.find(x => x.q.id === 'q02').done);
 t('领取主线', Core.claimQuest('q01').ok);
 
@@ -172,6 +174,7 @@ console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}
   t('主角血统升级', Core.upgradePlayerBloodline().ok && Core.S.player.bloodlineLv === 1);
   t('血统不可更改', !Core.choosePlayerBloodline('魔法').ok);
   const eq6 = Core.grantEquip('W01', 'SR', 'head');
+  eq6.equip.set = null; eq6.equip.classSet = null; // 固定为普通装备，排除套装随机性
   t('头部装备仅主角可用', Core.equipItem('@player', eq6.equip.uid) && !Core.equipItem('C021', eq6.equip.uid));
   Core.S.player.level = 1;
 }
@@ -231,6 +234,106 @@ console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}
 {
   Core.wipeSave();
   t('wipeSave 后 save 被抑制', (Core.save(), !store['wxlh_save_v5']));
+}
+
+// 23. 主角技能加点
+{
+  Core.S.player.bloodline = null; Core.S.player.bloodlineLv = 0;
+  Core.S.player.skillPoints = 3; Core.S.player.skillLv = [1, 1, 1];
+  t('技能加点', Core.allocateSkill(0).ok && Core.S.player.skillLv[0] === 2 && Core.S.player.skillPoints === 2);
+  const r = Core.resetSkills();
+  t('洗点返还', r.ok && Core.S.player.skillLv.join() === '1,1,1' && Core.S.player.skillPoints === 3);
+  t('未觉醒用通用技能', Core.protagonistSkills().s1.name === '求生突刺');
+  Core.S.player.bloodline = '血族';
+  t('觉醒后切换血统技能', Core.protagonistSkills().s1.name === '猩红汲取');
+  Core.S.player.bloodline = null;
+}
+
+// 24. 装备四类
+{
+  Core.S.bag.cap = 99999; // 避免背包满干扰判定
+  let plain = 0, world = 0, cls = 0;
+  for (let i = 0; i < 300; i++) {
+    const e = Core.grantEquip('W01', 'SR');
+    if (e.equip) {
+      if (e.equip.charId) continue;
+      if (e.equip.classSet) cls++;
+      else if (e.equip.set) world++;
+      else plain++;
+    }
+  }
+  t('SR装备含世界套装与职业套装', world > 100 && cls > 30);
+  for (let i = 0; i < 100; i++) {
+    const e = Core.grantEquip('W01', 'N');
+    if (e.equip && (e.equip.set || e.equip.classSet)) plain = -999;
+  }
+  t('N装备全为普通装', plain !== -999);
+  const sig = Core.grantSignatureEquip(0);
+  t('专属装备生成', !!sig.equip && sig.equip.charId === 'C039' && sig.equip.rarity === 'UR');
+  t('专属装备他人不可装备', !Core.equipItem('@player', sig.equip.uid));
+  Core.addChar('C039');
+  t('专属装备本人可装备', Core.equipItem('C039', sig.equip.uid));
+}
+
+// 25. 职业套装需定位匹配
+{
+  // 找一名战士与一名非战士
+  const all = D.characters.map(c => c.id);
+  const war = all.find(id => D.charById[id].kind === 'warrior');
+  const nonWar = all.find(id => D.charById[id].kind === 'mage');
+  Core.addChar(war); Core.addChar(nonWar);
+  const mk = uid => { Core.S.equips[uid] = { uid, name: '狂战·测试', slot: 'weapon', rarity: 'SR', enhance: 0, base: { atk: 100 }, affixes: [], set: null, classSet: 'warrior' }; };
+  mk('eqc1'); mk('eqc2'); mk('eqc3'); mk('eqc4');
+  // 战士穿 2 件（武器+饰品槽不足，改为同位两件不可，故用 weapon+accessory）
+  Core.S.equips['eqc2'].slot = 'accessory';
+  Core.S.equipped[war] = { weapon: 'eqc1', armor: null, accessory: 'eqc2' };
+  const warWith = Core.effectiveStats(war).atk;
+  Core.S.equips['eqc1'].classSet = null; Core.S.equips['eqc2'].classSet = null;
+  const warWithout = Core.effectiveStats(war).atk;
+  Core.S.equips['eqc1'].classSet = 'warrior'; Core.S.equips['eqc2'].classSet = 'warrior';
+  // 非战士穿同样 2 件
+  Core.S.equipped[nonWar] = { weapon: 'eqc3', armor: null, accessory: 'eqc4' };
+  const mageWith = Core.effectiveStats(nonWar).atk;
+  Core.S.equips['eqc3'].classSet = null; Core.S.equips['eqc4'].classSet = null;
+  const mageWithout = Core.effectiveStats(nonWar).atk;
+  t('职业套装按定位激活', warWith > warWithout && mageWith === mageWithout);
+  delete Core.S.equips['eqc1']; delete Core.S.equips['eqc2']; delete Core.S.equips['eqc3']; delete Core.S.equips['eqc4'];
+  Core.S.equipped[war] = { weapon: null, armor: null, accessory: null };
+  Core.S.equipped[nonWar] = { weapon: null, armor: null, accessory: null };
+}
+
+// 26. 穿戴规则（canEquip）：职业套装限定位、专属限本人、槽位限角色类型
+{
+  const war = D.characters.find(c => c.kind === 'warrior').id;
+  const mage = D.characters.find(c => c.kind === 'mage').id;
+  if (!Core.S.chars[war]) Core.addChar(war);
+  if (!Core.S.chars[mage]) Core.addChar(mage);
+  const classEq = { uid: 'x1', slot: 'weapon', classSet: 'mage' };
+  t('法师套装法师可穿', Core.canEquip(mage, classEq) === true);
+  t('法师套装战士不可穿', Core.canEquip(war, classEq) === false);
+  t('法师套装主角(战士)不可穿', Core.canEquip('@player', classEq) === false);
+  t('战士套装主角可穿', Core.canEquip('@player', { uid: 'x2', slot: 'weapon', classSet: 'warrior' }) === true);
+  t('专属装备限本人', Core.canEquip(war, { uid: 'x3', slot: 'weapon', charId: mage }) === false && Core.canEquip(mage, { uid: 'x3', slot: 'weapon', charId: mage }) === true);
+  t('招募角色无头部槽', Core.canEquip(war, { uid: 'x4', slot: 'head' }) === false);
+  t('主角六槽全开', Core.canEquip('@player', { uid: 'x5', slot: 'head' }) === true);
+  t('equipItem 拒绝非本职业套装', Core.equipItem(war, (Core.S.equips['x1'] = Object.assign({ name: 't', rarity: 'SR', enhance: 0, base: {}, affixes: [], set: null }, classEq), 'x1')) === false);
+  delete Core.S.equips['x1'];
+}
+
+// 27. 批量分解
+{
+  const before = Core.S.cur.otherworld;
+  const ids = [];
+  for (let i = 0; i < 3; i++) {
+    const uid = 'bd' + i;
+    Core.S.equips[uid] = { uid, name: '批量' + i, slot: 'weapon', rarity: 'N', enhance: i, base: {}, affixes: [], set: null };
+    ids.push(uid);
+  }
+  const r = Core.decomposeMany(ids.concat(['不存在']));
+  const expect = ids.reduce((s, u, i) => s + D.DECOMPOSE_GAIN.N + i * 3, 0);
+  t('批量分解数量与收益', r.ok && r.count === 3 && r.gain === expect);
+  t('批量分解入账', Core.S.cur.otherworld === before + expect);
+  t('批量分解后装备移除', ids.every(u => !Core.S.equips[u]));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

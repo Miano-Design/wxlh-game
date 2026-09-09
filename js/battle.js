@@ -129,7 +129,7 @@ window.Battle = (function () {
   /* ---------- 敌人构造 ---------- */
   function makeEnemyUnit(spec, side) {
     return Object.assign({
-      uid: 'e' + (uidSeq++), side: side || 'enemy', faction: spec.faction || null,
+      uid: 'e' + (uidSeq++), side: side || 'enemy', name: spec.name, faction: spec.faction || null,
       maxHp: spec.hp, hp: spec.hp, atk: spec.atk, def: spec.def, spd: spec.spd || 60,
       crit: 0.05, critDmg: 2.0, eva: spec.eva || 0.02, skillMult: 1, lifesteal: spec.lifesteal || 0,
       resPct: spec.resPct || 0, energy: 0, statuses: [], shield: spec.shield || 0,

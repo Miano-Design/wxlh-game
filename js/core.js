@@ -10,7 +10,7 @@ window.Core = (function () {
   /* ================= 存档 ================= */
   const ATTR_ZERO = () => ({ muscle: 0, immune: 0, cell: 0, nerve: 0, intelligence: 0, spirit: 0 });
   function freshProtagonist(name) {
-    return { name: name || '', level: 1, exp: 0, bloodline: null, bloodlineLv: 0, attrPoints: 0, attrs: ATTR_ZERO() };
+    return { name: name || '', level: 1, exp: 0, bloodline: null, bloodlineLv: 0, attrPoints: 0, attrs: ATTR_ZERO(), skillPoints: 0, skillLv: [1, 1, 1] };
   }
   function defaultState() {
     return {
@@ -33,7 +33,7 @@ window.Core = (function () {
       tasks: { date: '', daily: {}, claimed: {}, allClaimed: false },
       login: { day: 0, lastClaim: '' },
       idle: { bankSec: 0, lastTs: Date.now() },
-      stats: { battles: 0, wins: 0, bosses: 0, runs: 0, recruits: 0, enhances: 0, bestFloor: 0 },
+      stats: { battles: 0, wins: 0, bosses: 0, runs: 0, recruits: 0, enhances: 0, bestFloor: 0, profileViews: 0 },
       settings: { speed: 1, autoSellN: false, autoSellR: false, muted: false },
       codex: { chars: [], equipsSeen: 0 },
       achievements: {},
@@ -68,6 +68,7 @@ window.Core = (function () {
   }
   // 旧档迁移：C001 林默不再是主角占位，主角为独立实体
   function migrate() {
+    S.stats = Object.assign(defaultState().stats, S.stats || {});
     if (S.chars && S.chars['C001']) {
       // 转移 C001 装备到主角
       const old = (S.equipped && S.equipped['C001']) || {};
@@ -83,8 +84,21 @@ window.Core = (function () {
     S.player.bloodlineLv = S.player.bloodlineLv || 0;
     S.player.attrs = Object.assign(ATTR_ZERO(), S.player.attrs || {});
     S.player.attrPoints = S.player.attrPoints || 0;
+    S.player.skillLv = (S.player.skillLv || [1, 1, 1]).slice(0, 3);
+    if (S.player.skillPoints === undefined) {
+      const spent = S.player.skillLv.reduce((s, x) => s + (x - 1), 0);
+      S.player.skillPoints = Math.max(0, (S.player.level - 1) - spent);
+    }
     S.altPlayers = Array.isArray(S.altPlayers) ? S.altPlayers : [];
-    S.altPlayers.forEach(p => { p.attrs = Object.assign(ATTR_ZERO(), p.attrs || {}); p.attrPoints = p.attrPoints || 0; });
+    S.altPlayers.forEach(p => {
+      p.attrs = Object.assign(ATTR_ZERO(), p.attrs || {});
+      p.attrPoints = p.attrPoints || 0;
+      p.skillLv = (p.skillLv || [1, 1, 1]).slice(0, 3);
+      if (p.skillPoints === undefined) {
+        const spent = p.skillLv.reduce((s, x) => s + (x - 1), 0);
+        p.skillPoints = Math.max(0, (p.level - 1) - spent);
+      }
+    });
     if (!S.bag || !S.bag.cap) S.bag = { cap: D.BAG_BASE_CAP, expands: 0 };
   }
   function newGame() {
@@ -157,6 +171,23 @@ window.Core = (function () {
   }
 
   /* ================= 道具 ================= */
+  // 套装加成：世界套装 2/4/6 件；职业套装 2/3 件（已按定位匹配计入 sets）
+  function applySetBonuses(pct, sets) {
+    Object.entries(sets).forEach(([setId, n]) => {
+      if (setId.startsWith('class:')) {
+        const cs = D.CLASS_SETS[setId.slice(6)];
+        if (!cs) return;
+        if (n >= 2 && cs.b2) Object.entries(cs.b2).forEach(([k, v]) => { pct[k] = (pct[k] || 0) + v; });
+        if (n >= 3 && cs.b3) Object.entries(cs.b3).forEach(([k, v]) => { pct[k] = (pct[k] || 0) + v; });
+        return;
+      }
+      const set = D.SETS[setId];
+      if (!set) return;
+      if (n >= 2 && set.b2) Object.entries(set.b2).forEach(([k, v]) => { pct[k] = (pct[k] || 0) + v; });
+      if (n >= 4 && set.b4) Object.entries(set.b4).forEach(([k, v]) => { pct[k] = (pct[k] || 0) + v; });
+      if (n >= 6 && set.b6) Object.entries(set.b6).forEach(([k, v]) => { pct[k] = (pct[k] || 0) + v; });
+    });
+  }
   // 背包占用 = 道具种类数 + 未装备装备件数
   function bagUsage() {
     const equippedUids = new Set();
@@ -340,7 +371,7 @@ window.Core = (function () {
     // 装备
     const eq = S.equipped[charId] || {};
     const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
-    let sets = {};
+    const sets = {};
     Object.values(eq).forEach(uid => {
       if (!uid || !S.equips[uid]) return;
       const e = S.equips[uid];
@@ -349,14 +380,10 @@ window.Core = (function () {
       flat.spd += st.flat.spd || 0;
       pct.critPct += st.flat.critPct || 0;
       Object.entries(st.affix).forEach(([k, v]) => { pct[k] = (pct[k] || 0) + v; });
-      sets[e.set] = (sets[e.set] || 0) + 1;
+      if (e.set) sets[e.set] = (sets[e.set] || 0) + 1;
+      if (e.classSet && e.classSet === base.kind) sets['class:' + e.classSet] = (sets['class:' + e.classSet] || 0) + 1;
     });
-    Object.entries(sets).forEach(([setId, n]) => {
-      const set = D.SETS[setId];
-      if (!set) return;
-      if (n >= 2 && set.b2) Object.entries(set.b2).forEach(([k, v]) => { pct[k] += v; });
-      if (n >= 3 && set.b3) Object.entries(set.b3).forEach(([k, v]) => { if (k !== 'text') pct[k] += v; });
-    });
+    applySetBonuses(pct, sets);
     // 主攻击属性
     const atkAttr = D.ATK_ATTR[base.kind] || 'muscle';
     if (pct.spiritPct) a.spirit *= (1 + pct.spiritPct);
@@ -423,16 +450,21 @@ window.Core = (function () {
     // 装备（6 槽）
     const eq = S.equipped['@player'] || {};
     const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
+    const psets = {};
     Object.values(eq).forEach(uid => {
       if (!uid || !S.equips[uid]) return;
       const st = equipStats(S.equips[uid]);
+      const e = S.equips[uid];
       flat.atk += st.flat.atk || 0;
       flat.def += st.flat.def || 0;
       flat.hp += st.flat.hp || 0;
       flat.spd += st.flat.spd || 0;
       pct.critPct += st.flat.critPct || 0;
       Object.entries(st.affix).forEach(([k, v]) => { pct[k] = (pct[k] || 0) + v; });
+      if (e.set) psets[e.set] = (psets[e.set] || 0) + 1;
+      if (e.classSet && e.classSet === 'warrior') psets['class:warrior'] = (psets['class:warrior'] || 0) + 1;
     });
+    applySetBonuses(pct, psets);
     const atk = (a.muscle * 1.8 + flat.atk) * (1 + pct.atkPct);
     const def = (a.immune * 1.6 + flat.def) * (1 + pct.defPct);
     const hp = (a.cell * 25 + flat.hp) * (1 + pct.hpPct);
@@ -489,16 +521,15 @@ window.Core = (function () {
     const uid = 'eq' + Date.now().toString(36) + '_' + (uidCounter++);
     const slots = slot ? [slot] : D.DROP_SLOTS;
     const s = slots[Math.floor(Math.random() * slots.length)];
-    const eq = D.makeEquip(worldId, s, rarity, uid);
+    // 装备类别：普通 / 世界套装 / 职业套装
+    let opts = { setType: 'plain' };
+    const roll = Math.random();
+    if (rarity === 'R') opts = roll < 0.5 ? { setType: 'plain' } : { setType: 'world' };
+    else if (rarity === 'SR') opts = roll < 0.7 ? { setType: 'world' } : { setType: 'class', classKind: randomKind() };
+    else if (rarity === 'SSR' || rarity === 'UR') opts = roll < 0.6 ? { setType: 'world' } : { setType: 'class', classKind: randomKind() };
+    const eq = D.makeEquip(worldId, s, rarity, uid, opts);
     S.equips[uid] = eq;
     S.codex.equipsSeen++;
-    // 自动出售
-    if ((rarity === 'N' && S.settings.autoSellN) || (rarity === 'R' && S.settings.autoSellR)) {
-      const gain = D.DECOMPOSE_GAIN[rarity];
-      delete S.equips[uid];
-      addCur('otherworld', gain);
-      return { sold: true, gain };
-    }
     // 背包已满 → 自动分解为异界结晶
     if (bagUsage().used > S.bag.cap) {
       const gain = D.DECOMPOSE_GAIN[rarity];
@@ -507,6 +538,24 @@ window.Core = (function () {
       return { sold: true, gain, bagFull: true };
     }
     return { equip: eq };
+  }
+  function randomKind() {
+    const kinds = Object.keys(D.CLASS_SETS);
+    return kinds[Math.floor(Math.random() * kinds.length)];
+  }
+  // SSR 专属装备（UR，绑定角色）
+  function grantSignatureEquip(sigId) {
+    const uid = 'eq' + Date.now().toString(36) + '_' + (uidCounter++);
+    const eq = D.makeSignatureEquip(sigId, uid);
+    if (!eq) return { sold: false };
+    S.equips[uid] = eq;
+    S.codex.equipsSeen++;
+    if (bagUsage().used > S.bag.cap) {
+      delete S.equips[uid];
+      addCur('otherworld', D.DECOMPOSE_GAIN.UR);
+      return { sold: true, gain: D.DECOMPOSE_GAIN.UR, bagFull: true };
+    }
+    return { equip: eq, signature: true };
   }
 
   function buyBagCap() {
@@ -520,16 +569,20 @@ window.Core = (function () {
   function equipItem(charId, uid) {
     const eq = S.equips[uid];
     if (!eq) return false;
-    if (charId === '@player') {
-      if (!D.PLAYER_SLOTS.includes(eq.slot)) return false;
-    } else {
-      if (!S.chars[charId]) return false;
-      if (!D.RECRUIT_SLOTS.includes(eq.slot)) return false;   // 头/手/腿仅主角可用
-    }
+    if (!canEquip(charId, eq)) return false;
     if (!S.equipped[charId]) S.equipped[charId] = { weapon: null, armor: null, accessory: null };
     S.equipped[charId][eq.slot] = uid;
     save();
     return true;
+  }
+  // 穿戴规则：专属限本人；职业套装限对应定位（主角=战士）；槽位受角色类型限制（头/手/腿仅主角）
+  function canEquip(charId, eq) {
+    if (!eq) return false;
+    if (eq.charId && eq.charId !== charId) return false;
+    if (charId !== '@player' && !S.chars[charId]) return false;
+    const kind = charId === '@player' ? D.PROTAGONIST.kind : (D.charById[charId] || {}).kind;
+    if (eq.classSet && eq.classSet !== kind) return false;
+    return (charId === '@player' ? D.PLAYER_SLOTS : D.RECRUIT_SLOTS).includes(eq.slot);
   }
   function unequipItem(charId, slot) {
     if (!S.equipped[charId]) return false;
@@ -572,6 +625,22 @@ window.Core = (function () {
     addCur('otherworld', gain);
     save();
     return { ok: true, gain };
+  }
+  // 批量分解：一次结算、一次存档
+  function decomposeMany(uids) {
+    let gain = 0, count = 0;
+    uids.forEach(uid => {
+      const eq = S.equips[uid];
+      if (!eq) return;
+      gain += D.DECOMPOSE_GAIN[eq.rarity] + Math.floor(eq.enhance * 3);
+      Object.values(S.equipped).forEach(slots => {
+        Object.keys(slots).forEach(k => { if (slots[k] === uid) slots[k] = null; });
+      });
+      delete S.equips[uid];
+      count++;
+    });
+    if (count) { addCur('otherworld', gain); save(); }
+    return { ok: count > 0, gain, count };
   }
   function inventoryEquips() {
     const equippedUids = new Set();
@@ -730,7 +799,33 @@ window.Core = (function () {
       S.player.exp -= D.EXP_TABLE[S.player.level];
       S.player.level++;
       S.player.attrPoints = (S.player.attrPoints || 0) + D.ATTR_POINTS_PER_LV;
+      S.player.skillPoints = (S.player.skillPoints || 0) + 1;
     }
+  }
+
+  /* ================= 主角技能加点 ================= */
+  // 技能组：觉醒血统后替换为血统技能
+  function protagonistSkills() {
+    return (S.player.bloodline && D.BLOODLINE_SKILLS[S.player.bloodline]) || D.PROTAGONIST.skills;
+  }
+  function allocateSkill(idx) {
+    const lv = S.player.skillLv || (S.player.skillLv = [1, 1, 1]);
+    if (idx < 0 || idx > 2) return { ok: false, msg: '技能不存在' };
+    if (lv[idx] >= 10) return { ok: false, msg: '已满级' };
+    if ((S.player.skillPoints || 0) < 1) return { ok: false, msg: '没有可用技能点' };
+    S.player.skillPoints--;
+    lv[idx]++;
+    save();
+    return { ok: true, msg: `技能升到 Lv.${lv[idx]}` };
+  }
+  function resetSkills() {
+    const lv = S.player.skillLv || [1, 1, 1];
+    const refund = lv.reduce((s, x) => s + x - 1, 0);
+    if (refund <= 0) return { ok: false, msg: '尚未加点' };
+    S.player.skillLv = [1, 1, 1];
+    S.player.skillPoints = (S.player.skillPoints || 0) + refund;
+    save();
+    return { ok: true, msg: `已重置，返还 ${refund} 点技能点` };
   }
 
   // 六维属性点分配（每点 +ATTR_POINT_VALUE 维值）
@@ -745,16 +840,18 @@ window.Core = (function () {
   }
 
   /* ================= 多主角（新建角色体验不同血统） ================= */
-  const PROTAGONIST_KEYS = ['name', 'level', 'exp', 'bloodline', 'bloodlineLv', 'attrPoints', 'attrs'];
+  const PROTAGONIST_KEYS = ['name', 'level', 'exp', 'bloodline', 'bloodlineLv', 'attrPoints', 'attrs', 'skillPoints', 'skillLv'];
   function snapshotProtagonist() {
     const p = {};
     PROTAGONIST_KEYS.forEach(k => { p[k] = S.player[k]; });
     p.attrs = Object.assign(ATTR_ZERO(), p.attrs);
+    p.skillLv = (p.skillLv || [1, 1, 1]).slice();
     return p;
   }
   function restoreProtagonist(p) {
     PROTAGONIST_KEYS.forEach(k => { S.player[k] = p[k]; });
     S.player.attrs = Object.assign(ATTR_ZERO(), p.attrs);
+    S.player.skillLv = (p.skillLv || [1, 1, 1]).slice();
   }
   function protagonistList() {
     return [
@@ -895,6 +992,14 @@ window.Core = (function () {
     const item = D.ITEMS[itemId];
     if (!item || item.type !== 'box') return { ok: false, msg: '不是宝箱' };
     if (!removeItem(itemId)) return { ok: false, msg: '没有该宝箱' };
+    // UR 箱：10% 开出 SSR 伙伴专属装备
+    if (item.rarity === 'UR' && Math.random() < 0.10) {
+      const sigId = Math.floor(Math.random() * D.SIGNATURE_EQUIPS.length);
+      const sigRes = grantSignatureEquip(sigId);
+      save();
+      if (sigRes.equip) return { ok: true, equip: sigRes.equip, signature: true };
+      if (sigRes.sold) return { ok: true, sold: true };
+    }
     const world = D.WORLDS[Math.floor(Math.random() * Math.min(3, D.WORLDS.length))];
     const res = grantEquip(world.id, item.rarity);
     save();
@@ -1009,8 +1114,8 @@ window.Core = (function () {
     bloodlineUpgrade, geneLockInfo, geneLockUnlock,
     equipStats, effectiveStats, power, teamPower, factionBuffs,
     effectivePlayerStats, playerPower, choosePlayerBloodline, upgradePlayerBloodline,
-    allocateAttr, protagonistList, createProtagonist, switchProtagonist,
-    grantEquip, equipItem, unequipItem, enhanceCost, enhance, decompose, inventoryEquips,
+    allocateAttr, allocateSkill, resetSkills, protagonistSkills, protagonistList, createProtagonist, switchProtagonist,
+    grantEquip, grantSignatureEquip, equipItem, canEquip, unequipItem, enhanceCost, enhance, decompose, decomposeMany, inventoryEquips,
     recruitOnce, recruitTen, freeRecruit, freeRecruitAvailable, ssrTicketUse,
     idleRates, settleOffline, onlineTick, idleBankGains, claimIdle, addPlayerExp, offlineCapHours, offlineEfficiency,
     upgradeBuilding,
