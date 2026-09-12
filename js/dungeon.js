@@ -105,7 +105,9 @@ window.Dungeon = (function () {
     if (r.otherworld) { Core.addCur('otherworld', r.otherworld); got.push({ k: 'otherworld', v: r.otherworld }); }
     if (r.skillChip) { Core.addCur('skillChip', r.skillChip); got.push({ k: 'skillChip', v: r.skillChip }); }
     if (r.bloodCrystal) { Core.addCur('bloodCrystal', r.bloodCrystal); got.push({ k: 'bloodCrystal', v: r.bloodCrystal }); }
-    if (Math.random() < r.equipChance) {
+    // 天赋「主神恩赐」的掉落加成：装备掉落率、材料掉落率、宝箱补给率统一按比例提高
+    const dropBoost = Core.graceDropMult ? Core.graceDropMult() : 1;
+    if (Math.random() < Math.min(1, r.equipChance * dropBoost)) {
       const cap = D.stageDropCap(stage);
       let rarity = D.rollRarity(diff, r.equipMin);
       if (!r.equipMin) rarity = D.capRarity(rarity, cap);   // Boss保底不受上限影响
@@ -121,15 +123,27 @@ window.Dungeon = (function () {
       else if (sigRes.sold) got.push({ k: 'otherworld', v: sigRes.gain, sold: true });
     }
     if (r.exp) got.push({ k: 'exp', v: r.exp });
-    // 强化材料掉落：精英 35%、Boss 必掉 1~2 件，tier 随世界序号
+    // 强化材料掉落：精英 35%、Boss 必掉 1~2 件，普通战 8% 小概率掉，tier 随世界序号
     const wi = D.WORLDS.findIndex(x => x.id === worldId);
     const tier = Math.min(5, wi + 1);
     const matId = 'mat_t' + tier;
-    if (kind === 'elite' && Math.random() < 0.35) { if (Core.addItem(matId)) got.push({ k: 'item', v: matId, n: 1 }); }
+    if (kind === 'elite' && Math.random() < Math.min(1, 0.35 * dropBoost)) { if (Core.addItem(matId)) got.push({ k: 'item', v: matId, n: 1 }); }
     if (kind === 'boss') { const n = 1 + (Math.random() < 0.5 ? 1 : 0); if (Core.addItem(matId, n)) got.push({ k: 'item', v: matId, n }); }
+    if (kind === 'combat' && Math.random() < Math.min(1, 0.08 * dropBoost)) { if (Core.addItem(matId)) got.push({ k: 'item', v: matId, n: 1 }); }
+    // 高阶世界的普通战斗也会掉低级材料（前期囤的材料不会因为世界推进变废）
+    if (kind !== 'boss' && tier > 1 && Math.random() < 0.12 * dropBoost) {
+      const lowId = 'mat_t' + (tier - 1);
+      if (Core.addItem(lowId)) got.push({ k: 'item', v: lowId, n: 1 });
+    }
+    // 高阶经验模块：W07 起精英/Boss 掉落，等级曲线调整后需要稳定的高阶经验来源
+    if (tier >= 7 && (kind === 'boss' || (kind === 'elite' && Math.random() < 0.3 * dropBoost))) {
+      const expId = tier >= 11 ? 'exp_xl' : 'exp_l';
+      const n = kind === 'boss' ? (tier >= 11 ? 1 : 2) : 1;
+      if (Core.addItem(expId, n)) got.push({ k: 'item', v: expId, n });
+    }
     // 战斗增益补给：精英 25%、Boss 必掉，保证强化剂有稳定来源
     const buffId = Math.random() < 0.5 ? 'buff_muscle' : 'buff_nerve';
-    if (kind === 'elite' && Math.random() < 0.25) { if (Core.addItem(buffId)) got.push({ k: 'item', v: buffId, n: 1 }); }
+    if (kind === 'elite' && Math.random() < Math.min(1, 0.25 * dropBoost)) { if (Core.addItem(buffId)) got.push({ k: 'item', v: buffId, n: 1 }); }
     if (kind === 'boss' && Core.addItem(buffId)) got.push({ k: 'item', v: buffId, n: 1 });
     return { rewards: r, got };
   }
@@ -164,7 +178,8 @@ window.Dungeon = (function () {
       Core.addCur('points', pts);
       // 补给宝箱 45% 额外掉一件探索消耗品
       let item = null;
-      if (Math.random() < 0.45) {
+      const chestBoost = Core.graceDropMult ? Core.graceDropMult() : 1;
+      if (Math.random() < Math.min(1, 0.45 * chestBoost)) {
         const pool = stage <= 4 ? ['heal_s', 'heal_m'] : ['heal_m', 'buff_muscle', 'buff_nerve', 'heal_l'];
         const pick = pool[Math.floor(Math.random() * pool.length)];
         if (Core.addItem(pick)) item = pick;

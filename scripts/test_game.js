@@ -23,7 +23,7 @@ t('招募位全空（主角必上阵不占位）', Core.S.party.filter(Boolean).
 t('主角未命名', Core.S.player.name === '');
 t('命名主角', Core.setPlayerName('测试者') && Core.charName('@player') === '测试者');
 t('主角独立属性', (() => { const st = Core.effectivePlayerStats(); return st.atk > 0 && st.hp > 0; })());
-t('主角6装备槽', D.PLAYER_SLOTS.length === 6 && D.RECRUIT_SLOTS.length === 3);
+t('主角与招募角色都是6装备槽', D.PLAYER_SLOTS.length === 6 && D.RECRUIT_SLOTS.length === 6);
 t('W01解锁', Core.S.worlds.W01 && Core.S.worlds.W01.unlocked);
 t('招募初始锁定', !Core.isUnlocked('recruit'));
 
@@ -155,14 +155,21 @@ t('默认不可转生', !Core.canReincarnate());
 
 // 17. 全员满级队打 W03 Boss（中期校验）
 Object.keys(Core.S.chars).forEach(id => { Core.S.chars[id].lv = 60; Core.S.chars[id].star = 3; });
-const allies2 = Core.S.party.filter(Boolean).map((id, i) => {
+Core.S.party = Object.keys(Core.S.chars).slice(0, 4); // 组满 4 名招募角色，模拟正常中期队伍
+Core.S.player.level = 60;
+const pst2 = Core.effectivePlayerStats();
+const allies2 = [Object.assign({ name: '主角', kind: 'warrior', faction: null, position: 'front', skills: D.PROTAGONIST.skills, skillLv: [3, 3, 3] }, pst2)]
+  .concat(Core.S.party.filter(Boolean).map((id, i) => {
   const base = D.charById[id];
   const eff = Core.effectiveStats(id);
   return Object.assign({ name: base.name, kind: base.kind, faction: base.faction, position: i < 2 ? 'front' : 'back', skills: base.skills, skillLv: [5, 5, 5] }, eff);
-});
+}));
 const w3boss = Dungeon.makeEnemies('W03', 'normal', 12, 'boss');
 const w3res = Battle.run({ allies: allies2, enemies: w3boss, worldId: 'W03', maxRounds: 50 });
-console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}`);
+t('Lv60★3 五人队能打过 W03 Boss', w3res.win);
+Core.S.player.level = 1;
+Core.S.party = [null, null, null, null];
+Core.S.party[1] = 'C021';
 
 // 10b. 主角成长体系
 {
@@ -176,7 +183,10 @@ console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}
   t('血统不可更改', !Core.choosePlayerBloodline('魔法').ok);
   const eq6 = Core.grantEquip('W01', 'SR', 'head');
   eq6.equip.set = null; eq6.equip.classSet = null; // 固定为普通装备，排除套装随机性
-  t('头部装备仅主角可用', Core.equipItem('@player', eq6.equip.uid) && !Core.equipItem('C021', eq6.equip.uid));
+  t('头部装备主角可穿', Core.equipItem('@player', eq6.equip.uid));
+  Core.unequipItem('@player', 'head');
+  t('头部装备招募角色也可穿（6 槽修正）', Core.equipItem('C021', eq6.equip.uid));
+  Core.unequipItem('C021', 'head');
   Core.S.player.level = 1;
 }
 
@@ -315,7 +325,7 @@ console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}
   t('法师套装主角(战士)不可穿', Core.canEquip('@player', classEq) === false);
   t('战士套装主角可穿', Core.canEquip('@player', { uid: 'x2', slot: 'weapon', classSet: 'warrior' }) === true);
   t('专属装备限本人', Core.canEquip(war, { uid: 'x3', slot: 'weapon', charId: mage }) === false && Core.canEquip(mage, { uid: 'x3', slot: 'weapon', charId: mage }) === true);
-  t('招募角色无头部槽', Core.canEquip(war, { uid: 'x4', slot: 'head' }) === false);
+  t('招募角色也有头部槽（世界套装4/6件可达）', Core.canEquip(war, { uid: 'x4', slot: 'head' }) === true);
   t('主角六槽全开', Core.canEquip('@player', { uid: 'x5', slot: 'head' }) === true);
   t('equipItem 拒绝非本职业套装', Core.equipItem(war, (Core.S.equips['x1'] = Object.assign({ name: 't', rarity: 'SR', enhance: 0, base: {}, affixes: [], set: null }, classEq), 'x1')) === false);
   delete Core.S.equips['x1'];
@@ -325,16 +335,16 @@ console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}
 {
   Core.S.worlds.W01.stages.normal[0] = 3; // 确保已通关第1关
   Core.S.sweep = { date: Core.dailyDate(), count: 0 };
-  t('初始剩余30次', Core.sweepLeft() === 30);
+  t('初始剩余60次', Core.sweepLeft() === 60);
   const r1 = Dungeon.sweep('W01', 'normal', 1, 10);
-  t('扫荡10次成功', r1.ok && r1.count === 10 && Core.sweepLeft() === 20);
-  Core.S.sweep.count = 28;
+  t('扫荡10次成功', r1.ok && r1.count === 10 && Core.sweepLeft() === 50);
+  Core.S.sweep.count = 58;
   const r2 = Dungeon.sweep('W01', 'normal', 1, 10);
   t('超出上限只扫剩余2次', r2.ok && r2.count === 2 && r2.capped === true);
   const r3 = Dungeon.sweep('W01', 'normal', 1, 10);
   t('用完拒绝扫荡', !r3.ok);
   Core.S.sweep.date = '2000-01-01'; // 模拟跨天
-  t('跨天自动重置', Core.sweepLeft() === 30);
+  t('跨天自动重置', Core.sweepLeft() === 60);
   Core.S.sweep = { date: Core.dailyDate(), count: 0 };
 }
 
@@ -481,6 +491,213 @@ console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}
   t('自动分解 N 不进背包', res.sold === true && res.auto === true);
   t('自动分解换成异界结晶', Core.S.cur.otherworld === before + D.DECOMPOSE_GAIN.N);
   t('自动分解不留下装备', Object.keys(Core.S.equips).length === 0);
+}
+
+/* ================= 2026-09-12 优化批次回归 ================= */
+
+// 37. 转生天赋：文案与实装必须一致（旧版 40 个节点里 15 个是空文本）
+{
+  Core.newGame(); Core.setPlayerName('天赋');
+  Core.S.player.level = 1;
+  Core.S.equipped['@player'] = { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null };
+  const probes = {
+    hpPct: () => Core.effectivePlayerStats().hp,
+    defPct: () => Core.effectivePlayerStats().def,
+    spdPct: () => Core.effectivePlayerStats().spd,
+    critPct: () => Core.effectivePlayerStats().crit,
+    critDmg: () => Core.effectivePlayerStats().critDmg,
+    skillPct: () => Core.effectivePlayerStats().skillMult,
+    evaPct: () => Core.effectivePlayerStats().eva,
+    spiritPct: () => Core.effectivePlayerStats().skillMult,
+    healUp: () => Core.effectivePlayerStats().healUp,
+    dmgReduce: () => Core.effectivePlayerStats().dmgReduce,
+    initEnergy: () => Core.effectivePlayerStats().initEnergy,
+    cdRed: () => Core.effectivePlayerStats().cdRed,
+    firstStrike: () => Core.effectivePlayerStats().firstStrike,
+    ultPct: () => Core.effectivePlayerStats().ultPct,
+    idlePct: () => Core.idleRates().pointsPerMin,
+    expPct: () => Core.idleRates().expPerMin,
+    dropPct: () => Core.graceDropMult(),
+    offlinePct: () => Core.offlineEfficiency(),
+  };
+  const bad = [];
+  ['body', 'energy', 'nerve', 'grace'].forEach(b => {
+    D.TALENTS[b].nodes.forEach((n, i) => {
+      Object.keys(n.e).forEach(k => {
+        if (!probes[k]) { bad.push(`${b}#${i + 1}:${k}(无探针)`); return; }
+        Core.S.player.talents = { body: 0, energy: 0, nerve: 0, grace: 0 };
+        Core.S.player.talents[b] = i;
+        const a = probes[k]();
+        Core.S.player.talents[b] = i + 1;
+        const c = probes[k]();
+        if (!(c > a)) bad.push(`${b}#${i + 1}:${k}(${a}→${c})`);
+      });
+    });
+  });
+  Core.S.player.talents = { body: 0, energy: 0, nerve: 0, grace: 0 };
+  const totalNodes = Object.values(D.TALENTS).reduce((s, x) => s + x.nodes.length, 0);
+  t('天赋共 40 个节点', totalNodes === 40);
+  t('每个天赋节点的文案与效果都齐备', Object.values(D.TALENTS).every(x => x.nodes.every(n => n.text && n.e && Object.keys(n.e).length)));
+  if (bad.length) console.log('  未生效节点：', bad.join(' | '));
+  t('40 个天赋节点逐级都真的生效（无空文本）', bad.length === 0);
+}
+
+// 38. 世界套装 4/6 件对招募角色可以触发
+{
+  Core.newGame(); Core.setPlayerName('套装');
+  Core.addChar('C021');
+  const naked = Core.effectiveStats('C021');
+  const slots = ['weapon', 'head', 'armor', 'hands', 'legs', 'accessory'];
+  slots.slice(0, 4).forEach(s => {
+    const r = Core.grantEquip('W01', 'SR', s);
+    r.equip.set = 'W01'; r.equip.classSet = null; r.equip.affixes = [];
+    Core.equipItem('C021', r.equip.uid);
+  });
+  const four = Core.effectiveStats('C021');
+  t('招募角色能激活 4 件套（旧版永远不可达）', four.sets['W01'] === 4 && four.resPct > naked.resPct);
+  slots.slice(4).forEach(s => {
+    const r = Core.grantEquip('W01', 'SR', s);
+    r.equip.set = 'W01'; r.equip.classSet = null; r.equip.affixes = [];
+    Core.equipItem('C021', r.equip.uid);
+  });
+  const six = Core.effectiveStats('C021');
+  t('招募角色能激活 6 件套', six.sets['W01'] === 6 && six.atk > four.atk && six.hp > four.hp);
+  t('装备掉落池 6 个部位都能被人穿', D.DROP_SLOTS.every(s => D.RECRUIT_SLOTS.includes(s)));
+}
+
+// 39. 装备锁定保护
+{
+  Core.newGame(); Core.setPlayerName('锁定');
+  const r = Core.grantEquip('W01', 'SR', 'weapon');
+  Core.toggleEquipLock(r.equip.uid);
+  t('锁定后单件分解被拒绝', !Core.decompose(r.equip.uid).ok);
+  t('锁定后批量分解会跳过', Core.decomposeMany([r.equip.uid]).count === 0);
+  Core.toggleEquipLock(r.equip.uid);
+  t('解锁后可以分解', Core.decompose(r.equip.uid).ok);
+}
+
+// 40. 一键最优装备 + 编队预设
+{
+  Core.newGame(); Core.setPlayerName('配装');
+  ['C021', 'C022', 'C023', 'C024'].forEach(id => Core.addChar(id));
+  Core.S.party = ['C021', 'C022', 'C023', 'C024'];
+  for (let i = 0; i < 16; i++) Core.grantEquip('W03', 'SSR');
+  const r = Core.autoEquipBest();
+  t('一键最优装备会换装', r.ok && r.changed > 0);
+  const used = [];
+  Object.values(Core.S.equipped).forEach(sl => Object.values(sl).forEach(u => { if (u) used.push(u); }));
+  t('一键最优装备不会把同一件分给两个人', new Set(used).size === used.length);
+  // 先确保 C021 有一件武器，再锁定它；然后塞一堆更好的武器，看一键最优会不会把它换走
+  const w1 = Core.grantEquip('W03', 'SSR', 'weapon');
+  w1.equip.set = null; w1.equip.classSet = null; w1.equip.affixes = [];
+  Core.equipItem('C021', w1.equip.uid);
+  Core.toggleEquipLock(w1.equip.uid);
+  for (let i = 0; i < 6; i++) Core.grantEquip('W06', 'UR', 'weapon');
+  Core.autoEquipBest();
+  t('锁定装备不会被一键换走', Core.S.equipped['C021'].weapon === w1.equip.uid);
+  t('编队预设保存', Core.savePreset(0).ok && Core.S.presets[0].filter(Boolean).length === 4);
+  Core.S.party = [null, null, null, null];
+  t('编队预设套用', Core.applyPreset(0).ok && Core.S.party.filter(Boolean).length === 4);
+  t('空预设不可套用', !Core.applyPreset(2).ok);
+}
+
+// 41. 周常任务
+{
+  Core.newGame(); Core.setPlayerName('周常');
+  Core.ensureDaily();
+  for (let i = 0; i < 100; i++) Core.task('battle5', 1);
+  const st = Core.weeklyState().find(x => x.t.src === 'battle');
+  t('周常进度与每日动作同源', st.prog === 100 && st.done);
+  t('周常可领取', Core.claimWeekly(st.t.id).ok);
+  t('周常不可重复领取', !Core.claimWeekly(st.t.id).ok);
+  Core.S.tasks.weekKey = '2000-01-03';
+  t('跨周自动重置进度', Core.weeklyState().every(x => x.prog === 0));
+}
+
+// 42. 成就系统
+{
+  Core.newGame(); Core.setPlayerName('成就');
+  t('成就未达成时不可领', !Core.claimAchievement('a_battle100').ok);
+  Core.S.stats.battles = 100;
+  const r = Core.claimAchievement('a_battle100');
+  t('成就达成后可领取', r.ok && Core.S.achievements['a_battle100'] === true);
+  t('成就不可重复领取', !Core.claimAchievement('a_battle100').ok);
+  t('成就分四类且数量足够', D.ACHIEVEMENTS.length >= 18 && ['战斗', '养成', '收集', '挑战'].every(c => D.ACHIEVEMENTS.some(a => a.cat === c)));
+}
+
+// 43. 成长曲线量级（防止再次与挂机产出脱节）
+{
+  Core.newGame(); Core.setPlayerName('曲线');
+  const expTotal = D.EXP_TABLE.slice(1, 100).reduce((a, b) => a + b, 0);
+  const ptTotal = D.LEVEL_POINTS.slice(1, 100).reduce((a, b) => a + b, 0);
+  t('单人满级经验总量 < 200 万', expTotal < 2000000);
+  t('单人满级点数总量 < 30 万', ptTotal < 300000);
+  Core.S.player.level = 100; Core.S.player.geneLock = 5;
+  Core.S.player.talents = { body: 0, energy: 0, nerve: 0, grace: 10 };   // 满「主神恩赐」
+  Core.S.buildings.core = 30; Core.S.buildings.medical = 50; Core.S.buildings.training = 50;
+  const r = Core.idleRates();
+  t('满配挂机点数 ≥ 80/分', r.pointsPerMin >= 80);
+  t('满配挂机经验 ≥ 120/分', r.expPerMin >= 120);
+}
+
+// 44. 死道具修复：高阶物品必须有来源
+{
+  const shopItems = Object.values(D.SHOPS).flatMap(s => s.items.map(i => i.item)).filter(Boolean);
+  t('高级经验模块有商店来源', shopItems.includes('exp_l'));
+  t('超级经验模块有来源', shopItems.includes('exp_xl'));
+  t('虚空晶体有商店来源', shopItems.includes('mat_t4'));
+  t('主神残片有商店来源', shopItems.includes('mat_t5'));
+  t('T5 材料不再与建筑同名', D.ITEMS.mat_t5.name !== '主神核心');
+  t('每个道具都写了获取途径', Object.values(D.ITEMS).every(i => !!i.src));
+}
+
+// 45. 商店按进度上架
+{
+  Core.newGame(); Core.setPlayerName('解锁');
+  Core.addCur('points', 2000000);
+  const idx = D.SHOPS.god.items.findIndex(i => i.item === 'mat_t4');
+  t('未通关 W04 时 T4 未上架', !Core.buyShopItem('god', idx).ok);
+  Core.S.worlds.W04 = { unlocked: true, stages: { normal: Array(12).fill(3), hard: Array(12).fill(0), hell: Array(12).fill(0) } };
+  const r = Core.buyShopItem('god', idx);
+  t('通关 W04 后可购买 T4', r.ok && (Core.S.items.mat_t4 || 0) === 5);
+}
+
+// 46. 回廊曲线与回廊印记
+{
+  t('回廊 100 层不再是断崖', D.corridorEnemy(100).hp < 200000 && D.corridorEnemy(100).hp > 80000);
+  t('回廊印记每 10 层 1 枚', D.corridorMarks(95) === 9 && D.corridorMarks(100) === 10);
+  t('回廊印记有上限', D.corridorMarks(9999) === D.CORRIDOR_MARK_CAP);
+  t('回廊印记加成为 1.5%/枚', Math.abs(D.corridorMarkBonus(100) - 0.15) < 1e-9);
+}
+
+// 47. 副本进度落盘
+{
+  Core.newGame(); Core.setPlayerName('续命');
+  t('默认没有未完成副本', Core.S.pendingRun === null);
+  Core.setPendingRun({ worldId: 'W01', diff: 'normal', stage: 3, step: 1, hpPct: { '@player': 0.5 }, buffs: {}, route: { steps: [[], [], []], events: [], finalKind: 'combat' } });
+  const json = Core.exportSave();
+  Core.importSave(json);
+  t('副本进度写进存档并能读回', !!Core.S.pendingRun && Core.S.pendingRun.stage === 3 && Core.S.pendingRun.hpPct['@player'] === 0.5);
+  Core.clearPendingRun();
+  t('副本进度可清除', Core.S.pendingRun === null);
+}
+
+// 48. 战斗引擎真的消费天赋字段
+{
+  Core.newGame(); Core.setPlayerName('引擎');
+  const mk = extra => [Object.assign({ name: '测试者', kind: 'warrior', position: 'front', skills: D.PROTAGONIST.skills, skillLv: [1, 1, 1], maxHp: 6000, hp: 6000, atk: 300, def: 100, spd: 90, crit: 0.2, critDmg: 2, eva: 0, skillMult: 1 }, extra || {})];
+  const foe = () => [{ name: '木桩', hp: 30000, atk: 300, def: 50, spd: 60 }];
+  const takenTotal = res => {
+    const uid = res.frames[0].allies[0].uid;
+    return res.frames.filter(f => f.type === 'damage' && f.target === uid).reduce((s, f) => s + f.dmg, 0);
+  };
+  const plain = Battle.run({ allies: mk(), enemies: foe(), worldId: null, maxRounds: 8 });
+  const reduced = Battle.run({ allies: mk({ dmgReduce: 0.5 }), enemies: foe(), worldId: null, maxRounds: 8 });
+  t('减伤字段真的减伤', takenTotal(plain) > 0 && takenTotal(reduced) < takenTotal(plain) * 0.8);
+  const energy = Battle.run({ allies: mk({ initEnergy: 100 }), enemies: foe(), worldId: null, maxRounds: 4 });
+  t('开场能量让第一回合就放必杀', energy.frames.slice(0, 14).some(f => f.type === 'skill' && f.ult));
+  const healed = Battle.run({ allies: mk({ healUp: 1 }), enemies: foe(), worldId: null, maxRounds: 6 });
+  t('受治疗字段不报错并可正常结算', typeof healed.win === 'boolean' && healed.frames.some(f => f.type === 'end'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

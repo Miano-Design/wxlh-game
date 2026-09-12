@@ -36,6 +36,77 @@ window.UI = (function () {
     setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, ms || 1800);
   }
 
+  /* ================= 音效（纯合成，不依赖任何音频素材） ================= */
+  let actx = null;
+  function sfxEnabled() { const S = C().S; return !S || S.settings.sfx !== false; }
+  function sfx(kind) {
+    if (!sfxEnabled()) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!actx) actx = new AC();
+      if (actx.state === 'suspended' && actx.resume) actx.resume();
+      const t0 = actx.currentTime;
+      const note = (f, start, dur, g, type) => {
+        const o = actx.createOscillator(), gn = actx.createGain();
+        o.type = type || 'triangle';
+        o.frequency.value = f;
+        gn.gain.setValueAtTime(0.0001, t0 + start);
+        gn.gain.linearRampToValueAtTime(g, t0 + start + 0.012);
+        gn.gain.exponentialRampToValueAtTime(0.0001, t0 + start + dur);
+        o.connect(gn); gn.connect(actx.destination);
+        o.start(t0 + start); o.stop(t0 + start + dur + 0.03);
+      };
+      if (kind === 'click') note(430, 0, 0.05, 0.04, 'square');
+      else if (kind === 'success') { note(660, 0, 0.12, 0.06); note(990, 0.09, 0.18, 0.05); }
+      else if (kind === 'fail') { note(300, 0, 0.12, 0.05, 'sawtooth'); note(180, 0.1, 0.2, 0.045, 'sawtooth'); }
+      else if (kind === 'coin') { note(880, 0, 0.07, 0.045); note(1320, 0.06, 0.12, 0.04); }
+      else if (kind === 'level') { [523, 659, 784, 1046].forEach((f, i) => note(f, i * 0.07, 0.18, 0.05)); }
+      else if (kind === 'battle') { note(150, 0, 0.22, 0.05, 'sawtooth'); note(240, 0.08, 0.18, 0.035, 'square'); }
+      else if (kind === 'win') { [523, 659, 784, 1046].forEach((f, i) => note(f, i * 0.1, 0.24, 0.05)); }
+      else if (kind === 'lose') { [392, 349, 294, 220].forEach((f, i) => note(f, i * 0.12, 0.3, 0.045, 'sine')); }
+      else if (kind === 'box') { note(700, 0, 0.06, 0.045); note(1050, 0.05, 0.1, 0.045); note(1400, 0.12, 0.14, 0.04); }
+    } catch (e) { /* 浏览器不支持音频时静默跳过 */ }
+  }
+
+  /* ================= 返回键接管（手机手势/返回键先退面板、再退页面） ================= */
+  // 做法：在历史里放一条"哨兵"记录。按返回时先被哨兵挡住 → 关掉最上面的弹窗/子页面 → 再补一条哨兵。
+  // 什么都不用关的时候不再补哨兵，下一次返回就是真正退出游戏。
+  // 注意：绝不能在关闭弹窗时自己调用 history.back()（会和用户按返回的动作互相打断，直接把页面顶出去）。
+  let guardArmed = false;
+  function armGuard() {
+    guardArmed = false;
+    try { history.pushState({ wxlh: 1 }, ''); guardArmed = true; } catch (e) { guardArmed = false; }
+  }
+  function onPopState() {
+    const wasArmed = guardArmed;
+    guardArmed = false;
+    const overlay = document.getElementById('battle-overlay');
+    if (overlay) {
+      const skip = overlay.querySelector('[data-skip]');
+      if (skip) skip.click();
+      armGuard();
+      return;
+    }
+    if (modalStack.length) {
+      const w = modalStack[modalStack.length - 1];
+      modalStack = modalStack.filter(x => x !== w);
+      w.remove();
+      if (w._onClose) w._onClose();
+      armGuard();
+      return;
+    }
+    if (curTab === 'dungeon' && dungeonView.page === 'run') {
+      dungeonView = { page: 'world', worldId: (run && run.worldId) || 'W01', diff: (run && run.diff) || 'normal' };
+      render();
+      armGuard();
+      return;
+    }
+    if (curTab === 'dungeon' && dungeonView.page !== 'worlds') { dungeonView = { page: 'worlds' }; render(); armGuard(); return; }
+    if (curTab !== 'home') { setTab('home'); armGuard(); return; }
+    // 已在首页：哨兵已被吃掉且不再补，下一次返回就是退出游戏
+  }
+
   /* ================= 弹窗 ================= */
   let modalStack = [];
   function modal(title, bodyHtml, opts) {
@@ -272,6 +343,7 @@ window.UI = (function () {
       ${featureBtn('open-tasks', '📋 任务', 'tasks')}
       ${featureBtn('open-genelock', '🧬 基因锁', 'geneLock')}
       ${featureBtn('open-reincarn', '♾ 转生', 'reincarn')}
+      <button class="btn" data-act="open-ach">🏅 成就${C().achievementSummary().list.filter(x => x.done && !x.claimed).length ? '<span class="dot"></span>' : ''}</button>
       <button class="btn" data-act="open-bag">🧰 道具背包</button>
       <button class="btn" data-act="open-settings">⚙️ 设置存档</button>
       <button class="btn" data-act="open-guide">❓ 玩法指南</button>
@@ -320,6 +392,8 @@ window.UI = (function () {
   const WORLD_ICONS = { bio: '🧟', ghost: '👻', mystic: '🏺', tech: '🛰', god: '👁' };
   let dungeonView = { page: 'worlds' };
   let run = null;   // 进行中的关卡
+  // 副本进度落盘：路线、血量、增益、已走步数都存进存档，刷新或被系统回收后可以接着打
+  function persistRun() { if (run) C().setPendingRun(run); else C().clearPendingRun(); }
 
   function dungeonScreen() {
     if (dungeonView.page === 'world') return worldDetail();
@@ -354,7 +428,20 @@ window.UI = (function () {
         <span style="color:var(--dim)">›</span>
       </div>`;
     }).join('');
-    return `<div class="section-title">无限挑战</div>${corridor}<div class="section-title">恐怖世界（14）</div>${worlds}`;
+    const S0 = C().S;
+    const pr = S0.pendingRun;
+    const resume = pr && pr.worldId ? (() => {
+      const w = D.WORLDS.find(x => x.id === pr.worldId);
+      return `<div class="card" style="border-color:#ffd76a88;margin-bottom:10px">
+        <h3>▶ 继续上次探索 <span class="sub">${w ? w.name : pr.worldId} · 第 ${pr.stage}/12 关 · 第 ${Math.min(pr.step + 1, pr.route.steps.length + 1)}/${pr.route.steps.length + 1} 段</span></h3>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">进度已经保存，随时可以接着打（已获得的奖励不会丢）。</div>
+        <div class="btn-row">
+          <button class="btn small primary" data-resume-run="1">继续探索</button>
+          <button class="btn small ghost" data-drop-run="1">放弃这一轮</button>
+        </div>
+      </div>`;
+    })() : '';
+    return `${resume}<div class="section-title">无限挑战</div>${corridor}<div class="section-title">恐怖世界（14）</div>${worlds}`;
   }
   function worldDetail() {
     const S = C().S;
@@ -449,6 +536,7 @@ window.UI = (function () {
     };
     run.hpPct['@player'] = 1;
     S.party.filter(Boolean).forEach(id => { run.hpPct[id] = 1; });
+    persistRun();
     dungeonView = { page: 'run' };
     render();
   }
@@ -562,6 +650,13 @@ window.UI = (function () {
         <div style="font-size:12px;color:var(--dim)">历史最高 ${S.corridor.best} 层</div>
       </div>
       <div class="card">
+        <h3>♜ 回廊印记 <span class="sub">${C().corridorMarks()}/${D.CORRIDOR_MARK_CAP} 枚</span></h3>
+        <div style="font-size:12px;color:var(--dim);line-height:1.7">
+          历史最高层每 ${D.CORRIDOR_MARK_STEP} 层积 1 枚，每枚在回廊内给全队 <b style="color:var(--gold)">+1.5%</b> 全属性。
+          当前回廊内加成：<b style="color:var(--gold)">+${Math.round(C().corridorMarkBonus() * 100)}%</b>
+        </div>
+      </div>
+      <div class="card">
         <h3>本层守卫</h3>
         <div class="kv"><span class="k">${e.name}</span><span>${e.isBoss ? '👹 Boss' : e.isElite ? '精英' : '普通'}</span></div>
         <div class="kv"><span class="k">HP</span><span>${fmt(e.hp)}</span></div>
@@ -607,6 +702,20 @@ window.UI = (function () {
         <div style="margin-bottom:10px">${protag}</div>
         <div class="party-slots">${slots}</div>
         <div style="margin-top:10px;font-size:11px;color:var(--dim)">主角（你）永远参战 · 前排受击概率更高 · 后排相对安全</div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn small" data-act="auto-equip">⚡ 一键最优装备</button>
+          <button class="btn small ghost" data-preset-save="0">存预设 1</button>
+          <button class="btn small ghost" data-preset-save="1">存预设 2</button>
+          <button class="btn small ghost" data-preset-save="2">存预设 3</button>
+        </div>
+        <div class="btn-row" style="margin-top:6px">
+          <button class="btn small gold" data-preset-use="0">套用预设 1</button>
+          <button class="btn small gold" data-preset-use="1">套用预设 2</button>
+          <button class="btn small gold" data-preset-use="2">套用预设 3</button>
+        </div>
+        <div style="font-size:11px;color:var(--dim);margin-top:6px">
+          当前预设：${C().S.presets.map((p, i) => `${i + 1}${p && p.filter(Boolean).length ? '✓' : '—'}`).join(' ')} · 预设记录 4 个上阵位置，一键切换阵容
+        </div>
       </div>
       <div class="card">
         <h3>🔗 阵营羁绊</h3>
@@ -880,6 +989,7 @@ window.UI = (function () {
     w.querySelectorAll('[data-lvup]').forEach(b => b.onclick = () => {
       const r = C().levelUp(id, +b.dataset.lvup);
       toast(r.msg);
+      sfx(r.ok ? 'level' : 'fail');
       reopenSelf(); renderTopbar();
     });
     w.querySelector('[data-starup]').onclick = () => {
@@ -1037,17 +1147,17 @@ window.UI = (function () {
     const rows = shown.slice(0, 80).map(eq => {
       const equippedBy = Object.entries(S.equipped).find(([cid, slots]) => Object.values(slots).includes(eq.uid));
       if (batchMode) {
-        const canSel = !equippedBy;
+        const canSel = !equippedBy && !eq.lock;
         return `<div class="list-row ${canSel ? (batchSel.has(eq.uid) ? 'sel' : '') : 'no-sel'}" ${canSel ? `data-beq="${eq.uid}"` : ''} style="cursor:${canSel ? 'pointer' : 'default'}">
           <span class="sel-box">✓</span>
           <span class="tag">${D.EQUIP_SLOTS[eq.slot]}</span>
-          <div class="grow"><div class="t1 rtext-${eq.rarity}">${eq.name} +${eq.enhance}</div>
-          <div class="t2">${equipCatTag(eq)} ${equipBrief(eq)}${equippedBy ? ` · <span style="color:var(--green)">${cname(equippedBy[0])}装备中</span>` : ''}</div></div>
+          <div class="grow"><div class="t1 rtext-${eq.rarity}">${eq.lock ? '🔒' : ''}${eq.name} +${eq.enhance}</div>
+          <div class="t2">${equipCatTag(eq)} ${equipBrief(eq)}${eq.lock ? ' · <span style="color:var(--gold)">已锁定，不参与分解</span>' : ''}${equippedBy ? ` · <span style="color:var(--green)">${cname(equippedBy[0])}装备中</span>` : ''}</div></div>
         </div>`;
       }
       return `<div class="list-row" data-eqd="${eq.uid}" style="cursor:pointer">
         <span class="tag">${D.EQUIP_SLOTS[eq.slot]}</span>
-        <div class="grow"><div class="t1 rtext-${eq.rarity}">${eq.name} +${eq.enhance}</div>
+        <div class="grow"><div class="t1 rtext-${eq.rarity}">${eq.lock ? '🔒 ' : ''}${eq.name} +${eq.enhance}</div>
         <div class="t2">${equipCatTag(eq)} ${equipBrief(eq)}${equippedBy ? ` · <span style="color:var(--green)">${cname(equippedBy[0])}</span>` : ''}</div></div>
       </div>`;
     }).join('');
@@ -1107,12 +1217,21 @@ window.UI = (function () {
       <div class="section-title">操作</div>
       <div class="btn-row">
         <button class="btn small" data-equipto="1">装备给角色</button>
-        <button class="btn small ghost" data-decomp="1">分解（◆${D.DECOMPOSE_GAIN[eq.rarity] + eq.enhance * 3}）</button>
+        <button class="btn small ${eq.lock ? 'primary' : 'ghost'}" data-lock="1">${eq.lock ? '🔒 已锁定' : '🔓 锁定保护'}</button>
+        <button class="btn small ghost" data-decomp="1" ${eq.lock ? 'disabled' : ''}>分解（◆${D.DECOMPOSE_GAIN[eq.rarity] + eq.enhance * 3}）</button>
       </div>
+      <div style="font-size:11px;color:var(--dim);margin-top:6px">锁定后这件装备不会被分解（含批量分解），一键最优装备也不会把它换走。</div>
     `);
+    w.querySelector('[data-lock]').onclick = () => {
+      const r = C().toggleEquipLock(uid);
+      toast(r.lock ? '🔒 已锁定这件装备' : '🔓 已解锁');
+      sfx('click');
+      equipDetail(uid, w); render();
+    };
     w.querySelector('[data-enh]').onclick = () => {
       const r = C().enhance(uid);
       toast(r.msg);
+      sfx(r.ok ? 'success' : 'fail');
       equipDetail(uid, w); renderTopbar();
     };
     w.querySelector('[data-decomp]').onclick = () => {
@@ -1177,6 +1296,7 @@ window.UI = (function () {
       ${S.ssrTicket > 0 ? `<button class="btn gold block" data-ssrpick="1">🎫 使用SSR自选券（剩 ${S.ssrTicket}）</button>` : ''}
     `);
     const showResults = results => {
+      sfx(results.some(x => ['SSR', 'UR'].includes(x.rarity)) ? 'level' : 'coin');
       // 就地换成结果页：不重建遮罩，避免每次抽卡整屏闪一下
       updateModal(w, '招募结果', `
         <div class="char-grid">${results.map(r => {
@@ -1248,9 +1368,11 @@ window.UI = (function () {
         const key = shopTab + '_' + i + '_' + C().dailyDate();
         const bought = S.shop.bought[key] || 0;
         const soldOut = it.stock > 0 && bought >= it.stock;
-        return `<div class="list-row">
-          <div class="grow"><div class="t1">${it.name}</div><div class="t2">${curIcon(shop.currency)} ${fmt(it.price)}${it.stock > 0 ? ` · 每日限${it.stock}（已购${bought}）` : ''}</div></div>
-          <button class="btn small" data-buy="${i}" ${soldOut ? 'disabled' : ''}>购买</button>
+        const req = C().shopReq(it);
+        return `<div class="list-row" style="${req.ok ? '' : 'opacity:.5'}">
+          <div class="grow"><div class="t1">${it.name}</div>
+          <div class="t2">${curIcon(shop.currency)} ${fmt(it.price)}${it.stock > 0 ? ` · 每日限${it.stock}（已购${bought}）` : ''}${req.ok ? '' : ` · 🔒 ${req.req}后上架`}</div></div>
+          <button class="btn small" data-buy="${i}" ${soldOut || !req.ok ? 'disabled' : ''}>${req.ok ? '购买' : '未解锁'}</button>
         </div>`;
       }).join('')}
     `);
@@ -1327,6 +1449,44 @@ window.UI = (function () {
     setTab('dungeon');
   }
   const DAILY_MAIN_GO = { battle5: '轮回副本打一场', idle1: '主神空间领挂机', enhance1: '装备页强化', recruit1: '招募 1 次', dungeon1: '轮回副本通关一关', item1: '背包用道具' };
+  // 周常：与每日任务共用进度来源，每周一自动重置
+  function weeklyHtml() {
+    const st = C().weeklyState();
+    const allDone = st.every(x => x.done);
+    const claimedAll = C().S.tasks.weeklyAllClaimed;
+    return `
+      <div style="font-size:11px;color:var(--dim);margin:2px 2px 8px">本周 ${C().weekKey()} 起算 · 进度与每日任务通用，周一自动重置。</div>
+      ${st.map(({ t, prog, done, claimed }) => `<div class="list-row">
+        <div class="grow"><div class="t1">${t.name}</div>
+        <div class="t2">${Math.min(prog, t.target)}/${t.target} · 奖励 ${Object.entries(t.reward).map(([k, v]) => `${curIcon(k)}${v}`).join(' ')}</div></div>
+        ${claimed ? '<button class="btn small" disabled>已领</button>'
+          : done ? `<button class="btn small primary" data-wclaim="${t.id}">领取</button>`
+          : '<button class="btn small ghost" disabled>进行中</button>'}
+      </div>`).join('')}
+      <div class="card" style="margin-top:10px">
+        <h3>本周全清奖励</h3>
+        <div style="font-size:12px;color:var(--dim);margin-bottom:8px">${Object.entries(D.WEEKLY_ALL_REWARD).map(([k, v]) => k === 'item' ? `🎁${D.ITEMS[v].name}` : `${curIcon(k)}${v}`).join(' · ')}</div>
+        <button class="btn gold block" data-wclaimall="1" ${allDone && !claimedAll ? '' : 'disabled'}>${claimedAll ? '已领取' : '一键领取'}</button>
+      </div>`;
+  }
+  // 成就：四条线（战斗 / 养成 / 收集 / 挑战），达成后手动领取
+  function achHtml() {
+    const st = C().achievementSummary();
+    const cats = ['战斗', '养成', '收集', '挑战'];
+    return `
+      <div class="kv" style="margin-bottom:8px"><span class="k">成就进度</span><span>已达成 ${st.claimed}/${st.total} · 可领取 ${st.list.filter(x => x.done && !x.claimed).length}</span></div>
+      ${cats.map(cat => {
+        const list = st.list.filter(x => x.a.cat === cat);
+        if (!list.length) return '';
+        return `<div class="section-title">${cat}</div>` + list.map(({ a, done, claimed }) => `<div class="list-row" style="${claimed ? 'opacity:.5' : ''}">
+          <div class="grow"><div class="t1">${claimed ? '🏅' : done ? '✨' : '⬜'} ${a.name}</div>
+          <div class="t2">${a.desc} · 奖励 ${Object.entries(a.reward).map(([k, v]) => `${curIcon(k)}${v}`).join(' ')}</div></div>
+          ${claimed ? '<button class="btn small" disabled>已领</button>'
+            : done ? `<button class="btn small primary" data-ach="${a.id}">领取</button>`
+            : '<button class="btn small ghost" disabled>未达成</button>'}
+        </div>`).join('');
+      }).join('')}`;
+  }
   function tasksModal(tab, wrap) {
     taskTab = tab || taskTab;
     const S = C().S;
@@ -1372,8 +1532,10 @@ window.UI = (function () {
       <div class="pill-tabs">
         <div class="pill ${taskTab === 'main' ? 'active' : ''}" data-ttab="main">📜 主线</div>
         <div class="pill ${taskTab === 'daily' ? 'active' : ''}" data-ttab="daily">📋 日常</div>
+        <div class="pill ${taskTab === 'weekly' ? 'active' : ''}" data-ttab="weekly">🗓 周常</div>
+        <div class="pill ${taskTab === 'ach' ? 'active' : ''}" data-ttab="ach">🏅 成就</div>
       </div>
-      ${taskTab === 'main' ? mainHtml : dailyHtml}
+      ${taskTab === 'main' ? mainHtml : taskTab === 'daily' ? dailyHtml : taskTab === 'weekly' ? weeklyHtml() : achHtml()}
     `);
     w.querySelectorAll('[data-ttab]').forEach(el => el.onclick = () => tasksModal(el.dataset.ttab, w));
     w.querySelectorAll('[data-mclaim]').forEach(b => b.onclick = () => {
@@ -1387,9 +1549,31 @@ window.UI = (function () {
     });
     w.querySelectorAll('[data-gotoq]').forEach(b => b.onclick = () => { closeModal(w); gotoQuest(b.dataset.gotoq); });
     w.querySelectorAll('[data-godaily]').forEach(b => b.onclick = () => { closeModal(w); gotoDaily(b.dataset.godaily); });
-    w.querySelector('[data-claimall]').onclick = () => {
+    w.querySelectorAll('[data-wclaim]').forEach(b => b.onclick = () => {
+      const r = C().claimWeekly(b.dataset.wclaim);
+      toast(r.msg);
+      sfx(r.ok ? 'coin' : 'fail');
+      tasksModal(taskTab, w); renderTopbar();
+    });
+    const wAll = w.querySelector('[data-wclaimall]');
+    if (wAll) wAll.onclick = () => {
+      const r = C().claimAllWeekly();
+      toast(r.msg);
+      sfx(r.ok ? 'success' : 'fail');
+      tasksModal(taskTab, w); renderTopbar();
+    };
+    w.querySelectorAll('[data-ach]').forEach(b => b.onclick = () => {
+      const r = C().claimAchievement(b.dataset.ach);
+      toast(r.msg, 2400);
+      sfx(r.ok ? 'level' : 'fail');
+      tasksModal(taskTab, w); renderTopbar();
+    });
+    // 注意：只有"日常"页签才有一键领取按钮，其它页签下这里必须是 null 安全的
+    const claimAllBtn = w.querySelector('[data-claimall]');
+    if (claimAllBtn) claimAllBtn.onclick = () => {
       const r = C().claimAllTasks();
       toast(r.ok ? '领取成功' : r.msg);
+      sfx(r.ok ? 'coin' : 'fail');
       tasksModal(taskTab, w); renderTopbar();
     };
     return w;
@@ -1441,13 +1625,18 @@ window.UI = (function () {
         <button class="btn primary block" style="margin-top:10px" data-reinc="1" ${can ? '' : 'disabled'}>开始转生</button>
       </div>
       <div class="section-title">永久天赋（♾${fmt(S.cur.rp)}）</div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.7;margin:0 2px 8px">
+        四支天赋点满各需 ♾6200（10/20/40/80/150/300/600/1000/1500/2500）。加成对全队生效，转生后保留。
+      </div>
       ${Object.entries(D.TALENTS).map(([k, t]) => {
         const lv = S.player.talents[k];
         const cost = D.TALENT_COSTS[lv];
+        const texts = D.talentTexts(k);
         return `<div class="card" style="margin-bottom:8px">
           <h3>${t.name} <span class="sub">Lv.${lv}/10 · ${t.desc}</span></h3>
-          ${lv > 0 ? `<div style="font-size:11px;color:var(--green);margin-bottom:6px">已激活：${t.nodes.slice(0, lv).join('、')}</div>` : ''}
-          ${lv < 10 ? `<button class="btn small" data-talent="${k}">${t.nodes[lv]}（♾${cost}）</button>` : '<div style="color:var(--gold);font-size:12px">已满级</div>'}
+          ${lv > 0 ? `<div style="font-size:11px;color:var(--green);margin-bottom:6px">已激活：${texts.slice(0, lv).join('、')}</div>` : ''}
+          ${lv < 10 ? `<button class="btn small" data-talent="${k}">下一级：${texts[lv]}（♾${cost}）</button>` : '<div style="color:var(--gold);font-size:12px">已满级</div>'}
+          <div style="font-size:10px;color:var(--dim);margin-top:6px">${texts.map((x, i) => `${i < lv ? '✅' : '⬜'}${i + 1}.${x}`).join('　')}</div>
         </div>`;
       }).join('')}
     `);
@@ -1567,6 +1756,10 @@ window.UI = (function () {
         <div class="kv"><span class="k">使用场景</span><span>${where}</span></div>
         <div style="font-size:12px;color:var(--dim);line-height:1.8;margin-top:6px">${esc(it.use || '')}</div>
       </div>
+      <div class="card" style="margin-bottom:10px">
+        <h3>去哪弄</h3>
+        <div style="font-size:12px;line-height:1.8">${esc(it.src || '副本掉落 / 商店兑换')}</div>
+      </div>
       ${actions}
       <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回背包</button>`;
     const w = showPanel(wrap, '道具详情', body);
@@ -1578,6 +1771,7 @@ window.UI = (function () {
       const doOpen = () => {
         const r = C().openBoxes(itemId, cnt);
         if (!r.ok) { toast(r.msg || '开箱失败'); return; }
+        sfx('box');
         const chips = (r.equips || []).map(e => `<span class="reward-chip rtext-${e.rarity}">${itemIcon(it)} ${e.name} +${e.enhance}</span>`);
         if (r.sold) chips.push(`<span class="reward-chip">◆+${fmt(r.soldGain)}（自动分解 ${r.sold} 件）</span>`);
         refresh();
@@ -1597,7 +1791,9 @@ window.UI = (function () {
       const parts = [];
       if (eff.healPct) { Object.keys(run.hpPct).forEach(cid => { run.hpPct[cid] = Math.min(1, run.hpPct[cid] + eff.healPct); }); parts.push(`全队恢复 ${Math.round(eff.healPct * 100)}%`); }
       ['atkPct', 'spdPct', 'defPct'].forEach(k => { if (eff[k]) { run.buffs[k] = (run.buffs[k] || 0) + eff[k]; parts.push(`${D.CONSUMABLE_TAG[k]}+${Math.round(eff[k] * 100)}%`); } });
+      persistRun();
       C().task('item1', 1); C().save();
+      sfx(eff.healPct ? 'success' : 'coin');
       toast(`${it.name}：${parts.join(' · ')}`);
       render();
       afterChange();
@@ -1649,6 +1845,17 @@ window.UI = (function () {
         <div class="btn-row">${[1, 2, 3].map(s => `<button class="btn small ${S.settings.speed === s ? 'primary' : ''}" data-speed="${s}">${s}×</button>`).join('')}</div>
       </div>
       <div class="card">
+        <h3>战斗与音效</h3>
+        <div class="list-row">
+          <div class="grow"><div class="t1">自动战斗（直接出结果）</div><div class="t2">开启后进入战斗立即结算，不再逐帧播放，适合挂机刷本</div></div>
+          <button class="btn small ${S.settings.autoBattle ? 'primary' : ''}" data-toggle="autoBattle">${S.settings.autoBattle ? '已开启' : '已关闭'}</button>
+        </div>
+        <div class="list-row">
+          <div class="grow"><div class="t1">音效</div><div class="t2">点击 / 强化 / 开箱 / 战斗胜负的提示音，可随时关闭</div></div>
+          <button class="btn small ${S.settings.sfx !== false ? 'primary' : ''}" data-toggle="sfx">${S.settings.sfx !== false ? '已开启' : '已关闭'}</button>
+        </div>
+      </div>
+      <div class="card">
         <h3>自动分解 <span class="sub">背包满之前就开始省格子</span></h3>
         <div class="list-row">
           <div class="grow"><div class="t1">自动分解 N 装备</div><div class="t2">掉到 N 品质直接换成 ◆异界结晶</div></div>
@@ -1674,7 +1881,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V5.0</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V5.1</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -1693,6 +1900,15 @@ window.UI = (function () {
       C().S.settings[k] = !C().S.settings[k];
       C().save();
       toast(`${k === 'autoSellN' ? 'N' : 'R'} 装备自动分解已${C().S.settings[k] ? '开启' : '关闭'}`);
+      settingsModal(w);
+    });
+    w.querySelectorAll('[data-toggle]').forEach(b => b.onclick = () => {
+      const k = b.dataset.toggle;
+      const cur = C().S.settings[k] !== false;
+      C().S.settings[k] = !cur;
+      C().save();
+      toast(`${k === 'sfx' ? '音效' : '自动战斗'}已${C().S.settings[k] !== false ? '开启' : '关闭'}`);
+      if (k === 'sfx' && C().S.settings.sfx !== false) sfx('success');
       settingsModal(w);
     });
     w.querySelectorAll('[data-act]').forEach(el => el.onclick = () => {
@@ -1727,8 +1943,10 @@ window.UI = (function () {
   }
 
   /* ================= 战斗播放器 ================= */
-  function buildAllies(hpPctMap, extraBuffs) {
+  // opts.mult：整队倍率（回廊印记用）；opts.extra 为额外属性百分比（预留）
+  function buildAllies(hpPctMap, extraBuffs, opts) {
     const S = C().S;
+    const mult = (opts && opts.mult) || 1;
     const fb = C().factionBuffs(S.party);
     const buffAtk = (extraBuffs && extraBuffs.atkPct) || 0;
     const buffSpd = (extraBuffs && extraBuffs.spdPct) || 0;
@@ -1742,9 +1960,10 @@ window.UI = (function () {
         name: cname('@player'), kind: 'warrior', faction: null,
         position: 'front',
         skills: C().protagonistSkills(), skillLv: S.player.skillLv || [1, 1, 1],
-        atk: Math.round(pst.atk * (1 + buffAtk)),
-        spd: Math.round(pst.spd * (1 + buffSpd)),
-        hp: pHp, maxHp: pFullHp,
+        atk: Math.round(pst.atk * (1 + buffAtk) * mult),
+        def: Math.round(pst.def * mult),
+        spd: Math.round(pst.spd * (1 + buffSpd) * mult),
+        hp: Math.round(pHp * mult), maxHp: Math.round(pFullHp * mult),
         charId: '@player',
       }));
     }
@@ -1758,9 +1977,10 @@ window.UI = (function () {
         name: cname(id), kind: base.kind, faction: base.faction,
         position: idx < 2 ? 'front' : 'back',
         skills: base.skills, skillLv: S.chars[id].skillLv,
-        atk: Math.round(eff.atk * (1 + fb.atkPct + buffAtk)),
-        spd: Math.round(eff.spd * (1 + buffSpd)),
-        hp, maxHp: fullHp,
+        atk: Math.round(eff.atk * (1 + fb.atkPct + buffAtk) * mult),
+        def: Math.round(eff.def * mult),
+        spd: Math.round(eff.spd * (1 + buffSpd) * mult),
+        hp: Math.round(hp * mult), maxHp: Math.round(fullHp * mult),
         skillMult: eff.skillMult + fb.skillPct,
         charId: id,
       }));
@@ -1860,6 +2080,9 @@ window.UI = (function () {
     let idx = 0, skipped = false, finished = false;
     overlay.querySelector('[data-skip]').onclick = () => { skipped = true; };
     if (start.note) log(`⚠ 世界机制：${start.note}`);
+    sfx('battle');
+    // 自动战斗：设置里打开后直接出结果（刷材料时不用逐场看动画）
+    if (S.settings.autoBattle) setTimeout(() => { skipped = true; }, 120);
 
     function applyFrame(f) {
       switch (f.type) {
@@ -1915,6 +2138,7 @@ window.UI = (function () {
       // 补算剩余帧（保证状态正确）
       for (; idx < res.frames.length; idx++) { const f = res.frames[idx]; if (['damage', 'dot', 'heal', 'revive'].includes(f.type)) applyFrame(f); }
       const endF = res.frames[res.frames.length - 1];
+      sfx(res.win ? 'win' : 'lose');
       const hpLeft = {};
       start.allies.forEach(u => { const st = units[u.uid]; hpLeft[u.uid] = Math.max(0, st.hp / st.maxHp); });
       const outcome = cfg.onEnd(res.win, res, units) || {};
@@ -1982,6 +2206,7 @@ window.UI = (function () {
         Object.entries(eff.buff).forEach(([k, v]) => { run.buffs[k] = (run.buffs[k] || 0) + v; });
         gains.push('获得探索增益');
       }
+      if (run) persistRun();
       closeModal(w);
       const proceed = () => {
         if (eff.battle && run) {
@@ -2022,7 +2247,7 @@ window.UI = (function () {
         }
         const g = Dun.grantRewards(run.worldId, run.diff, run.stage, kind);
         window.Core.addCharExp(C().S.party.filter(Boolean), g.rewards.exp);
-        C().addPlayerExp(Math.round(g.rewards.exp * 0.5));
+        C().addPlayerBattleExp(Math.round(g.rewards.exp * 0.5));
         C().battleSettle({}, true, kind === 'elite');
         // 更新队伍血量
         start_allies(units);
@@ -2031,6 +2256,7 @@ window.UI = (function () {
             if (u.side === 'ally' && u.charId !== undefined) run.hpPct[u.charId] = Math.max(0, u.hp / u.maxHp);
           });
         }
+        persistRun();
         C().save();
         return {
           rewards: rewardChips(g.got),
@@ -2055,7 +2281,7 @@ window.UI = (function () {
         if (!win) return { rewards: [], sub: '再接再厉', after: () => endRun(false) };
         const g = Dun.grantRewards(run.worldId, run.diff, run.stage, kind);
         window.Core.addCharExp(C().S.party.filter(Boolean), g.rewards.exp * 2);
-        C().addPlayerExp(g.rewards.exp);
+        C().addPlayerBattleExp(g.rewards.exp);
         C().battleSettle({}, true, isBoss);
         // 星级：1星保底；无人阵亡+1；回合≤20+1
         const anyDead = Object.values(units).some(u => u.side === 'ally' && u.hp <= 0);
@@ -2080,6 +2306,7 @@ window.UI = (function () {
     const wid = run ? run.worldId : dungeonView.worldId;
     const diff = run ? run.diff : 'normal';
     run = null;
+    C().clearPendingRun();
     dungeonView = { page: 'world', worldId: wid, diff };
     render();
     if (cleared) toast('关卡完成！', 2200);
@@ -2089,7 +2316,7 @@ window.UI = (function () {
     // 主角必上阵，无需检查
     const floor = S.corridor.floor;
     const spec = D.corridorEnemy(floor);
-    const allies = buildAllies();
+    const allies = buildAllies(null, null, { mult: 1 + C().corridorMarkBonus() });
     const enemies = [spec];
     if (spec.isBoss) enemies.push({ name: '回廊之影', hp: Math.round(spec.hp * 0.3), atk: Math.round(spec.atk * 0.5), def: Math.round(spec.def * 0.5), spd: 70, faction: null, eva: 0.05 });
     startBattle({
@@ -2104,14 +2331,16 @@ window.UI = (function () {
         C().addCur('corridor', rw.corridor);
         if (rw.bloodCrystal) C().addCur('bloodCrystal', rw.bloodCrystal);
         window.Core.addCharExp(C().S.party.filter(Boolean), 50 + floor * 5);
-        C().addPlayerExp(30 + floor * 3);
+        C().addPlayerBattleExp(30 + floor * 3);
         C().battleSettle({}, true, spec.isBoss);
+        const before = C().corridorMarks();
         S.corridor.floor++;
         S.corridor.best = Math.max(S.corridor.best, floor);
         S.stats.bestFloor = S.corridor.best;
         C().save();
+        const gotMark = C().corridorMarks() > before;
         return {
-          rewards: [`◈+${rw.points}`, `❖+${rw.story}`, `♜+${rw.corridor}`].concat(rw.bloodCrystal ? [`❥+${rw.bloodCrystal}`] : []),
+          rewards: [`◈+${rw.points}`, `❖+${rw.story}`, `♜+${rw.corridor}`].concat(rw.bloodCrystal ? [`❥+${rw.bloodCrystal}`] : [], gotMark ? [`♜ 获得回廊印记（${C().corridorMarks()}枚 · 回廊内 +${Math.round(C().corridorMarkBonus() * 100)}%）`] : []),
           sub: `进入第 ${floor + 1} 层`,
           after: () => render(),
         };
@@ -2128,6 +2357,7 @@ window.UI = (function () {
       switch (act) {
         case 'claim-idle': {
           const g = C().claimIdle();
+          sfx('coin');
           modal('挂机收益', `
             <div style="text-align:center;padding:6px 0 12px">
               <div style="font-size:12px;color:var(--dim)">本次挂机 ${formatDuration(g.seconds)}</div>
@@ -2173,17 +2403,26 @@ window.UI = (function () {
         case 'open-guide': guideModal(); break;
         case 'open-codex': codexModal(); break;
         case 'open-curdoc': currencyModal(); break;
+        case 'open-ach': tasksModal('ach'); break;
+        case 'auto-equip': {
+          const r = C().autoEquipBest();
+          toast(r.changed ? `已为 ${r.members} 名成员换上 ${r.changed} 件更优装备` : '当前已是最优配置', 2400);
+          sfx('coin');
+          render(); renderTopbar();
+          break;
+        }
         case 'open-corridor':
           if (!C().isUnlocked('corridor')) { toast('🔒 ' + C().unlockTip('corridor')); break; }
           dungeonView = { page: 'corridor' }; render(); break;
         case 'open-corridor-shop': shopModal('corridor'); break;
         case 'fight-corridor': fightCorridor(); break;
-        case 'back-worlds': dungeonView = { page: 'worlds' }; run = null; render(); break;
+        case 'back-worlds': dungeonView = { page: 'worlds' }; run = null; C().clearPendingRun(); render(); break;
         case 'abandon-run':
           confirmBox('撤离副本', '确定撤离？本次探索进度将丢失，已获得的奖励会保留。', () => {
             const wid = run ? run.worldId : dungeonView.worldId;
             const df = run ? run.diff : (dungeonView.diff || 'normal');
             run = null;
+            C().clearPendingRun();
             dungeonView = { page: 'world', worldId: wid, diff: df };
             render();
           });
@@ -2216,11 +2455,11 @@ window.UI = (function () {
       if (type === 'combat' || type === 'elite') {
         const enemies = window.Dungeon.makeEnemies(run.worldId, run.diff, run.stage, type);
         battlePreview(enemies, type === 'elite' ? '精英伏击 · 敌情' : '遭遇战 · 敌情', () => {
-          doNodeBattle(type, () => { run.step++; render(); }, enemies);
+          doNodeBattle(type, () => { run.step++; persistRun(); render(); }, enemies);
         });
       } else if (type === 'event') {
         const ev = run.route.events[run.step % run.route.events.length];
-        showEvent(ev, () => { run.step++; render(); });
+        showEvent(ev, () => { run.step++; persistRun(); render(); });
       } else if (type === 'chest') {
         const r = window.Dungeon.nodeReward('chest', run.worldId, run.diff, run.stage);
         const chips = [`◈+${fmt(r.points)}`];
@@ -2229,11 +2468,13 @@ window.UI = (function () {
         if (r.item) chips.push(`🎒${D.ITEMS[r.item].name}`);
         modal('补给宝箱', `<div class="reward-chips" style="margin:10px 0">${chips.map(c => `<span class="reward-chip">${c}</span>`).join('')}</div>`, { center: true });
         run.step++;
+        persistRun();
         render(); refresh();
       } else if (type === 'heal') {
         Object.keys(run.hpPct).forEach(id => { run.hpPct[id] = Math.min(1, run.hpPct[id] + 0.3); });
         toast('全队恢复 30% 生命');
         run.step++;
+        persistRun();
         render();
       }
     });
@@ -2262,9 +2503,37 @@ window.UI = (function () {
       C().task('item1', 1);
       C().save();
       toast(`${eff.healPct ? '🧪' : '💉'} ${D.ITEMS[id].name}：${parts.join(' · ')}`);
+      persistRun();
       render();
     });
+    root.querySelectorAll('[data-resume-run]').forEach(el => el.onclick = () => {
+      const pr = C().S.pendingRun;
+      if (!pr || !pr.route) { toast('没有可继续的探索'); return; }
+      run = pr;
+      dungeonView = { page: 'run' };
+      toast('已继续上次的探索');
+      render();
+    });
+    root.querySelectorAll('[data-drop-run]').forEach(el => el.onclick = () => {
+      confirmBox('放弃这一轮', '确定放弃上次未打完的探索？已获得的奖励保留。', () => {
+        run = null;
+        C().clearPendingRun();
+        render();
+      });
+    });
     root.querySelectorAll('[data-slot]').forEach(el => el.onclick = () => pickPartyChar(+el.dataset.slot));
+    root.querySelectorAll('[data-preset-save]').forEach(el => el.onclick = () => {
+      const r = C().savePreset(+el.dataset.presetSave);
+      toast(r.msg || (r.ok ? '已保存编队预设' : '保存失败'));
+      sfx('click');
+      render();
+    });
+    root.querySelectorAll('[data-preset-use]').forEach(el => el.onclick = () => {
+      const r = C().applyPreset(+el.dataset.presetUse);
+      toast(r.msg);
+      sfx(r.ok ? 'success' : 'fail');
+      if (r.ok) render();
+    });
     root.querySelectorAll('[data-protag]').forEach(el => el.onclick = () => protagonistDetail());
     root.querySelectorAll('[data-remove]').forEach(el => el.onclick = ev => {
       ev.stopPropagation();
@@ -2291,7 +2560,7 @@ window.UI = (function () {
     root.querySelectorAll('[data-bsel]').forEach(b => b.onclick = () => {
       const r = b.dataset.bsel;
       const eqd = equippedUidSet(C().S);
-      const uids = C().inventoryEquips().filter(e => e.rarity === r && !eqd.has(e.uid)).map(e => e.uid);
+      const uids = C().inventoryEquips().filter(e => e.rarity === r && !eqd.has(e.uid) && !e.lock).map(e => e.uid);
       const allIn = uids.length > 0 && uids.every(u => batchSel.has(u));
       uids.forEach(u => { if (allIn) batchSel.delete(u); else batchSel.add(u); });
       root.querySelectorAll('[data-beq]').forEach(el => el.classList.toggle('sel', batchSel.has(el.dataset.beq)));
@@ -2422,6 +2691,7 @@ window.UI = (function () {
         🧬 解锁血统与基因锁，突破极限<br>
         ♾ 挑战无限回廊，寻找离开的方法<br><br>
         新手补给已发放：◈50,000 · ✦1,000 · 经验模块×20 · 治疗剂×10<br><br>
+        随时可以在主神空间点「❓ 玩法指南」查看完整说明（货币用途、套装、回廊、周常都在里面）。<br><br>
         <b>如果下一场轮回真的会死，你会带谁进去？</b>
       </div>
       <button class="btn primary block" style="margin-top:12px" data-start>签订轮回契约</button>
@@ -2454,8 +2724,20 @@ window.UI = (function () {
   }
 
   return {
-    init() { refresh(); render(); },
+    init() {
+      refresh(); render();
+      // 手机返回键 / 手势：先关弹窗，再退子页面，最后才交给系统
+      armGuard();   // 先放一条哨兵，保证"返回"优先被游戏接管
+      if (window.addEventListener) window.addEventListener('popstate', onPopState);
+      // 全局点击音效（按钮级）
+      if (document.addEventListener) document.addEventListener('click', ev => {
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('button') : null;
+        if (btn && !btn.disabled) sfx('click');
+      });
+    },
     render, refresh, toast, modal, closeModal,
+    sfx,
     showOfflineGains, showLoginReward, showTutorial, showCharCreate,
     tickIdle() {
       if (curTab !== 'home') return;
@@ -2471,6 +2753,9 @@ window.UI = (function () {
     get tab() { return curTab; },
     _setTab: setTab,
     // 测试用：直接开面板，检查模板与空引用
-    _panels: { bagModal, itemDetail, currencyModal, guideModal, codexModal, shopModal, tasksModal, settingsModal, sweepModal, recruitModal, gotoQuest },
+    _panels: {
+      bagModal, itemDetail, currencyModal, guideModal, codexModal, shopModal, tasksModal, settingsModal,
+      sweepModal, recruitModal, gotoQuest, weeklyHtml, achHtml, reincarnModal, charDetail, equipDetail, geneLockModal,
+    },
   };
 })();

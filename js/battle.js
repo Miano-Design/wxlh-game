@@ -74,6 +74,8 @@ window.Battle = (function () {
     dmg *= 0.9 + Math.random() * 0.2;
     if (hasStatus(dst, 'bleed')) dmg *= 1.15;
     if (dst.kind === 'tank') dmg *= 0.88;
+    // 转生天赋「永恒之躯」减伤（上限 60%，见 Core.talentCombatExtra）
+    if (dst.dmgReduce) dmg *= (1 - Math.min(0.6, dst.dmgReduce));
     dmg = Math.max(1, Math.round(dmg));
     // 护盾
     let absorbed = 0;
@@ -104,6 +106,8 @@ window.Battle = (function () {
   function healUnit(src, dst, mult, frames) {
     let amount = src.side === 'ally' ? src.atk * mult * (src.skillMult || 1) : src.atk * mult;
     if (src.kind === 'healer') amount *= 1.2;
+    // 受治疗加成（天赋「受治疗+8%」）作用在被打的人身上
+    if (dst.healUp) amount *= (1 + dst.healUp);
     amount = Math.round(amount * (0.9 + Math.random() * 0.2));
     dst.hp = Math.min(dst.maxHp, dst.hp + amount);
     frames.push({ type: 'heal', source: src.uid, target: dst.uid, amount });
@@ -148,6 +152,13 @@ window.Battle = (function () {
       u.kind = spec.kind; u.faction = spec.faction; u.position = spec.position;
       u.skills = spec.skills; u.skillLv = spec.skillLv || [1, 1, 1];
       u.name = spec.name;
+      // 转生天赋带来的战斗字段（旧版这些属性根本没被传进战斗引擎）
+      u.dmgReduce = spec.dmgReduce || 0;
+      u.healUp = spec.healUp || 0;
+      u.cdRed = spec.cdRed || 0;
+      u.firstStrike = spec.firstStrike || 0;
+      u.ultPct = spec.ultPct || 0;
+      u.energy = Math.min(100, spec.initEnergy || 0);
       return u;
     });
     const enemies = cfg.enemies.map(spec => makeEnemyUnit(spec));
@@ -190,7 +201,9 @@ window.Battle = (function () {
       }
       if (!checkEnd()) break;
       // 行动顺序
-      const order = alive(all).sort((a, b) => b.spd * (0.95 + Math.random() * 0.1) - a.spd * (0.95 + Math.random() * 0.1));
+      // 首回合速度：天赋「先制」在第 1 回合把速度按比例提高后再排行动顺序
+      const spdOf = u => u.spd * (round === 1 ? 1 + (u.firstStrike || 0) : 1);
+      const order = alive(all).sort((a, b) => spdOf(b) * (0.95 + Math.random() * 0.1) - spdOf(a) * (0.95 + Math.random() * 0.1));
       for (const u of order) {
         if (u.hp <= 0) continue;
         // 眩晕/冰冻
@@ -265,6 +278,8 @@ window.Battle = (function () {
     // ===== 盟友技能 AI =====
     if (isAlly && u.skills) {
       const skillMultLv = i => 1 + (u.skillLv[i] - 1) * 0.07;
+      // 天赋「技能CD-1」：技能冷却统一减 1（最低 1 回合），必杀不受影响
+      const cdOf = i => Math.max(1, (i === 0 ? u.skills.s1.cd : u.skills.s2.cd) - (u.cdRed || 0));
       // 必杀
       if (u.energy >= 100) {
         u.energy = 0;
@@ -275,14 +290,14 @@ window.Battle = (function () {
       const lowAlly = liveFriends.length ? liveFriends.reduce((a, b) => (a.hp / a.maxHp < b.hp / b.maxHp ? a : b)) : null;
       // 治疗优先
       if (u.kind === 'healer' && lowAlly && lowAlly.hp / lowAlly.maxHp < 0.55 && u.cds.s1 <= 0) {
-        u.cds.s1 = u.skills.s1.cd; castSkill(u, u.skills.s1, 0, foes, friends, frames, mech, cfg, skillMultLv(0)); return;
+        u.cds.s1 = cdOf(0); castSkill(u, u.skills.s1, 0, foes, friends, frames, mech, cfg, skillMultLv(0)); return;
       }
       // 控制优先打 Boss
       if (u.kind === 'controller' && u.cds.s1 <= 0 && alive(foes).some(f => f.isBoss)) {
-        u.cds.s1 = u.skills.s1.cd; castSkill(u, u.skills.s1, 0, foes, friends, frames, mech, cfg, skillMultLv(0)); return;
+        u.cds.s1 = cdOf(0); castSkill(u, u.skills.s1, 0, foes, friends, frames, mech, cfg, skillMultLv(0)); return;
       }
-      if (u.cds.s1 <= 0) { u.cds.s1 = u.skills.s1.cd; castSkill(u, u.skills.s1, 0, foes, friends, frames, mech, cfg, skillMultLv(0)); return; }
-      if (u.cds.s2 <= 0) { u.cds.s2 = u.skills.s2.cd; castSkill(u, u.skills.s2, 1, foes, friends, frames, mech, cfg, skillMultLv(1)); return; }
+      if (u.cds.s1 <= 0) { u.cds.s1 = cdOf(0); castSkill(u, u.skills.s1, 0, foes, friends, frames, mech, cfg, skillMultLv(0)); return; }
+      if (u.cds.s2 <= 0) { u.cds.s2 = cdOf(1); castSkill(u, u.skills.s2, 1, foes, friends, frames, mech, cfg, skillMultLv(1)); return; }
     }
     // ===== 敌人技能 =====
     if (!isAlly) {
@@ -314,7 +329,8 @@ window.Battle = (function () {
 
   function castSkill(u, sk, idx, foes, friends, frames, mech, cfg, lvMult, isUlt) {
     frames.push({ type: 'skill', actor: u.uid, name: sk.name, ult: !!isUlt });
-    const mult = sk.mult * (lvMult || 1);
+    // 天赋「超载：必杀伤害+25%」只加在必杀上
+    const mult = sk.mult * (lvMult || 1) * (isUlt ? 1 + (u.ultPct || 0) : 1);
     const targetsOf = t => {
       if (t === 'allEnemies') return alive(foes);
       if (t === 'team') return alive(friends);

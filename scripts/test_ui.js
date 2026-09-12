@@ -131,9 +131,16 @@ panel('商店-主神', () => UI._panels.shopModal('god'));
 panel('商店-回廊', () => UI._panels.shopModal('corridor'));
 panel('任务-主线', () => UI._panels.tasksModal('main'));
 panel('任务-日常', () => UI._panels.tasksModal('daily'));
+panel('任务-周常', () => UI._panels.tasksModal('weekly'));
+panel('任务-成就', () => UI._panels.tasksModal('ach'));
 panel('角色图鉴', () => UI._panels.codexModal());
 panel('招募', () => UI._panels.recruitModal());
 panel('扫荡', () => UI._panels.sweepModal('W01', 'normal'));
+panel('转生与天赋', () => UI._panels.reincarnModal());
+panel('基因锁', () => UI._panels.geneLockModal());
+panel('角色详情（6 装备槽）', () => UI._panels.charDetail('C021'));
+const anyEquipUid = Object.keys(Core.S.equips)[0];
+if (anyEquipUid) panel('装备详情', () => UI._panels.equipDetail(anyEquipUid));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -24,12 +24,14 @@ window.DATA = (function () {
   // 克制环：先锋→策略→科技→异能→先锋（克制方伤害+15%，被克-10%）
   const FACTION_COUNTER = { '先锋': '策略', '策略': '科技', '科技': '异能', '异能': '先锋' };
 
-  // 经验表：Lv→Lv+1 所需 EXP = round(100 × Lv^1.55)；角色升级另耗点数 round(50 × 1.075^(Lv-1))
+  // 经验表：Lv→Lv+1 所需 EXP = round(80 × Lv^1.32)；角色升级另耗点数 round(40 × 1.06^(Lv-1))
+  // 2026-09-12 调整：旧曲线（100×Lv^1.55 / 50×1.075）单人满级需纯挂机 ~200 小时点数 + ~1600 小时经验，
+  // 与挂机产出严重脱节；调整为 Lv1→100 累计 EXP 148.8 万 / 点数 21.3 万，纯挂机约 41 / 171 小时。
   const EXP_TABLE = [0];
   const LEVEL_POINTS = [0];
   for (let lv = 1; lv <= 100; lv++) {
-    EXP_TABLE[lv] = Math.round(100 * Math.pow(lv, 1.55));
-    LEVEL_POINTS[lv] = Math.round(50 * Math.pow(1.075, lv - 1));
+    EXP_TABLE[lv] = Math.round(80 * Math.pow(lv, 1.32));
+    LEVEL_POINTS[lv] = Math.round(40 * Math.pow(1.06, lv - 1));
   }
 
   /* ================= 主角六维（V5 §2.1） ================= */
@@ -47,7 +49,7 @@ window.DATA = (function () {
 
   /* ================= 背包容量 ================= */
   const BAG_BASE_CAP = 100;
-  const SWEEP_DAILY_CAP = 30;   // 每日扫荡上限
+  const SWEEP_DAILY_CAP = 60;   // 每日扫荡上限（504 关体量下 30 次太少，2026-09-12 提到 60）
   const BAG_EXPAND_SIZE = 50;
   function bagExpandCost(expands) { return Math.round(20000 * Math.pow(1.6, expands)); }
 
@@ -287,7 +289,9 @@ window.DATA = (function () {
 
   /* ================= 装备 ================= */
   const EQUIP_SLOTS = { weapon: '武器', armor: '胸甲', accessory: '饰品', head: '头部', hands: '手部', legs: '腿部' };
-  const RECRUIT_SLOTS = ['weapon', 'armor', 'accessory'];                       // 招募角色 3 槽
+  // 招募角色 6 槽（2026-09-12 修正）：世界套装是 2/4/6 件三档，掉落池也是 6 个部位——
+  // 旧版招募角色只有 3 槽，导致 4 件/6 件套装效果永远无法触发，且一半掉落（头/手/腿）没人能穿。
+  const RECRUIT_SLOTS = ['weapon', 'head', 'armor', 'hands', 'legs', 'accessory'];
   const PLAYER_SLOTS = ['weapon', 'head', 'armor', 'hands', 'legs', 'accessory']; // 主角 6 槽（V5 §22）
   const DROP_SLOTS = ['weapon', 'armor', 'accessory', 'head', 'hands', 'legs'];
   const EQUIP_RARITY_MULT = { N: 1.00, R: 1.15, SR: 1.35, SSR: 1.65, UR: 2.00 };
@@ -395,25 +399,26 @@ window.DATA = (function () {
   /* ================= 道具 ================= */
   // where：使用场景（explore=副本探索中 / character=对招募角色 / anywhere=任意）
   // effect：消耗品在副本探索中的效果（healPct 全队回血 / atkPct 攻击 / spdPct 速度 / defPct 防御）
+  // src：主要获取途径（背包详情卡直接展示，回答"这东西去哪弄"）
   const ITEMS = {
-    heal_s: { name: '小型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.2 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 20% 生命' },
-    heal_m: { name: '中型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.4 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 40% 生命' },
-    heal_l: { name: '大型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.7 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 70% 生命' },
-    buff_muscle: { name: '肌肉强化剂', type: 'consumable', where: 'explore', effect: { atkPct: 0.15 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队攻击 +15%', desc: '副本探索中使用：本次探索全队攻击 +15%' },
-    buff_nerve: { name: '神经刺激剂', type: 'consumable', where: 'explore', effect: { spdPct: 0.20 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队速度 +20%', desc: '副本探索中使用：本次探索全队速度 +20%' },
-    exp_s: { name: '初级经验模块', type: 'exp', where: 'character', exp: 500, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+500 EXP' },
-    exp_m: { name: '中级经验模块', type: 'exp', where: 'character', exp: 2000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+2,000 EXP' },
-    exp_l: { name: '高级经验模块', type: 'exp', where: 'character', exp: 10000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+10,000 EXP' },
-    exp_xl: { name: '超级经验模块', type: 'exp', where: 'character', exp: 50000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+50,000 EXP' },
-    mat_t1: { name: '基础金属', type: 'material', tier: 1, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +0~+4 时消耗（不足可用点数代用）' },
-    mat_t2: { name: '强化合金', type: 'material', tier: 2, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +5~+9 时消耗（不足可用点数代用）' },
-    mat_t3: { name: '异界合金', type: 'material', tier: 3, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +10~+14 时消耗（不足可用点数代用）' },
-    mat_t4: { name: '虚空晶体', type: 'material', tier: 4, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +15~+19 时消耗（不足可用点数代用）' },
-    mat_t5: { name: '主神核心', type: 'material', tier: 5, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：冲击 +20 时消耗（不足可用点数代用）' },
-    box_r: { name: 'R装备箱', type: 'box', rarity: 'R', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 R 品质装备' },
-    box_sr: { name: 'SR装备箱', type: 'box', rarity: 'SR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 SR 品质装备' },
-    box_ssr: { name: 'SSR装备箱', type: 'box', rarity: 'SSR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 SSR 品质装备' },
-    box_ur: { name: 'UR装备箱', type: 'box', rarity: 'UR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 UR 品质装备；10% 概率开出 SSR 专属装备' },
+    heal_s: { name: '小型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.2 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 20% 生命', src: '主神商店、副本宝箱、随机事件' },
+    heal_m: { name: '中型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.4 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 40% 生命', src: '主神商店、副本宝箱、随机事件' },
+    heal_l: { name: '大型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.7 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 70% 生命', src: '副本宝箱（第 5 关起）、随机事件、周常奖励' },
+    buff_muscle: { name: '肌肉强化剂', type: 'consumable', where: 'explore', effect: { atkPct: 0.15 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队攻击 +15%', desc: '副本探索中使用：本次探索全队攻击 +15%', src: '主神商店、精英/Boss 掉落、副本宝箱' },
+    buff_nerve: { name: '神经刺激剂', type: 'consumable', where: 'explore', effect: { spdPct: 0.20 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队速度 +20%', desc: '副本探索中使用：本次探索全队速度 +20%', src: '主神商店、精英/Boss 掉落、副本宝箱' },
+    exp_s: { name: '初级经验模块', type: 'exp', where: 'character', exp: 500, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+500 EXP', src: '主神商店、随机事件、每日任务' },
+    exp_m: { name: '中级经验模块', type: 'exp', where: 'character', exp: 2000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+2,000 EXP', src: '主神商店、随机事件、每日/周常奖励' },
+    exp_l: { name: '高级经验模块', type: 'exp', where: 'character', exp: 10000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+10,000 EXP', src: '主神商店（通关 W04 后解锁）、精英/Boss 掉落、周常奖励' },
+    exp_xl: { name: '超级经验模块', type: 'exp', where: 'character', exp: 50000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+50,000 EXP', src: '主神商店（通关 W07 后解锁）、地狱 Boss 掉落、周常全清奖励' },
+    mat_t1: { name: '基础金属', type: 'material', tier: 1, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +0~+4 时消耗（不足可用点数代用）', src: 'W01~W05 精英/Boss、主神商店、故事商店' },
+    mat_t2: { name: '强化合金', type: 'material', tier: 2, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +5~+9 时消耗（不足可用点数代用）', src: 'W02~W06 精英/Boss、异界商店' },
+    mat_t3: { name: '异界合金', type: 'material', tier: 3, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +10~+14 时消耗（不足可用点数代用）', src: 'W03~W07 精英/Boss、异界商店' },
+    mat_t4: { name: '虚空晶体', type: 'material', tier: 4, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +15~+19 时消耗（不足可用点数代用）', src: 'W04 起精英/Boss、异界商店（通关 W04 解锁）' },
+    mat_t5: { name: '主神残片', type: 'material', tier: 5, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：冲击 +20 时消耗（不足可用点数代用）', src: 'W05 起精英/Boss、异界商店（通关 W06 解锁）' },
+    box_r: { name: 'R装备箱', type: 'box', rarity: 'R', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 R 品质装备', src: '主神商店、随机事件' },
+    box_sr: { name: 'SR装备箱', type: 'box', rarity: 'SR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 SR 品质装备', src: '兑换大厅各店、每日任务、副本宝箱' },
+    box_ssr: { name: 'SSR装备箱', type: 'box', rarity: 'SSR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 SSR 品质装备', src: '异界/回廊商店、七日登录第 6 天' },
+    box_ur: { name: 'UR装备箱', type: 'box', rarity: 'UR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 UR 品质装备；10% 概率开出 SSR 专属装备', src: '异界/回廊商店（高阶货币）' },
   };
   // 强化等级 → 材料 tier（+0~4:T1，+5~9:T2，+10~14:T3，+15~19:T4，+19→20:T5）
   const enhanceMatTier = lv => Math.min(5, Math.floor(lv / 4) + 1);
@@ -458,10 +463,13 @@ window.DATA = (function () {
     ] },
     { id: 'equip', title: '③ 装备与强化', body: [
       '装备 6 种品质：N / R / SR / SSR / UR，品质越高基础值和词条越多。',
-      '主角有 6 个槽位，招募角色只有武器 / 防具 / 首饰 3 个槽位。',
+      '主角和每名招募角色都是 6 个槽位：武器 / 头部 / 胸甲 / 手部 / 腿部 / 饰品，六个部位都能穿。',
       '强化最高 +20，消耗对应等级的强化材料（不够时用点数代用）+ 异界结晶；强化失败不会降级。',
-      '同世界套装 2 / 4 / 6 件激活额外效果；职业套装限对应定位穿戴（主角算战士）。',
-      '重复装备可以在装备页「批量分解」换成异界结晶；背包满了新装备会自动分解。',
+      '材料按强化等级分 5 档：+0~4 基础金属、+5~9 强化合金、+10~14 异界合金、+15~19 虚空晶体、+20 主神残片。',
+      'T4/T5 材料从 W04 / W05 之后的精英和 Boss 掉；通关 W04 / W06 后商店也会上架，不用死刷。',
+      '同世界套装 2 / 4 / 6 件激活额外效果（6 件效果需要全身同世界套装）；职业套装限对应定位穿戴（主角算战士）。',
+      '重复装备可以在装备页「批量分解」换成异界结晶；不想被分解的装备点详情里的 🔒 锁上。',
+      '懒得一件件配装？队伍页有「一键最优装备」和 3 组编队预设。',
     ] },
     { id: 'currency', title: '④ 八种货币怎么花', body: [
       '每种货币只干一件事，记不住就点顶栏的「▤ 货币」看完整图鉴（用途 + 主要来源）。',
@@ -474,14 +482,21 @@ window.DATA = (function () {
     ] },
     { id: 'corridor', title: '⑥ 回廊与转生', body: [
       '无限回廊：层数无限递增的终局玩法，奖励回廊徽记，可以在回廊商店换稀有道具。',
+      '回廊印记：历史最高层每 10 层积 1 枚（上限 30 枚），每枚在回廊内给全队 +1.5% 属性——推不动了就靠它一点点往前啃。',
       '转生：玩家 Lv.100 + 基因锁 5 阶 + 主神核心 Lv.30 后开启，重置等级与世界进度，换成永久天赋点。',
       '转生天赋是永久加成，越早开始攒越划算——但不要为了转生硬堆，先把当前进度打穿。',
+      '天赋分四支：永恒之躯（生命/防御/减伤）、无限能源（精神/技能/开场能量）、超维神经（速度/暴击/先制）、主神恩赐（挂机/经验/掉落）。每支点满 6200 转生点，量力而行。',
     ] },
     { id: 'daily', title: '⑦ 每天必做的四件事', body: [
       '1. 领挂机收益（挂满越久收益越多，离线也有）。',
       '2. 领每日免费招募（招募页第一个按钮，一天一次）。',
       '3. 做完每日任务 + 全部完成奖励（任务面板）。',
-      '4. 扫荡已通关的关卡拿材料（每天 30 次）。',
+      '4. 扫荡已通关的关卡拿材料（每天 60 次）。',
+    ] },
+    { id: 'weekly', title: '⑧ 周常与成就', body: [
+      '任务面板有四个页签：主线 / 日常 / 周常 / 成就。',
+      '周常每周一自然重置：战斗 100 次、通关 10 次副本、强化 20 次、招募 10 次、领挂机 7 次，全清有额外奖励（含超级经验模块）。',
+      '成就是长线目标，分战斗 / 养成 / 收集 / 挑战四类，达成后手动领取奖励；其中回廊层数类成就奖励回廊徽记。',
     ] },
   ];
 
@@ -664,15 +679,22 @@ window.DATA = (function () {
   const PITY = { SSR: 50, UR: 100 };
 
   /* ================= 商店 ================= */
+  // req.world：需要先通关该世界（普通难度）才会解锁这一格商品；
+  // 2026-09-12 补齐：高阶经验模块与 T4/T5 强化材料此前没有任何稳定来源，属于"看得到拿不到"。
   const SHOPS = {
     god: { name: '主神商店', currency: 'points', items: [
       { item: 'exp_s', name: '初级经验模块', price: 500, stock: -1 },
       { item: 'exp_m', name: '中级经验模块', price: 2000, stock: -1 },
+      { item: 'exp_l', name: '高级经验模块', price: 12000, stock: -1, req: { world: 'W04' } },
+      { item: 'exp_xl', name: '超级经验模块', price: 45000, stock: -1, req: { world: 'W07' } },
       { item: 'heal_s', name: '小型治疗剂', price: 500, stock: -1 },
       { item: 'heal_m', name: '中型治疗剂', price: 1200, stock: -1 },
+      { item: 'heal_l', name: '大型治疗剂', price: 3000, stock: -1, req: { world: 'W03' } },
       { item: 'buff_muscle', name: '肌肉强化剂', price: 1500, stock: -1 },
       { item: 'buff_nerve', name: '神经刺激剂', price: 1500, stock: -1 },
       { item: 'mat_t1', name: '基础金属×10', price: 300, count: 10, stock: -1 },
+      { item: 'mat_t4', name: '虚空晶体×5', price: 6000, count: 5, stock: -1, req: { world: 'W04' } },
+      { item: 'mat_t5', name: '主神残片×3', price: 15000, count: 3, stock: -1, req: { world: 'W06' } },
       { currencyGain: { skillChip: 10 }, name: '技能芯片×10', price: 2000, stock: -1 },
       { item: 'box_r', name: '随机R装备', price: 5000, stock: -1 },
       { item: 'box_sr', name: '随机SR装备', price: 30000, stock: -1 },
@@ -683,12 +705,16 @@ window.DATA = (function () {
       { item: 'box_ur', name: 'UR装备箱', price: 2000, stock: -1 },
       { item: 'mat_t2', name: '强化合金×10', price: 50, count: 10, stock: -1 },
       { item: 'mat_t3', name: '异界合金×5', price: 100, count: 5, stock: -1 },
+      { item: 'mat_t4', name: '虚空晶体×5', price: 300, count: 5, stock: -1, req: { world: 'W04' } },
+      { item: 'mat_t5', name: '主神残片×3', price: 900, count: 3, stock: -1, req: { world: 'W06' } },
+      { item: 'exp_l', name: '高级经验模块', price: 150, stock: -1, req: { world: 'W04' } },
     ] },
     story: { name: '故事商店', currency: 'story', items: [
       { shardRandom: 'R', shardCount: 10, name: '随机R角色碎片×10', price: 100, stock: -1 },
       { shardRandom: 'SR', shardCount: 10, name: '随机SR角色碎片×10', price: 300, stock: -1 },
       { item: 'box_sr', name: '世界装备箱', price: 200, stock: -1 },
       { item: 'mat_t1', name: '世界材料×50', price: 50, count: 50, stock: -1 },
+      { item: 'exp_m', name: '中级经验模块×2', price: 150, count: 2, stock: -1 },
       { currencyGain: { skillChip: 100 }, name: '技能芯片×100', price: 200, stock: -1 },
       { currencyGain: { holy: 10 }, name: '圣洁晶石×10', price: 500, stock: 1 },
     ] },
@@ -697,6 +723,8 @@ window.DATA = (function () {
       { shardRandom: 'SSR', shardCount: 5, name: 'SSR角色碎片×5', price: 300, stock: -1 },
       { currencyGain: { skillChip: 100 }, name: '技能芯片×100', price: 150, stock: -1 },
       { currencyGain: { bloodCrystal: 100 }, name: '血统结晶×100', price: 200, stock: -1 },
+      { item: 'exp_xl', name: '超级经验模块', price: 120, stock: -1 },
+      { item: 'mat_t5', name: '主神残片×5', price: 150, count: 5, stock: -1 },
       { item: 'box_ssr', name: 'SSR装备箱', price: 500, stock: -1 },
       { item: 'box_ur', name: 'UR装备箱', price: 1500, stock: -1 },
     ] },
@@ -712,6 +740,38 @@ window.DATA = (function () {
     { id: 'item1',    name: '使用 1 个道具', target: 1, reward: { points: 500 } },
   ];
   const DAILY_ALL_REWARD = { points: 5000, skillChip: 50, holy: 20 };
+  // 周常任务：与每日任务共用同一套进度来源（战斗/强化/副本/招募/道具/挂机），按自然周重置
+  const WEEKLY_TASKS = [
+    { id: 'w_battle',  name: '本周战斗 100 次', target: 100, src: 'battle', reward: { points: 8000, holy: 60 } },
+    { id: 'w_run',     name: '本周通关 10 次副本', target: 10,  src: 'dungeon', reward: { points: 10000, skillChip: 150 } },
+    { id: 'w_enhance', name: '本周强化 20 次装备', target: 20,  src: 'enhance', reward: { otherworld: 300, points: 6000 } },
+    { id: 'w_recruit', name: '本周招募 10 次', target: 10,      src: 'recruit', reward: { holy: 120 } },
+    { id: 'w_idle',    name: '本周领取挂机收益 7 次', target: 7, src: 'idle', reward: { story: 600, points: 5000 } },
+  ];
+  const WEEKLY_ALL_REWARD = { holy: 300, otherworld: 800, item: 'exp_xl' };
+  // 成就：长线目标，覆盖战斗 / 养成 / 收集 / 挑战四条线
+  const ACHIEVEMENTS = [
+    { id: 'a_battle100', cat: '战斗', name: '百战之躯', desc: '累计战斗 100 场', check: S => S.stats.battles >= 100, reward: { points: 8000 } },
+    { id: 'a_battle1000', cat: '战斗', name: '千锤百炼', desc: '累计战斗 1000 场', check: S => S.stats.battles >= 1000, reward: { points: 60000, holy: 200 } },
+    { id: 'a_boss10', cat: '战斗', name: '屠龙者', desc: '击杀 10 次守关 Boss', check: S => S.stats.bosses >= 10, reward: { otherworld: 200 } },
+    { id: 'a_boss50', cat: '战斗', name: 'Boss 猎人', desc: '击杀 50 次守关 Boss', check: S => S.stats.bosses >= 50, reward: { holy: 300, bloodCrystal: 200 } },
+    { id: 'a_hell1', cat: '战斗', name: '地狱归来', desc: '通关任意关卡的地狱难度', check: S => Object.values(S.worlds).some(w => w.stages.hell.some(s => s > 0)), reward: { holy: 200, otherworld: 300 } },
+    { id: 'a_run50', cat: '战斗', name: '轮回老手', desc: '累计通关 50 次副本关卡', check: S => S.stats.runs >= 50, reward: { points: 30000 } },
+    { id: 'a_lv100', cat: '养成', name: '登峰造极', desc: '玩家等级达到 Lv.100', check: S => S.player.level >= 100, reward: { holy: 500, otherworld: 500 } },
+    { id: 'a_gene5', cat: '养成', name: '完全解锁', desc: '基因锁解锁到 5 阶', check: S => S.player.geneLock >= 5, reward: { holy: 500, bloodCrystal: 500 } },
+    { id: 'a_enh50', cat: '养成', name: '铁匠', desc: '累计强化 50 次装备', check: S => S.stats.enhances >= 50, reward: { points: 20000, otherworld: 200 } },
+    { id: 'a_enh20', cat: '养成', name: '完美强化', desc: '拥有一件 +20 装备', check: S => Object.values(S.equips).some(e => e.enhance >= 20), reward: { holy: 300, otherworld: 500 } },
+    { id: 'a_char10', cat: '收集', name: '小队成形', desc: '拥有 10 名轮回者', check: S => Object.keys(S.chars).length >= 10, reward: { points: 15000 } },
+    { id: 'a_char30', cat: '收集', name: '大型队伍', desc: '拥有 30 名轮回者', check: S => Object.keys(S.chars).length >= 30, reward: { holy: 400, points: 40000 } },
+    { id: 'a_ssr1', cat: '收集', name: '命运相遇', desc: '获得第 1 名 SSR 轮回者', check: S => Object.keys(S.chars).some(id => (charById[id] || {}).rarity === 'SSR'), reward: { holy: 200 } },
+    { id: 'a_ur1', cat: '收集', name: '超越者', desc: '获得第 1 名 UR 轮回者', check: S => Object.keys(S.chars).some(id => (charById[id] || {}).rarity === 'UR'), reward: { holy: 500, bloodCrystal: 300 } },
+    { id: 'a_world3', cat: '挑战', name: '走出蜂巢', desc: '通关 3 个世界的普通难度', check: S => WORLDS.filter(w => S.worlds[w.id] && S.worlds[w.id].stages.normal.every(s => s > 0)).length >= 3, reward: { holy: 300 } },
+    { id: 'a_floor50', cat: '挑战', name: '回廊 50 层', desc: '无限回廊历史最高 50 层', check: S => S.corridor.best >= 50, reward: { corridor: 100, points: 20000 } },
+    { id: 'a_floor100', cat: '挑战', name: '回廊 100 层', desc: '无限回廊历史最高 100 层', check: S => S.corridor.best >= 100, reward: { corridor: 300, holy: 400 } },
+    { id: 'a_floor200', cat: '挑战', name: '回廊守望者', desc: '无限回廊历史最高 200 层', check: S => S.corridor.best >= 200, reward: { corridor: 800, holy: 800 } },
+    { id: 'a_reincarn', cat: '挑战', name: '轮回不止', desc: '完成 1 次转生', check: S => S.player.reincarnations >= 1, reward: { holy: 300, bloodCrystal: 300 } },
+    { id: 'a_codex20', cat: '收集', name: '图鉴过半', desc: '图鉴收集 20 名角色', check: S => S.codex.chars.length >= 20, reward: { points: 30000, holy: 200 } },
+  ];
   const LOGIN_REWARDS = [
     { holy: 100 }, { points: 10000 }, { skillChip: 100 }, { otherworld: 200 },
     { holy: 200 }, { item: 'box_ssr' }, { ssrTicket: true },
@@ -780,20 +840,87 @@ window.DATA = (function () {
   }
 
   /* ================= 转生天赋 ================= */
+  // 2026-09-12 重构：每个节点写成「文案 + 效果」的对象，文案由效果派生，
+  // 从结构上杜绝"说明写了、实际没实装"再次发生（旧版 40 个节点里 15 个是空文本）。
+  // e 里的键与战斗/挂机系统一一对应：
+  //   hpPct/defPct/spdPct/critPct/critDmg/skillPct/evaPct/spiritPct → 属性区（与装备同池加算）
+  //   dmgReduce 减伤 / healUp 受治疗加成 / initEnergy 开场能量 / cdRed 技能CD减少
+  //   firstStrike 首回合速度 / ultPct 必杀伤害 / idlePct 挂机增产 / expPct 经验加成
+  //   dropPct 掉落加成 / offlinePct 离线效率
   const TALENTS = {
-    body:  { name: '永恒之躯', desc: '生命/防御/恢复', nodes: ['生命+5%', '防御+5%', '受治疗+8%', '生命+8%', '减伤+3%', '生命+12%', '防御+8%', '减伤+5%', '生命+20%', '不朽：重伤恢复+50%'] },
-    energy:{ name: '无限能源', desc: '技能/精神/能量', nodes: ['精神+5%', '技能伤害+5%', '初始能量+10', '精神+8%', '技能伤害+8%', '技能CD-1(必杀除外)', '精神+12%', '技能伤害+12%', '初始能量+25', '超载：必杀伤害+25%'] },
-    nerve: { name: '超维神经', desc: '速度/暴击/闪避', nodes: ['速度+5%', '暴击率+3%', '闪避+2%', '速度+8%', '暴击伤害+10%', '速度+12%', '暴击率+5%', '闪避+4%', '速度+20%', '先制：首回合速度+50%'] },
-    grace: { name: '主神恩赐', desc: '挂机/掉落/经验', nodes: ['挂机+5%', '经验+5%', '掉落+5%', '挂机+8%', '经验+8%', '挂机+12%', '掉落+8%', '经验+12%', '挂机+20%', '神眷：离线效率+15%'] },
+    body: { name: '永恒之躯', desc: '生命/防御/减伤', nodes: [
+      { text: '生命+5%', e: { hpPct: 0.05 } },
+      { text: '防御+5%', e: { defPct: 0.05 } },
+      { text: '受治疗+8%', e: { healUp: 0.08 } },
+      { text: '生命+8%', e: { hpPct: 0.08 } },
+      { text: '减伤+3%', e: { dmgReduce: 0.03 } },
+      { text: '生命+12%', e: { hpPct: 0.12 } },
+      { text: '防御+8%', e: { defPct: 0.08 } },
+      { text: '减伤+5%', e: { dmgReduce: 0.05 } },
+      { text: '生命+20%', e: { hpPct: 0.20 } },
+      { text: '不朽：减伤+8%·受治疗+20%', e: { dmgReduce: 0.08, healUp: 0.20 } },
+    ] },
+    energy: { name: '无限能源', desc: '技能/精神/能量', nodes: [
+      { text: '精神+5%', e: { spiritPct: 0.05 } },
+      { text: '技能伤害+5%', e: { skillPct: 0.05 } },
+      { text: '开场能量+10', e: { initEnergy: 10 } },
+      { text: '精神+8%', e: { spiritPct: 0.08 } },
+      { text: '技能伤害+8%', e: { skillPct: 0.08 } },
+      { text: '技能CD-1（必杀除外）', e: { cdRed: 1 } },
+      { text: '精神+12%', e: { spiritPct: 0.12 } },
+      { text: '技能伤害+12%', e: { skillPct: 0.12 } },
+      { text: '开场能量+25', e: { initEnergy: 25 } },
+      { text: '超载：必杀伤害+25%', e: { ultPct: 0.25 } },
+    ] },
+    nerve: { name: '超维神经', desc: '速度/暴击/闪避', nodes: [
+      { text: '速度+5%', e: { spdPct: 0.05 } },
+      { text: '暴击率+3%', e: { critPct: 0.03 } },
+      { text: '闪避+2%', e: { evaPct: 0.02 } },
+      { text: '速度+8%', e: { spdPct: 0.08 } },
+      { text: '暴击伤害+10%', e: { critDmg: 0.10 } },
+      { text: '速度+12%', e: { spdPct: 0.12 } },
+      { text: '暴击率+5%', e: { critPct: 0.05 } },
+      { text: '闪避+4%', e: { evaPct: 0.04 } },
+      { text: '速度+20%', e: { spdPct: 0.20 } },
+      { text: '先制：首回合速度+50%', e: { firstStrike: 0.50 } },
+    ] },
+    grace: { name: '主神恩赐', desc: '挂机/掉落/经验', nodes: [
+      { text: '挂机+5%', e: { idlePct: 0.05 } },
+      { text: '经验+5%', e: { expPct: 0.05 } },
+      { text: '掉落+5%', e: { dropPct: 0.05 } },
+      { text: '挂机+8%', e: { idlePct: 0.08 } },
+      { text: '经验+8%', e: { expPct: 0.08 } },
+      { text: '挂机+12%', e: { idlePct: 0.12 } },
+      { text: '掉落+8%', e: { dropPct: 0.08 } },
+      { text: '经验+12%', e: { expPct: 0.12 } },
+      { text: '挂机+20%', e: { idlePct: 0.20 } },
+      { text: '神眷：离线效率+15%', e: { offlinePct: 0.15 } },
+    ] },
   };
   const TALENT_COSTS = [10, 20, 40, 80, 150, 300, 600, 1000, 1500, 2500];
+  // 取某支天赋前 lv 级的累计效果（文案与数值同源，不会再对不上）
+  function talentEffect(branch, lv) {
+    const t = TALENTS[branch];
+    const out = {};
+    if (!t) return out;
+    for (let i = 0; i < Math.min(lv, t.nodes.length); i++) {
+      Object.entries(t.nodes[i].e || {}).forEach(([k, v]) => { out[k] = (out[k] || 0) + v; });
+    }
+    return out;
+  }
+  // 文案数组（UI 展示用），保证顺序与效果一一对应
+  const talentTexts = branch => (TALENTS[branch] ? TALENTS[branch].nodes.map(n => n.text) : []);
 
   /* ================= 无限回廊 ================= */
+  // 2026-09-12 调整：旧曲线第 1~100 层 HP 按 1.045 指数暴涨（100 层 46.8 万 HP / 攻 13501），
+  // 而玩家属性在 Lv100+基因锁5+血统30 就到顶 → 结果只有"碾压"和"断崖"两种状态。
+  // 新曲线放缓（1.032 / 1.026 / 1.020），并新增「回廊印记」：每通 10 层永久 +1.5% 属性（仅回廊内，上限 30 枚 +45%）。
   function corridorEnemy(floor) {
-    let hpM, atkM, defM;
-    if (floor <= 100) { hpM = Math.pow(1.045, floor - 1); atkM = Math.pow(1.035, floor - 1); defM = Math.pow(1.030, floor - 1); }
-    else if (floor <= 300) { hpM = Math.pow(1.035, floor - 1); atkM = Math.pow(1.030, floor - 1); defM = Math.pow(1.025, floor - 1); }
-    else { hpM = Math.pow(1.025, floor - 1); atkM = Math.pow(1.022, floor - 1); defM = Math.pow(1.020, floor - 1); }
+    let gHp, gAtk, gDef;
+    if (floor <= 100) { gHp = 1.032; gAtk = 1.026; gDef = 1.020; }
+    else if (floor <= 300) { gHp = 1.028; gAtk = 1.024; gDef = 1.018; }
+    else { gHp = 1.022; gAtk = 1.020; gDef = 1.015; }
+    const hpM = Math.pow(gHp, floor - 1), atkM = Math.pow(gAtk, floor - 1), defM = Math.pow(gDef, floor - 1);
     const isBoss = floor % 50 === 0, isElite = floor % 10 === 0;
     const mult = isBoss ? 2.4 : isElite ? 1.7 : 1;
     return {
@@ -802,6 +929,10 @@ window.DATA = (function () {
       isBoss, isElite,
     };
   }
+  // 回廊印记：历史最高层每 10 层 1 枚，每枚在回廊内给全队 +1.5%（上限 30 枚 = +45%）
+  const CORRIDOR_MARK_STEP = 10, CORRIDOR_MARK_CAP = 30, CORRIDOR_MARK_PCT = 0.015;
+  const corridorMarks = best => Math.min(CORRIDOR_MARK_CAP, Math.floor((best || 0) / CORRIDOR_MARK_STEP));
+  const corridorMarkBonus = best => corridorMarks(best) * CORRIDOR_MARK_PCT;
   const corridorReward = floor => ({
     points: Math.round(100 * Math.pow(1.04, Math.floor(floor / 10))),
     story: 5,
@@ -842,8 +973,10 @@ window.DATA = (function () {
     BUILDINGS, buildingCost,
     RECRUIT_POOLS, RECRUIT_TEN_COST, PITY,
     SHOPS, DAILY_TASKS, DAILY_ALL_REWARD, LOGIN_REWARDS, STARTER,
-    TALENTS, TALENT_COSTS,
-    corridorEnemy, corridorReward,
+    WEEKLY_TASKS, WEEKLY_ALL_REWARD, ACHIEVEMENTS,
+    TALENTS, TALENT_COSTS, talentEffect, talentTexts,
+    corridorEnemy, corridorReward, corridorMarks, corridorMarkBonus,
+    CORRIDOR_MARK_STEP, CORRIDOR_MARK_CAP, CORRIDOR_MARK_PCT,
     DROP_RARITY, rollRarity, capRarity,
     UNLOCKS, MAIN_QUESTS, stageDropCap,
     CURRENCY_INFO, CODEX_REWARDS, enhanceMatTier, MAT_SUBSTITUTE_POINTS,

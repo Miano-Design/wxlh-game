@@ -31,13 +31,15 @@ window.Core = (function () {
       recruit: { pityAdv: 0, pityLim: 0, pityAdvS: 0, pityLimS: 0, lastFree: '' },
       shop: { dailyDate: '', dailyItems: [], bought: {} },
       sweep: { date: '', count: 0 },
-      tasks: { date: '', daily: {}, claimed: {}, allClaimed: false },
+      tasks: { date: '', daily: {}, claimed: {}, allClaimed: false, weekKey: '', weekly: {}, weeklyClaimed: {}, weeklyAllClaimed: false },
       login: { day: 0, round: 1, lastClaim: '' },
       idle: { bankSec: 0, lastTs: Date.now() },
       stats: { battles: 0, wins: 0, bosses: 0, runs: 0, recruits: 0, enhances: 0, bestFloor: 0, profileViews: 0 },
-      settings: { speed: 1, autoSellN: false, autoSellR: false },
+      settings: { speed: 1, autoSellN: false, autoSellR: false, sfx: true, autoBattle: false },
       codex: { chars: [], equipsSeen: 0, claimed: [] },
-      achievements: {},
+      achievements: {},       // achId → true（已领取）
+      presets: [null, null, null],   // 3 组编队预设（保存队伍成员）
+      pendingRun: null,       // 未打完的副本进度：刷新 / 切后台回来可以继续
       unlocks: {},
       quests: { claimed: [] },
       ssrTicket: 0,
@@ -75,6 +77,18 @@ window.Core = (function () {
     S.sweep = Object.assign(def.sweep, S.sweep || {});
     // 老存档补新字段：设置项 / 图鉴领取记录 / 登录轮次
     S.settings = Object.assign(def.settings, S.settings || {});
+    S.tasks = Object.assign(def.tasks, S.tasks || {});
+    S.tasks.weekly = S.tasks.weekly || {};
+    S.tasks.weeklyClaimed = S.tasks.weeklyClaimed || {};
+    S.achievements = S.achievements || {};
+    S.presets = Array.isArray(S.presets) ? S.presets.slice(0, 3) : [null, null, null];
+    while (S.presets.length < 3) S.presets.push(null);
+    S.pendingRun = S.pendingRun || null;
+    // 老档补齐：招募角色的装备槽从 3 个扩到 6 个（世界套装 4/6 件效果才可能触发）
+    Object.keys(S.chars || {}).forEach(id => {
+      S.equipped[id] = Object.assign({ weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null }, S.equipped[id] || {});
+    });
+    Object.values(S.equips || {}).forEach(e => { if (e.lock === undefined) e.lock = false; });
     S.codex = Object.assign({ chars: [], equipsSeen: 0 }, S.codex || {});
     S.codex.claimed = Array.isArray(S.codex.claimed) ? S.codex.claimed : [];
     S.login = Object.assign(def.login, S.login || {});
@@ -198,6 +212,36 @@ window.Core = (function () {
       if (n >= 6 && set.b6) Object.entries(set.b6).forEach(([k, v]) => { pct[k] = (pct[k] || 0) + v; });
     });
   }
+  /* --- 转生天赋：一支入口，文案与效果同源（D.TALENTS 的节点自带 e 效果表） --- */
+  const TALENT_PCT_KEYS = ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'];
+  function talentAll() {
+    const t = S.player.talents;
+    const out = {};
+    ['body', 'energy', 'nerve', 'grace'].forEach(b => {
+      Object.entries(D.talentEffect(b, t[b] || 0)).forEach(([k, v]) => { out[k] = (out[k] || 0) + v; });
+    });
+    return out;
+  }
+  function talentPct() {
+    const all = talentAll(), out = {};
+    TALENT_PCT_KEYS.forEach(k => { out[k] = all[k] || 0; });
+    return out;
+  }
+  // 战斗引擎专用的天赋字段（减伤/受治疗/开场能量/CD/先制/必杀）
+  function talentCombatExtra() {
+    const all = talentAll();
+    return {
+      dmgReduce: Math.min(0.6, all.dmgReduce || 0),
+      healUp: all.healUp || 0,
+      initEnergy: all.initEnergy || 0,
+      cdRed: all.cdRed || 0,
+      firstStrike: all.firstStrike || 0,
+      ultPct: all.ultPct || 0,
+    };
+  }
+  const graceIdleMult = () => 1 + (talentAll().idlePct || 0);
+  const graceExpMult = () => 1 + (talentAll().expPct || 0);
+  const graceDropMult = () => 1 + (talentAll().dropPct || 0);
   // 背包占用 = 道具种类数 + 未装备装备件数
   function bagUsage() {
     const equippedUids = new Set();
@@ -232,7 +276,7 @@ window.Core = (function () {
       return { isNew: false, shards: gain };
     }
     S.chars[id] = { lv: 1, exp: 0, star: 1, shards: 0, skillLv: [1, 1, 1], bloodlineLv: 0 };
-    S.equipped[id] = { weapon: null, armor: null, accessory: null };
+    S.equipped[id] = { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null };
     if (!S.codex.chars.includes(id)) S.codex.chars.push(id);
     return { isNew: true };
   }
@@ -376,16 +420,10 @@ window.Core = (function () {
     if (S.player.geneLock >= 1) { pct.atkPct += 0.05; pct.hpPct += 0.05; pct.defPct += 0.05; pct.spdPct += 0.05; }
     if (S.player.geneLock >= 2) pct.skillPct += 0.15;
     if (S.player.geneLock >= 5) { pct.atkPct += 0.15; pct.hpPct += 0.15; pct.defPct += 0.15; pct.spdPct += 0.15; }
-    // 转生天赋
-    const t = S.player.talents;
-    pct.hpPct += [0, .05, .05, 0, .08, 0, .12, 0, 0, .20, 0].slice(0, t.body + 1).reduce((x, y) => x + y, 0);
-    pct.defPct += [0, 0, .05, 0, 0, 0, 0, .08, 0, 0, 0].slice(0, t.body + 1).reduce((x, y) => x + y, 0);
-    pct.spiritPct += [0, .05, 0, 0, .08, 0, 0, .12, 0, 0, 0].slice(0, t.energy + 1).reduce((x, y) => x + y, 0);
-    pct.skillPct += [0, 0, .05, 0, 0, .08, 0, 0, .12, 0, .25].slice(0, t.energy + 1).reduce((x, y) => x + y, 0);
-    pct.spdPct += [0, .05, 0, 0, .08, 0, 0, .12, 0, 0, .20].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
-    pct.critPct += [0, 0, .03, 0, 0, 0, 0, .05, 0, 0, 0].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
-    pct.critDmg += [0, 0, 0, 0, 0, .10, 0, 0, 0, 0, 0].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
-    pct.evaPct += [0, 0, 0, .02, 0, 0, 0, 0, .04, 0, 0].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
+    // 转生天赋：效果全部由 D.talentEffect 派生，文案与数值同源
+    // （旧版是两套硬编码数组，说明改了、效果没改，导致 15 个节点写了没实装）
+    const tt = talentPct();
+    ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'].forEach(k => { pct[k] += tt[k] || 0; });
     // 装备
     const eq = S.equipped[charId] || {};
     const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
@@ -418,6 +456,7 @@ window.Core = (function () {
       lifesteal: pct.lifesteal + (base.kind === 'vampire' ? 0.1 : 0),
       resPct: pct.resPct || 0,
       attrs: a, sets,
+      ...talentCombatExtra(),
     };
   }
   function power(charId) {
@@ -434,7 +473,7 @@ window.Core = (function () {
     // 六维属性点加成（每点 +ATTR_POINT_VALUE）
     const pa = S.player.attrs || {};
     Object.keys(a).forEach(k => { a[k] += (pa[k] || 0) * D.ATTR_POINT_VALUE; });
-    const pct = { atkPct: 0, hpPct: 0, defPct: 0, spdPct: 0, critPct: 0, critDmg: 0, skillPct: 0, evaPct: 0.05, resPct: 0, lifesteal: 0 };
+    const pct = { atkPct: 0, hpPct: 0, defPct: 0, spdPct: 0, critPct: 0, critDmg: 0, skillPct: 0, evaPct: 0.05, resPct: 0, lifesteal: 0, spiritPct: 0 };
     // 基因锁（全队加成 + 主角每阶额外3%）
     if (S.player.geneLock >= 1) { pct.atkPct += 0.05; pct.hpPct += 0.05; pct.defPct += 0.05; pct.spdPct += 0.05; }
     if (S.player.geneLock >= 2) pct.skillPct += 0.15;
@@ -453,18 +492,13 @@ window.Core = (function () {
         if (bl.critPct) pct.critPct += bl.critPct * blm;
         if (bl.lifesteal) pct.lifesteal += bl.lifesteal * blm;
         if (bl.spdPct) pct.spdPct += bl.spdPct * blm;
+        if (bl.spiritPct) pct.spiritPct += bl.spiritPct * blm;
         if (bl.allPct) { pct.atkPct += bl.allPct * blm; pct.hpPct += bl.allPct * blm; pct.defPct += bl.allPct * blm; pct.spdPct += bl.allPct * blm; }
       }
     }
-    // 转生天赋
-    const t = S.player.talents;
-    pct.hpPct += [0, .05, .05, 0, .08, 0, .12, 0, 0, .20, 0].slice(0, t.body + 1).reduce((x, y) => x + y, 0);
-    pct.defPct += [0, 0, .05, 0, 0, 0, 0, .08, 0, 0, 0].slice(0, t.body + 1).reduce((x, y) => x + y, 0);
-    pct.skillPct += [0, 0, .05, 0, 0, .08, 0, 0, .12, 0, .25].slice(0, t.energy + 1).reduce((x, y) => x + y, 0);
-    pct.spdPct += [0, .05, 0, 0, .08, 0, 0, .12, 0, 0, .20].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
-    pct.critPct += [0, 0, .03, 0, 0, 0, 0, .05, 0, 0, 0].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
-    pct.critDmg += [0, 0, 0, 0, 0, .10, 0, 0, 0, 0, 0].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
-    pct.evaPct += [0, 0, 0, .02, 0, 0, 0, 0, .04, 0, 0].slice(0, t.nerve + 1).reduce((x, y) => x + y, 0);
+    // 转生天赋（主角同样吃满四支天赋）
+    const tt = talentPct();
+    ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'].forEach(k => { pct[k] += tt[k] || 0; });
     // 装备（6 槽）
     const eq = S.equipped['@player'] || {};
     const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
@@ -483,6 +517,7 @@ window.Core = (function () {
       if (e.classSet && e.classSet === 'warrior') psets['class:warrior'] = (psets['class:warrior'] || 0) + 1;
     });
     applySetBonuses(pct, psets);
+    if (pct.spiritPct) a.spirit *= (1 + pct.spiritPct);
     const atk = (a.muscle * 1.8 + flat.atk) * (1 + pct.atkPct);
     const def = (a.immune * 1.6 + flat.def) * (1 + pct.defPct);
     const hp = (a.cell * 25 + flat.hp) * (1 + pct.hpPct);
@@ -494,6 +529,7 @@ window.Core = (function () {
       atk: Math.round(atk), def: Math.round(def), hp: Math.round(hp), spd: Math.round(spd),
       crit, critDmg: 2.0 + pct.critDmg, eva, skillMult,
       lifesteal: pct.lifesteal, resPct: pct.resPct || 0, attrs: a,
+      ...talentCombatExtra(),
     };
   }
   function playerPower() {
@@ -595,10 +631,57 @@ window.Core = (function () {
     const eq = S.equips[uid];
     if (!eq) return false;
     if (!canEquip(charId, eq)) return false;
-    if (!S.equipped[charId]) S.equipped[charId] = { weapon: null, armor: null, accessory: null };
+    if (!S.equipped[charId]) S.equipped[charId] = { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null };
     S.equipped[charId][eq.slot] = uid;
     save();
     return true;
+  }
+  // 装备锁定：锁上的装备不会被分解（含批量分解），避免手滑拆掉主力装备
+  function toggleEquipLock(uid) {
+    const eq = S.equips[uid];
+    if (!eq) return { ok: false };
+    eq.lock = !eq.lock;
+    save();
+    return { ok: true, lock: eq.lock };
+  }
+  // 一键最优装备：按"能不能穿 + 词条价值"给主角与全队自动选装，已锁定的装备照常可以给人穿
+  function equipScore(eq) {
+    const st = equipStats(eq);
+    let s = st.flat.atk * 2 + st.flat.def * 1.2 + st.flat.hp * 0.2 + st.flat.spd * 3 + (st.flat.critPct || 0) * 2000;
+    Object.entries(st.affix).forEach(([k, v]) => {
+      const w = { atkPct: 1200, hpPct: 500, defPct: 900, skillPct: 1000, critPct: 1500, critDmg: 600, spdPct: 900, evaPct: 700, resPct: 300, lifesteal: 800 }[k] || 200;
+      s += v * w;
+    });
+    return s;
+  }
+  function autoEquipBest() {
+    const members = ['@player', ...S.party.filter(Boolean)];
+    // 候选池：所有没被锁定的装备（含别人身上的，稍后统一重新分配；同一件只会分给一个人）
+    const pool = Object.values(S.equips).filter(e => !e.lock);
+    const used = new Set();
+    let changed = 0;
+    members.forEach(cid => {
+      const cur = S.equipped[cid] || (S.equipped[cid] = { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null });
+      const slots = cid === '@player' ? D.PLAYER_SLOTS : D.RECRUIT_SLOTS;
+      slots.forEach(slot => {
+        // 锁定的装备不动：如果它正穿在身上，就当作已占用直接跳过
+        if (cur[slot] && S.equips[cur[slot]] && S.equips[cur[slot]].lock) { used.add(cur[slot]); return; }
+        let best = null, bestScore = -1;
+        pool.forEach(e => {
+          if (used.has(e.uid)) return;
+          if (e.slot !== slot) return;
+          if (!canEquip(cid, e)) return;
+          const s = equipScore(e);
+          if (s > bestScore) { bestScore = s; best = e; }
+        });
+        if (best) {
+          used.add(best.uid);
+          if (cur[slot] !== best.uid) { cur[slot] = best.uid; changed++; }
+        }
+      });
+    });
+    save();
+    return { ok: true, changed, members: members.length };
   }
   // 穿戴规则：专属限本人；职业套装限对应定位（主角=战士）；槽位受角色类型限制（头/手/腿仅主角）
   function canEquip(charId, eq) {
@@ -657,6 +740,7 @@ window.Core = (function () {
   function decompose(uid) {
     const eq = S.equips[uid];
     if (!eq) return { ok: false };
+    if (eq.lock) return { ok: false, msg: '这件装备已锁定，先解锁再分解' };
     let gain = D.DECOMPOSE_GAIN[eq.rarity];
     gain += Math.floor(eq.enhance * 3);   // 强化投入部分返还
     // 若装备中先卸下
@@ -674,6 +758,7 @@ window.Core = (function () {
     uids.forEach(uid => {
       const eq = S.equips[uid];
       if (!eq) return;
+      if (eq.lock) return;   // 锁定的装备不参与批量分解
       gain += D.DECOMPOSE_GAIN[eq.rarity] + Math.floor(eq.enhance * 3);
       Object.values(S.equipped).forEach(slots => {
         Object.keys(slots).forEach(k => { if (slots[k] === uid) slots[k] = null; });
@@ -683,6 +768,22 @@ window.Core = (function () {
     });
     if (count) { addCur('otherworld', gain); save(); }
     return { ok: count > 0, gain, count };
+  }
+  /* --- 编队预设：3 组槽位，一键保存 / 一键套用 --- */
+  function savePreset(idx) {
+    if (idx < 0 || idx > 2) return { ok: false, msg: '预设不存在' };
+    S.presets[idx] = S.party.slice();
+    save();
+    return { ok: true, msg: `已保存到预设 ${idx + 1}` };
+  }
+  function applyPreset(idx) {
+    const p = S.presets[idx];
+    if (!p) return { ok: false, msg: '该预设还是空的' };
+    const owned = p.map(id => (id && S.chars[id] ? id : null));
+    S.party = owned.slice(0, 4);
+    while (S.party.length < 4) S.party.push(null);
+    save();
+    return { ok: true, msg: `已套用预设 ${idx + 1}` };
   }
   function inventoryEquips() {
     const equippedUids = new Set();
@@ -776,19 +877,17 @@ window.Core = (function () {
   }
 
   /* ================= 挂机 ================= */
+  // 2026-09-12 调整产出：点数 (10+0.3Lv) / 分、经验 (8+0.5Lv) / 分，
+  // 与新的等级曲线（Lv1→100 累计 EXP 148.8 万 / 点数 21.3 万）配套；天赋「主神恩赐」的挂机/经验节点在此生效。
   function idleRates() {
     const lv = S.player.level;
-    const coreBonus = 1 + S.buildings.core * 0.02 + (S.player.geneLock >= 1 ? 0.10 : 0) + talentGraceMult();
+    const coreBonus = (1 + S.buildings.core * 0.02 + (S.player.geneLock >= 1 ? 0.10 : 0)) * graceIdleMult();
     return {
-      pointsPerMin: (8 + lv * 0.2) * coreBonus,
-      expPerMin: (5 + lv * 0.15) * (1 + S.buildings.training * 0.03),
+      pointsPerMin: (10 + lv * 0.3) * coreBonus,
+      expPerMin: (8 + lv * 0.5) * (1 + S.buildings.training * 0.03) * graceExpMult(),
       otherworldPer10Min: 1 + Math.floor(lv / 50),
       storyPer30Min: 1,
     };
-  }
-  function talentGraceMult() {
-    const t = S.player.talents.grace;
-    return [0, .05, 0, 0, .08, 0, .12, 0, 0, .20, 0].slice(0, t + 1).reduce((x, y) => x + y, 0);
   }
   function offlineCapHours() {
     let cap = 12 + (S.player.geneLock >= 5 ? 12 : 0);
@@ -796,7 +895,7 @@ window.Core = (function () {
     return cap;
   }
   function offlineEfficiency() {
-    return Math.min(1.5, 0.85 + S.buildings.medical * 0.01 + (S.player.talents.grace >= 10 ? 0.15 : 0));
+    return Math.min(1.5, 0.85 + S.buildings.medical * 0.01 + (talentAll().offlinePct || 0));
   }
   // 上线结算离线收益
   function settleOffline() {
@@ -1022,10 +1121,20 @@ window.Core = (function () {
   }
 
   /* ================= 商店 ================= */
+  // 商品解锁条件：req.world 需要先通关该世界（普通难度）——高阶材料/经验模块按进度上架
+  function shopReq(it) {
+    if (!it || !it.req || !it.req.world) return { ok: true };
+    const w = it.req.world;
+    if (worldCleared(w, 'normal')) return { ok: true };
+    const wd = D.WORLDS.find(x => x.id === w);
+    return { ok: false, req: `通关 ${wd ? wd.name : w}·普通` };
+  }
   function buyShopItem(shopId, idx) {
     const shop = D.SHOPS[shopId];
     const it = shop.items[idx];
     if (!it) return { ok: false, msg: '商品不存在' };
+    const avail = shopReq(it);
+    if (!avail.ok) return { ok: false, msg: `🔒 ${avail.req} 后解锁` };
     const key = shopId + '_' + idx + '_' + dailyDate();
     if (it.stock > 0 && (S.shop.bought[key] || 0) >= it.stock) return { ok: false, msg: '今日已售罄' };
     // 背包满时先拦下来，避免"钱扣了、道具没进包"
@@ -1088,12 +1197,78 @@ window.Core = (function () {
   function ensureDaily() {
     const today = dailyDate();
     if (S.tasks.date !== today) {
-      S.tasks = { date: today, daily: {}, claimed: {}, allClaimed: false };
+      S.tasks.date = today; S.tasks.daily = {}; S.tasks.claimed = {}; S.tasks.allClaimed = false;
     }
+    ensureWeekly();
+  }
+  // 周一为一周起点；跨周自动清空周常进度
+  function weekKey() {
+    const d = new Date();
+    const day = (d.getDay() + 6) % 7;
+    const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
+    const p = n => String(n).padStart(2, '0');
+    return `${monday.getFullYear()}-${p(monday.getMonth() + 1)}-${p(monday.getDate())}`;
+  }
+  function ensureWeekly() {
+    const k = weekKey();
+    if (S.tasks.weekKey !== k) {
+      S.tasks.weekKey = k; S.tasks.weekly = {}; S.tasks.weeklyClaimed = {}; S.tasks.weeklyAllClaimed = false;
+    }
+  }
+  // 每日任务的进度同时喂给对应周常（同一套动作，不额外要求玩家改变玩法）
+  const TASK_SRC = { battle5: 'battle', idle1: 'idle', enhance1: 'enhance', recruit1: 'recruit', dungeon1: 'dungeon', item1: 'item' };
+  function weeklyTick(src, n) {
+    if (!src) return;
+    ensureWeekly();
+    D.WEEKLY_TASKS.forEach(t => { if (t.src === src) S.tasks.weekly[t.id] = (S.tasks.weekly[t.id] || 0) + n; });
   }
   function task(id, n = 1) {
     ensureDaily();
     S.tasks.daily[id] = (S.tasks.daily[id] || 0) + n;
+    weeklyTick(TASK_SRC[id], n);
+  }
+  function weeklyState() {
+    ensureWeekly();
+    return D.WEEKLY_TASKS.map(t => ({
+      t, prog: S.tasks.weekly[t.id] || 0, done: (S.tasks.weekly[t.id] || 0) >= t.target, claimed: !!S.tasks.weeklyClaimed[t.id],
+    }));
+  }
+  function claimWeekly(id) {
+    ensureWeekly();
+    const t = D.WEEKLY_TASKS.find(x => x.id === id);
+    if (!t || S.tasks.weeklyClaimed[id]) return { ok: false, msg: '已领取' };
+    if ((S.tasks.weekly[id] || 0) < t.target) return { ok: false, msg: '本周还没完成' };
+    S.tasks.weeklyClaimed[id] = true;
+    Object.entries(t.reward).forEach(([k, v]) => addCur(k, v));
+    save();
+    return { ok: true, msg: '周常奖励已领取' };
+  }
+  function claimAllWeekly() {
+    ensureWeekly();
+    if (S.tasks.weeklyAllClaimed) return { ok: false, msg: '已领取' };
+    if (!D.WEEKLY_TASKS.every(t => (S.tasks.weekly[t.id] || 0) >= t.target)) return { ok: false, msg: '本周任务尚未全部完成' };
+    S.tasks.weeklyAllClaimed = true;
+    Object.entries(D.WEEKLY_ALL_REWARD).forEach(([k, v]) => { if (k === 'item') addItem(v); else addCur(k, v); });
+    save();
+    return { ok: true, msg: '周常全清奖励已领取' };
+  }
+  /* ================= 成就 ================= */
+  function achievementState() {
+    return D.ACHIEVEMENTS.map(a => ({ a, done: !!a.check(S), claimed: !!S.achievements[a.id] }));
+  }
+  function achievementSummary() {
+    const st = achievementState();
+    return { total: st.length, claimed: st.filter(x => x.claimed).length, done: st.filter(x => x.done).length, list: st };
+  }
+  function claimAchievement(id) {
+    const a = D.ACHIEVEMENTS.find(x => x.id === id);
+    if (!a) return { ok: false, msg: '成就不存在' };
+    if (S.achievements[a.id]) return { ok: false, msg: '已领取' };
+    if (!a.check(S)) return { ok: false, msg: '尚未达成' };
+    S.achievements[a.id] = true;
+    Object.entries(a.reward).forEach(([k, v]) => addCur(k, v));
+    save();
+    return { ok: true, msg: `🏅 成就达成：${a.name}`, name: a.name };
   }
   function claimTask(id) {
     ensureDaily();
@@ -1187,6 +1362,16 @@ window.Core = (function () {
   }
 
   /* ================= 战斗结算钩子 ================= */
+  /* --- 副本进度落盘：刷新 / 切后台被系统回收后可以接着打 ---- */
+  function setPendingRun(data) {
+    S.pendingRun = data ? JSON.parse(JSON.stringify(data)) : null;
+    save();
+  }
+  function clearPendingRun() { S.pendingRun = null; save(); }
+  /* --- 回廊印记（由历史最高层派生，不需要额外存档字段） --- */
+  const corridorMarks = () => D.corridorMarks(S.corridor.best || 0);
+  const corridorMarkBonus = () => D.corridorMarkBonus(S.corridor.best || 0);
+
   function battleSettle(rewards, won, isBoss) {
     if (won) {
       S.stats.wins++;
@@ -1201,10 +1386,14 @@ window.Core = (function () {
     save();
   }
   function addCharExp(charIds, exp) {
-    charIds.forEach(id => {
-      const c = S.chars[id];
-      if (c) c.exp += Math.round(exp);
-    });
+    // 天赋「主神恩赐」的经验加成在这里统一生效（副本 / 回廊角色经验）
+    const n = Math.round(exp * graceExpMult());
+    charIds.forEach(id => { const c = S.chars[id]; if (c) c.exp += n; });
+    return n;
+  }
+  // 战斗获得的玩家经验（同样吃经验天赋）；挂机经验已在 idleRates 里算过，不重复加成
+  function addPlayerBattleExp(exp) {
+    addPlayerExp(Math.round((exp || 0) * graceExpMult()));
   }
 
   return {
@@ -1218,6 +1407,7 @@ window.Core = (function () {
     effectivePlayerStats, playerPower, choosePlayerBloodline, upgradePlayerBloodline,
     allocateAttr, allocateSkill, resetSkills, protagonistSkills, protagonistList, createProtagonist, switchProtagonist,
     grantEquip, grantSignatureEquip, equipItem, canEquip, unequipItem, enhanceCost, enhance, decompose, decomposeMany, inventoryEquips,
+    toggleEquipLock, autoEquipBest, equipScore, savePreset, applyPreset,
     recruitOnce, recruitTen, freeRecruit, freeRecruitAvailable, ssrTicketUse,
     idleRates, settleOffline, onlineTick, idleBankGains, claimIdle, addPlayerExp, offlineCapHours, offlineEfficiency,
     upgradeBuilding,
@@ -1226,9 +1416,13 @@ window.Core = (function () {
     mainQuestState, currentQuest, claimQuest,
     setPlayerName, charName,
     buyShopItem, openBox, openBoxes, dailyDate, sweepLeft, enhanceMat,
+    shopReq,
     ensureDaily, task, claimTask, claimAllTasks, loginReward,
+    ensureWeekly, weeklyState, claimWeekly, claimAllWeekly, weekKey,
+    achievementState, achievementSummary, claimAchievement,
+    setPendingRun, clearPendingRun, corridorMarks, corridorMarkBonus,
     canReincarnate, reincarnate, buyTalent,
     codexState, claimCodexReward,
-    battleSettle, addCharExp,
+    battleSettle, addCharExp, addPlayerBattleExp, graceExpMult, graceDropMult, graceIdleMult, talentAll,
   };
 })();
