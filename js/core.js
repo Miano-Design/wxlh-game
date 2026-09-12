@@ -32,11 +32,11 @@ window.Core = (function () {
       shop: { dailyDate: '', dailyItems: [], bought: {} },
       sweep: { date: '', count: 0 },
       tasks: { date: '', daily: {}, claimed: {}, allClaimed: false },
-      login: { day: 0, lastClaim: '' },
+      login: { day: 0, round: 1, lastClaim: '' },
       idle: { bankSec: 0, lastTs: Date.now() },
       stats: { battles: 0, wins: 0, bosses: 0, runs: 0, recruits: 0, enhances: 0, bestFloor: 0, profileViews: 0 },
-      settings: { speed: 1, autoSellN: false, autoSellR: false, muted: false },
-      codex: { chars: [], equipsSeen: 0 },
+      settings: { speed: 1, autoSellN: false, autoSellR: false },
+      codex: { chars: [], equipsSeen: 0, claimed: [] },
       achievements: {},
       unlocks: {},
       quests: { claimed: [] },
@@ -69,9 +69,16 @@ window.Core = (function () {
   }
   // 旧档迁移：C001 林默不再是主角占位，主角为独立实体
   function migrate() {
-    S.stats = Object.assign(defaultState().stats, S.stats || {});
-    S.recruit = Object.assign(defaultState().recruit, S.recruit || {});
-    S.sweep = Object.assign(defaultState().sweep, S.sweep || {});
+    const def = defaultState();
+    S.stats = Object.assign(def.stats, S.stats || {});
+    S.recruit = Object.assign(def.recruit, S.recruit || {});
+    S.sweep = Object.assign(def.sweep, S.sweep || {});
+    // 老存档补新字段：设置项 / 图鉴领取记录 / 登录轮次
+    S.settings = Object.assign(def.settings, S.settings || {});
+    S.codex = Object.assign({ chars: [], equipsSeen: 0 }, S.codex || {});
+    S.codex.claimed = Array.isArray(S.codex.claimed) ? S.codex.claimed : [];
+    S.login = Object.assign(def.login, S.login || {});
+    S.cur = Object.assign(def.cur, S.cur || {});
     if (S.chars && S.chars['C001']) {
       // 转移 C001 装备到主角
       const old = (S.equipped && S.equipped['C001']) || {};
@@ -204,6 +211,10 @@ window.Core = (function () {
     S.items[id] = (S.items[id] || 0) + n;
     return true;
   }
+  // 能否再放进这个道具（已有堆叠不占新格）
+  function canAddItem(id) {
+    return (S.items[id] > 0) || bagUsage().used < S.bag.cap;
+  }
   function removeItem(id, n = 1) {
     if ((S.items[id] || 0) < n) return false;
     S.items[id] -= n;
@@ -248,16 +259,20 @@ window.Core = (function () {
     save();
     return { ok: ups > 0, ups, msg: ups > 0 ? `升到 Lv.${c.lv}` : '经验或点数不足' };
   }
-  function useExpItem(charId, itemId) {
+  function useExpItem(charId, itemId, n = 1) {
     const item = D.ITEMS[itemId];
     if (!item || item.type !== 'exp') return { ok: false, msg: '不是经验道具' };
     const c = S.chars[charId];
     if (!c) return { ok: false, msg: '未拥有该角色' };
-    if (!removeItem(itemId)) return { ok: false, msg: '道具不足' };
-    c.exp += item.exp;
-    task('item1', 1);
+    const have = S.items[itemId] || 0;
+    if (have < 1) return { ok: false, msg: '道具不足' };
+    const use = Math.max(1, Math.min(n, have));
+    S.items[itemId] -= use;
+    if (S.items[itemId] <= 0) delete S.items[itemId];
+    c.exp += item.exp * use;
+    task('item1', use);
     save();
-    return { ok: true, msg: `+${item.exp} EXP` };
+    return { ok: true, msg: `+${(item.exp * use).toLocaleString()} EXP（×${use}）`, count: use };
   }
   function starUp(charId) {
     const c = S.chars[charId];
@@ -533,6 +548,13 @@ window.Core = (function () {
     const eq = D.makeEquip(worldId, s, rarity, uid, opts);
     S.equips[uid] = eq;
     S.codex.equipsSeen++;
+    // 自动分解（设置页开关）：白装 / 绿装不进背包，直接换成异界结晶
+    if ((rarity === 'N' && S.settings.autoSellN) || (rarity === 'R' && S.settings.autoSellR)) {
+      delete S.equips[uid];
+      const gain = D.DECOMPOSE_GAIN[rarity];
+      addCur('otherworld', gain);
+      return { sold: true, gain, auto: true };
+    }
     // 背包已满 → 自动分解为异界结晶
     if (bagUsage().used > S.bag.cap) {
       const gain = D.DECOMPOSE_GAIN[rarity];
@@ -598,12 +620,29 @@ window.Core = (function () {
     const discount = Math.min(0.4, S.buildings.workshop * 0.01);
     return { points: Math.ceil(base * (1 - discount)), otherworld: 2 + Math.floor(eq.enhance / 5) * 2 };
   }
+  // 强化所需材料：无材料时按 tier 折算点数代用
+  function enhanceMat(eq) {
+    const tier = D.enhanceMatTier(eq.enhance);
+    const itemId = 'mat_t' + tier;
+    const has = (S.items[itemId] || 0) > 0;
+    return { itemId, tier, has, subPoints: has ? 0 : D.MAT_SUBSTITUTE_POINTS[tier] };
+  }
   function enhance(uid) {
     const eq = S.equips[uid];
     if (!eq) return { ok: false, msg: '装备不存在' };
     if (eq.enhance >= 20) return { ok: false, msg: '已满强化' };
     const cost = enhanceCost(eq);
-    if (!spend(cost)) return { ok: false, msg: '点数或异界结晶不足' };
+    const mat = enhanceMat(eq);
+    // 先判够不够，再扣材料——顺序反了会白吞材料（档案里的同类问题）
+    if (!mat.has) cost.points += mat.subPoints;
+    if (!canAfford(cost)) {
+      return { ok: false, msg: mat.has ? '点数或异界结晶不足' : `点数不足（无${D.ITEMS[mat.itemId].name}，需代用 ◈${mat.subPoints}）` };
+    }
+    if (mat.has) {
+      S.items[mat.itemId]--;
+      if (S.items[mat.itemId] <= 0) delete S.items[mat.itemId];
+    }
+    spend(cost);
     const rate = D.ENHANCE_RATE[eq.enhance];
     S.stats.enhances++;
     task('enhance1', 1);
@@ -665,9 +704,11 @@ window.Core = (function () {
     if (pool === 'limited') poolChars = poolChars.concat(D.characters.filter(c => c.hidden));
     return poolChars[Math.floor(Math.random() * poolChars.length)];
   }
-  function recruitOnce(pool) {
+  // opts.noCost：十连已整笔扣费，单抽不再重复扣（见 recruitTen）
+  function recruitOnce(pool, opts) {
+    opts = opts || {};
     const p = D.RECRUIT_POOLS[pool];
-    if (!spend(p.cost)) return { error: '货币不足' };
+    if (!opts.noCost && !spend(p.cost)) return { error: '货币不足' };
     S.stats.recruits++;
     task('recruit1', 1);
     const pityKey = pool === 'limited' ? 'pityLim' : 'pityAdv';
@@ -689,11 +730,13 @@ window.Core = (function () {
   }
   function recruitTen(pool) {
     const cost = pool === 'normal' ? { points: 45000 } : D.RECRUIT_TEN_COST;
+    // 十连是一次交易：先按折扣价整笔扣费，再抽 10 次；任一步失败都不会出现"扣了钱看不到结果"
     if (!canAfford(cost)) return { error: '货币不足' };
+    spend(cost);
     const results = [];
     let hasSR = false;
     for (let i = 0; i < 10; i++) {
-      const r = recruitOnce(pool);
+      const r = recruitOnce(pool, { noCost: true });
       if (r.error) return { error: r.error, results };
       if (D.RARITIES.indexOf(r.rarity) >= 2) hasSR = true;
       results.push(r);
@@ -717,6 +760,7 @@ window.Core = (function () {
     const rar = Math.random() < 0.5 ? 'N' : Math.random() < 0.85 ? 'R' : 'SR';
     const base = pickCharOfRarity(rar, 'normal');
     const res = addChar(base.id);
+    S.stats.recruits++;
     task('recruit1', 1);
     save();
     return { id: base.id, name: base.name, rarity: base.rarity, isNew: res.isNew, shards: res.shards || 0 };
@@ -726,6 +770,7 @@ window.Core = (function () {
     if (!base || base.rarity !== 'SSR' || S.ssrTicket <= 0) return { ok: false, msg: '无法选择' };
     S.ssrTicket--;
     addChar(charId);
+    S.stats.recruits++;
     save();
     return { ok: true, msg: `获得 ${base.name}` };
   }
@@ -983,9 +1028,14 @@ window.Core = (function () {
     if (!it) return { ok: false, msg: '商品不存在' };
     const key = shopId + '_' + idx + '_' + dailyDate();
     if (it.stock > 0 && (S.shop.bought[key] || 0) >= it.stock) return { ok: false, msg: '今日已售罄' };
+    // 背包满时先拦下来，避免"钱扣了、道具没进包"
+    if (it.item && !canAddItem(it.item)) return { ok: false, msg: '背包已满，先扩容或分解装备' };
     if (!spend({ [shop.currency]: it.price })) return { ok: false, msg: '货币不足' };
     S.shop.bought[key] = (S.shop.bought[key] || 0) + 1;
-    if (it.item) addItem(it.item, it.count || 1);
+    if (it.item && !addItem(it.item, it.count || 1)) {
+      addCur(shop.currency, it.price);            // 兜底退款，双保险
+      return { ok: false, msg: '背包已满，已退还货币' };
+    }
     if (it.currencyGain) Object.entries(it.currencyGain).forEach(([k, v]) => addCur(k, v));
     if (it.shardRandom) {
       const c = pickCharOfRarity(it.shardRandom, 'normal');
@@ -1005,12 +1055,27 @@ window.Core = (function () {
       const sigRes = grantSignatureEquip(sigId);
       save();
       if (sigRes.equip) return { ok: true, equip: sigRes.equip, signature: true };
-      if (sigRes.sold) return { ok: true, sold: true };
+      if (sigRes.sold) return { ok: true, sold: true, gain: sigRes.gain || 0 };
     }
     const world = D.WORLDS[Math.floor(Math.random() * Math.min(3, D.WORLDS.length))];
     const res = grantEquip(world.id, item.rarity);
     save();
-    return { ok: true, equip: res.equip, sold: res.sold };
+    return { ok: true, equip: res.equip, sold: res.sold, gain: res.gain || 0 };
+  }
+  // 批量开箱：逐个结算并汇总
+  function openBoxes(itemId, n = 1) {
+    const have = S.items[itemId] || 0;
+    if (have < 1) return { ok: false, msg: '没有该宝箱' };
+    const use = Math.max(1, Math.min(n, have));
+    const equips = [];
+    let sold = 0, soldGain = 0;
+    for (let i = 0; i < use; i++) {
+      const r = openBox(itemId);
+      if (!r.ok) break;
+      if (r.equip) equips.push(r.equip);
+      if (r.sold) { sold++; soldGain += r.gain || 0; }
+    }
+    return { ok: equips.length + sold > 0, equips, sold, soldGain, count: equips.length + sold };
   }
   function dailyDate() { return new Date().toISOString().slice(0, 10); }
   // 今日剩余扫荡次数（跨天自动重置）
@@ -1054,7 +1119,9 @@ window.Core = (function () {
     const today = dailyDate();
     if (S.login.lastClaim === today) return null;
     S.login.lastClaim = today;
-    S.login.day = Math.min(7, S.login.day + 1);
+    // 七天一循环：第 7 天领完后回到第 1 天，而不是永远停在第 7 天重复发 SSR 自选券
+    if (S.login.day >= D.LOGIN_REWARDS.length) { S.login.day = 0; S.login.round = (S.login.round || 1) + 1; }
+    S.login.day += 1;
     const r = D.LOGIN_REWARDS[S.login.day - 1];
     if (r.ssrTicket) S.ssrTicket++;
     else {
@@ -1064,7 +1131,7 @@ window.Core = (function () {
       });
     }
     save();
-    return { day: S.login.day, reward: r };
+    return { day: S.login.day, reward: r, round: S.login.round || 1, cycleDays: D.LOGIN_REWARDS.length };
   }
 
   /* ================= 转生 ================= */
@@ -1096,6 +1163,29 @@ window.Core = (function () {
     return { ok: true };
   }
 
+  /* ================= 图鉴收集 ================= */
+  function codexState() {
+    const owned = S.codex.chars.filter(id => D.charById[id]).length;
+    return {
+      owned, total: D.characters.length,
+      rewards: D.CODEX_REWARDS.map(r => ({
+        n: r.n, reward: r.reward,
+        reached: owned >= r.n,
+        claimed: S.codex.claimed.includes(r.n),
+      })),
+    };
+  }
+  function claimCodexReward(n) {
+    const r = D.CODEX_REWARDS.find(x => x.n === n);
+    if (!r) return { ok: false, msg: '奖励不存在' };
+    if (S.codex.claimed.includes(n)) return { ok: false, msg: '已领取' };
+    if (S.codex.chars.filter(id => D.charById[id]).length < n) return { ok: false, msg: `还差 ${n - codexState().owned} 名角色` };
+    S.codex.claimed.push(n);
+    Object.entries(r.reward).forEach(([k, v]) => addCur(k, v));
+    save();
+    return { ok: true, msg: `图鉴奖励已领取（${n} 名）` };
+  }
+
   /* ================= 战斗结算钩子 ================= */
   function battleSettle(rewards, won, isBoss) {
     if (won) {
@@ -1120,7 +1210,7 @@ window.Core = (function () {
   return {
     get S() { return S; },
     save, load, newGame, wipeSave, exportSave, importSave, saveSlot, loadSlot, slotInfo,
-    addCur, canAfford, spend, addItem, removeItem,
+    addCur, canAfford, spend, addItem, removeItem, canAddItem,
     bagUsage, buyBagCap,
     addChar, addShards, levelCost, levelUp, useExpItem, starUp, skillUp, SKILL_CHIP_COST,
     bloodlineUpgrade, geneLockInfo, geneLockUnlock,
@@ -1135,9 +1225,10 @@ window.Core = (function () {
     refreshUnlocks, isUnlocked, unlockTip,
     mainQuestState, currentQuest, claimQuest,
     setPlayerName, charName,
-    buyShopItem, openBox, dailyDate, sweepLeft,
+    buyShopItem, openBox, openBoxes, dailyDate, sweepLeft, enhanceMat,
     ensureDaily, task, claimTask, claimAllTasks, loginReward,
     canReincarnate, reincarnate, buyTalent,
+    codexState, claimCodexReward,
     battleSettle, addCharExp,
   };
 })();

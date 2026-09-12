@@ -354,5 +354,134 @@ console.log(`\nW03 Boss战(Lv60★3队): win=${w3res.win} rounds=${w3res.rounds}
   t('批量分解后装备移除', ids.every(u => !Core.S.equips[u]));
 }
 
+// 29. 回归：免费招募 / SSR 券必须计入主线与日常
+{
+  Core.newGame();
+  Core.setPlayerName('回归');
+  const q3 = () => Core.mainQuestState().find(x => x.q.id === 'q03').done;
+  t('免费招募前 q03 未完成', q3() === false);
+  Core.freeRecruit();
+  t('免费招募后 q03 完成', q3() === true);
+  t('免费招募计入统计', Core.S.stats.recruits === 1);
+  t('免费招募计入日常', Core.S.tasks.daily.recruit1 === 1);
+  Core.S.ssrTicket = 1;
+  Core.ssrTicketUse(D.characters.find(c => c.rarity === 'SSR' && !c.hidden).id);
+  t('SSR 自选券也计入统计', Core.S.stats.recruits === 2);
+}
+
+// 30. 回归：十连按折扣价整笔结算，不会扣了钱看不到结果
+{
+  Core.newGame();
+  Core.setPlayerName('回归');
+  Core.S.cur.points = 47000;                 // 够不上十连实际价 45000 的边界外
+  Core.S.cur.points = 44999;
+  const poor = Core.recruitTen('normal');
+  t('点数不够十连直接拒绝', !!poor.error && Core.S.cur.points === 44999);
+  t('被拒绝时不产生角色', Object.keys(Core.S.chars).length === 0);
+
+  Core.newGame();
+  Core.S.cur.points = 45000;
+  const ok = Core.recruitTen('normal');
+  t('十连成功返回10个结果', !ok.error && ok.results.length === 10);
+  t('十连按折扣价扣款', Core.S.cur.points === 0);
+  t('十连保底至少1个SR', ok.results.some(r => D.RARITIES.indexOf(r.rarity) >= 2));
+
+  Core.newGame();
+  Core.S.cur.holy = 900;
+  const ok2 = Core.recruitTen('advanced');
+  t('高级十连扣 900 晶石', !ok2.error && Core.S.cur.holy === 0);
+  Core.S.cur.holy = 899;
+  const poor2 = Core.recruitTen('advanced');
+  t('晶石不足高级十连被拒', !!poor2.error && Core.S.cur.holy === 899);
+}
+
+// 31. 回归：强化失败不许白吞材料
+{
+  Core.newGame();
+  Core.setPlayerName('回归');
+  Core.addItem('mat_t1', 5);
+  const eq = Core.grantEquip('W01', 'SR', 'weapon').equip;
+  eq.enhance = 0; eq.set = null; eq.classSet = null;
+  Core.S.cur.points = 0; Core.S.cur.otherworld = 0;
+  const r = Core.enhance(eq.uid);
+  t('点数不足强化失败', r.ok === false && !r.fail);
+  t('失败不消耗材料', Core.S.items.mat_t1 === 5);
+  Core.S.cur.points = 100000; Core.S.cur.otherworld = 100;
+  const r2 = Core.enhance(eq.uid);
+  t('材料充足时强化会扣材料', Core.S.items.mat_t1 === 4);
+  t('强化返回结果', typeof r2.ok === 'boolean');
+}
+
+// 32. 回归：七日登录七天一循环，不再无限发 SSR 券
+{
+  Core.newGame();
+  const seq = [];
+  for (let i = 0; i < 14; i++) {
+    Core.S.login.lastClaim = 'day' + i;
+    seq.push(Core.loginReward().day);
+  }
+  t('登录天数 1→7 后回到 1', seq.join(',') === '1,2,3,4,5,6,7,1,2,3,4,5,6,7');
+  t('十四天只发 2 张 SSR 券', Core.S.ssrTicket === 2);
+}
+
+// 33. 回归：背包满时购买不扣钱
+{
+  Core.newGame();
+  Core.setPlayerName('回归');
+  Object.keys(Core.S.items).forEach(k => delete Core.S.items[k]);
+  Core.S.bag.cap = 2;
+  Core.S.items.mat_t1 = 1; Core.S.items.mat_t2 = 1;   // 占满 2 格
+  Core.S.cur.points = 100000;
+  const r = Core.buyShopItem('god', 0);                // 初级经验模块
+  t('背包满时购买被拒', r.ok === false);
+  t('背包满时不扣货币', Core.S.cur.points === 100000);
+  t('背包满时不发道具', (Core.S.items.exp_s || 0) === 0);
+  t('已有堆叠仍可购买', (() => {
+    Core.S.items.exp_s = 1;                            // 该道具已有堆叠，不占新格
+    return Core.buyShopItem('god', 0).ok === true;
+  })());
+}
+
+// 34. 强化剂有来源也有用：商店能买、探索增益可叠加
+{
+  Core.newGame();
+  Core.setPlayerName('回归');
+  Core.S.cur.points = 100000;
+  const godShop = D.SHOPS.god.items;
+  t('主神商店上架肌肉强化剂', godShop.some(x => x.item === 'buff_muscle'));
+  t('主神商店上架神经刺激剂', godShop.some(x => x.item === 'buff_nerve'));
+  const idx = godShop.findIndex(x => x.item === 'buff_muscle');
+  const r = Core.buyShopItem('god', idx);
+  t('强化剂可购买', r.ok === true && Core.S.items.buff_muscle === 1);
+  t('强化剂带明确使用场景', D.ITEMS.buff_muscle.where === 'explore' && !!D.ITEMS.buff_muscle.use);
+  t('神经刺激剂效果是速度', D.ITEMS.buff_nerve.effect.spdPct === 0.2);
+}
+
+// 35. 图鉴收集奖励
+{
+  Core.newGame();
+  Core.setPlayerName('回归');
+  const ids = D.characters.slice(0, 5).map(c => c.id);
+  ids.forEach(id => Core.addChar(id));
+  const st = Core.codexState();
+  t('图鉴达到 5 名', st.owned === 5 && st.rewards.find(r => r.n === 5).reached);
+  const before = Core.S.cur.points;
+  const r = Core.claimCodexReward(5);
+  t('图鉴奖励可领取', r.ok === true && Core.S.cur.points > before);
+  t('图鉴奖励不可重复领', Core.claimCodexReward(5).ok === false);
+}
+
+// 36. 自动分解开关
+{
+  Core.newGame();
+  Core.setPlayerName('回归');
+  Core.S.settings.autoSellN = true;
+  const before = Core.S.cur.otherworld;
+  const res = Core.grantEquip('W01', 'N', 'weapon');
+  t('自动分解 N 不进背包', res.sold === true && res.auto === true);
+  t('自动分解换成异界结晶', Core.S.cur.otherworld === before + D.DECOMPOSE_GAIN.N);
+  t('自动分解不留下装备', Object.keys(Core.S.equips).length === 0);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

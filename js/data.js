@@ -393,26 +393,97 @@ window.DATA = (function () {
   }
 
   /* ================= 道具 ================= */
+  // where：使用场景（explore=副本探索中 / character=对招募角色 / anywhere=任意）
+  // effect：消耗品在副本探索中的效果（healPct 全队回血 / atkPct 攻击 / spdPct 速度 / defPct 防御）
   const ITEMS = {
-    heal_s: { name: '小型治疗剂', type: 'consumable', desc: '副本探索中使用：全队回复 20% 生命' },
-    heal_m: { name: '中型治疗剂', type: 'consumable', desc: '副本探索中使用：全队回复 40% 生命' },
-    heal_l: { name: '大型治疗剂', type: 'consumable', desc: '副本探索中使用：全队回复 70% 生命' },
-    buff_muscle: { name: '肌肉强化剂', type: 'consumable', desc: '本场战斗肌肉+15%' },
-    buff_nerve: { name: '神经刺激剂', type: 'consumable', desc: '本场战斗速度+20%' },
-    exp_s: { name: '初级经验模块', type: 'exp', exp: 500 },
-    exp_m: { name: '中级经验模块', type: 'exp', exp: 2000 },
-    exp_l: { name: '高级经验模块', type: 'exp', exp: 10000 },
-    exp_xl: { name: '超级经验模块', type: 'exp', exp: 50000 },
-    mat_t1: { name: '基础金属', type: 'material', tier: 1 },
-    mat_t2: { name: '强化合金', type: 'material', tier: 2 },
-    mat_t3: { name: '异界合金', type: 'material', tier: 3 },
-    mat_t4: { name: '虚空晶体', type: 'material', tier: 4 },
-    mat_t5: { name: '主神核心', type: 'material', tier: 5 },
-    box_r: { name: 'R装备箱', type: 'box', rarity: 'R' },
-    box_sr: { name: 'SR装备箱', type: 'box', rarity: 'SR' },
-    box_ssr: { name: 'SSR装备箱', type: 'box', rarity: 'SSR' },
-    box_ur: { name: 'UR装备箱', type: 'box', rarity: 'UR' },
+    heal_s: { name: '小型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.2 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 20% 生命' },
+    heal_m: { name: '中型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.4 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 40% 生命' },
+    heal_l: { name: '大型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.7 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 70% 生命' },
+    buff_muscle: { name: '肌肉强化剂', type: 'consumable', where: 'explore', effect: { atkPct: 0.15 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队攻击 +15%', desc: '副本探索中使用：本次探索全队攻击 +15%' },
+    buff_nerve: { name: '神经刺激剂', type: 'consumable', where: 'explore', effect: { spdPct: 0.20 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队速度 +20%', desc: '副本探索中使用：本次探索全队速度 +20%' },
+    exp_s: { name: '初级经验模块', type: 'exp', where: 'character', exp: 500, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+500 EXP' },
+    exp_m: { name: '中级经验模块', type: 'exp', where: 'character', exp: 2000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+2,000 EXP' },
+    exp_l: { name: '高级经验模块', type: 'exp', where: 'character', exp: 10000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+10,000 EXP' },
+    exp_xl: { name: '超级经验模块', type: 'exp', where: 'character', exp: 50000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+50,000 EXP' },
+    mat_t1: { name: '基础金属', type: 'material', tier: 1, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +0~+4 时消耗（不足可用点数代用）' },
+    mat_t2: { name: '强化合金', type: 'material', tier: 2, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +5~+9 时消耗（不足可用点数代用）' },
+    mat_t3: { name: '异界合金', type: 'material', tier: 3, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +10~+14 时消耗（不足可用点数代用）' },
+    mat_t4: { name: '虚空晶体', type: 'material', tier: 4, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +15~+19 时消耗（不足可用点数代用）' },
+    mat_t5: { name: '主神核心', type: 'material', tier: 5, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：冲击 +20 时消耗（不足可用点数代用）' },
+    box_r: { name: 'R装备箱', type: 'box', rarity: 'R', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 R 品质装备' },
+    box_sr: { name: 'SR装备箱', type: 'box', rarity: 'SR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 SR 品质装备' },
+    box_ssr: { name: 'SSR装备箱', type: 'box', rarity: 'SSR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 SSR 品质装备' },
+    box_ur: { name: 'UR装备箱', type: 'box', rarity: 'UR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 UR 品质装备；10% 概率开出 SSR 专属装备' },
   };
+  // 强化等级 → 材料 tier（+0~4:T1，+5~9:T2，+10~14:T3，+15~19:T4，+19→20:T5）
+  const enhanceMatTier = lv => Math.min(5, Math.floor(lv / 4) + 1);
+  // 材料不足时的点数代用价（每件）
+  const MAT_SUBSTITUTE_POINTS = [0, 200, 500, 1200, 3000, 8000];
+  // 消耗品在探索界面里的按钮文案
+  const CONSUMABLE_TAG = { healPct: '回血', atkPct: '攻击', spdPct: '速度', defPct: '防御' };
+
+  /* ================= 货币图鉴 ================= */
+  const CURRENCY_INFO = {
+    points:       { use: '强化装备、普通招募、背包扩容、主神商店、建筑升级', gain: '挂机、副本战斗、扫荡、任务、分解装备外的主要产出' },
+    story:        { use: '故事商店（角色碎片、材料、装备箱）', gain: '挂机每30分钟、副本事件、首通奖励' },
+    otherworld:   { use: '装备强化、异界商店（高阶装备箱）', gain: '分解装备、副本战斗、扫荡' },
+    holy:         { use: '高级/限定招募（抽卡）', gain: '主线任务、首通奖励、登录奖励、活动' },
+    skillChip:    { use: '招募角色技能升级', gain: '副本战斗、扫荡、主神商店兑换' },
+    bloodCrystal: { use: '血统选择与升级（主角与招募角色）', gain: 'Boss战、困难/地狱难度、回廊' },
+    corridor:     { use: '回廊商店（稀有道具）', gain: '无限回廊层数奖励' },
+    rp:           { use: '转生天赋加点（永久属性）', gain: '转生时按轮回进度结算' },
+  };
+
+  /* ================= 图鉴收集奖励 ================= */
+  const CODEX_REWARDS = [
+    { n: 5,  reward: { points: 5000, holy: 100 } },
+    { n: 10, reward: { points: 12000, holy: 200, skillChip: 100 } },
+    { n: 20, reward: { points: 30000, holy: 400, bloodCrystal: 100 } },
+    { n: 30, reward: { points: 60000, holy: 800, otherworld: 300 } },
+    { n: 40, reward: { points: 120000, holy: 1500, bloodCrystal: 300 } },
+  ];
+
+  /* ================= 玩法指南（设置页 ❓ 入口） ================= */
+  const GUIDE_CHAPTERS = [
+    { id: 'flow', title: '① 一场轮回怎么打', body: [
+      '主线→推荐路线：主神空间领挂机 → 轮回副本选世界 → 选关卡 → 途中三步路线（遭遇战 / 精英 / 事件 / 宝箱 / 安全屋）→ 最终区 Boss 战 → 拿奖励回主神空间。',
+      '副本里队伍血量会一路继承，不会自动回满：注意界面顶部的血条，安全屋和事件都能回血。',
+      '打不过就不要硬上：先回主神空间领挂机收益、用经验模块喂角色、强化装备，再回来。',
+    ] },
+    { id: 'party', title: '② 队伍与站位', body: [
+      '主角必上阵，另外可以带 4 名招募角色，一共 5 人。',
+      '站位决定被打概率：前排放 2 人（坦克 / 战士），后排放 2 人（输出 / 治疗）。敌人优先攻击前排。',
+      '同阵营的人越多，羁绊加成越高：2 人攻击 +3%，3 人攻击 / 生命 +6%，4 人再额外加技能 +5%。',
+      '克制环：先锋 → 策略 → 科技 → 异能 → 先锋，克制伤害 +15%。',
+    ] },
+    { id: 'equip', title: '③ 装备与强化', body: [
+      '装备 6 种品质：N / R / SR / SSR / UR，品质越高基础值和词条越多。',
+      '主角有 6 个槽位，招募角色只有武器 / 防具 / 首饰 3 个槽位。',
+      '强化最高 +20，消耗对应等级的强化材料（不够时用点数代用）+ 异界结晶；强化失败不会降级。',
+      '同世界套装 2 / 4 / 6 件激活额外效果；职业套装限对应定位穿戴（主角算战士）。',
+      '重复装备可以在装备页「批量分解」换成异界结晶；背包满了新装备会自动分解。',
+    ] },
+    { id: 'currency', title: '④ 八种货币怎么花', body: [
+      '每种货币只干一件事，记不住就点顶栏的「▤ 货币」看完整图鉴（用途 + 主要来源）。',
+      '最常用的三种：◈点数（强化 / 招募 / 建筑 / 商店）、✦圣洁晶石（抽卡）、◆异界结晶（强化 / 异界商店）。',
+    ] },
+    { id: 'gene', title: '⑤ 血统与基因锁', body: [
+      '招募角色的血统是固定的；主角在 Lv.10 可以自选一次血统，选完不能改。',
+      '血统升级消耗血统结晶 + 点数，提升幅度很大，是中期主要成长线。',
+      '基因锁 5 阶，靠通关进度 + 玩家等级 + 血统结晶解锁，每阶全队属性加成。',
+    ] },
+    { id: 'corridor', title: '⑥ 回廊与转生', body: [
+      '无限回廊：层数无限递增的终局玩法，奖励回廊徽记，可以在回廊商店换稀有道具。',
+      '转生：玩家 Lv.100 + 基因锁 5 阶 + 主神核心 Lv.30 后开启，重置等级与世界进度，换成永久天赋点。',
+      '转生天赋是永久加成，越早开始攒越划算——但不要为了转生硬堆，先把当前进度打穿。',
+    ] },
+    { id: 'daily', title: '⑦ 每天必做的四件事', body: [
+      '1. 领挂机收益（挂满越久收益越多，离线也有）。',
+      '2. 领每日免费招募（招募页第一个按钮，一天一次）。',
+      '3. 做完每日任务 + 全部完成奖励（任务面板）。',
+      '4. 扫荡已通关的关卡拿材料（每天 30 次）。',
+    ] },
+  ];
 
   /* ================= 随机事件（副本节点） ================= */
   // effect: {points, holy, story, otherworld, skillChip, bloodCrystal, item, healPct, hurtPct, battle, buff}
@@ -598,6 +669,9 @@ window.DATA = (function () {
       { item: 'exp_s', name: '初级经验模块', price: 500, stock: -1 },
       { item: 'exp_m', name: '中级经验模块', price: 2000, stock: -1 },
       { item: 'heal_s', name: '小型治疗剂', price: 500, stock: -1 },
+      { item: 'heal_m', name: '中型治疗剂', price: 1200, stock: -1 },
+      { item: 'buff_muscle', name: '肌肉强化剂', price: 1500, stock: -1 },
+      { item: 'buff_nerve', name: '神经刺激剂', price: 1500, stock: -1 },
       { item: 'mat_t1', name: '基础金属×10', price: 300, count: 10, stock: -1 },
       { currencyGain: { skillChip: 10 }, name: '技能芯片×10', price: 2000, stock: -1 },
       { item: 'box_r', name: '随机R装备', price: 5000, stock: -1 },
@@ -772,6 +846,8 @@ window.DATA = (function () {
     corridorEnemy, corridorReward,
     DROP_RARITY, rollRarity, capRarity,
     UNLOCKS, MAIN_QUESTS, stageDropCap,
+    CURRENCY_INFO, CODEX_REWARDS, enhanceMatTier, MAT_SUBSTITUTE_POINTS,
+    CONSUMABLE_TAG, GUIDE_CHAPTERS,
     _ri: ri,
   };
 })();

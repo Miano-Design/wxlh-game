@@ -44,7 +44,15 @@
     }, 1000);
     // 页面隐藏时立即保存
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) Core.save();
+      if (document.hidden) { Core.save(); return; }
+      // 回到前台：把切后台期间被浏览器节流掉的时间补进挂机池（按离线规则封顶）
+      const now = Date.now();
+      const gap = (now - lastTick) / 1000;
+      lastTick = now;
+      if (gap > 10) {
+        const cap = Core.offlineCapHours() * 3600;
+        Core.onlineTick(Math.min(gap, cap) * Core.offlineEfficiency());
+      }
     });
     window.addEventListener('beforeunload', () => Core.save());
   }

@@ -104,5 +104,36 @@ t('战斗播放可启动', () => {
   if (!res.frames.length) throw new Error('无战斗帧');
 });
 
+// ---- 面板冒烟：全部新面板都要能渲染出来，且模板里不许出现 undefined ----
+function panel(name, fn) {
+  t('面板渲染：' + name, () => {
+    const w = fn();
+    if (w === null || w === undefined) return;   // 允许"没有可扫荡关卡"这类提前返回
+    const html = w.innerHTML || '';
+    if (html.includes('undefined')) throw new Error('模板出现 undefined');
+  });
+}
+Core.addItem('exp_s', 3);
+Core.addItem('box_sr', 2);
+Core.addItem('heal_m', 2);
+Core.addItem('buff_nerve', 1);
+Core.addItem('mat_t2', 5);
+Core.stageComplete('W01', 'normal', 0, 3);
+panel('背包', () => UI._panels.bagModal());
+panel('道具详情-宝箱', () => UI._panels.itemDetail('box_sr'));
+panel('道具详情-经验模块', () => UI._panels.itemDetail('exp_s'));
+panel('道具详情-强化剂', () => UI._panels.itemDetail('buff_nerve'));
+panel('道具详情-材料', () => UI._panels.itemDetail('mat_t2'));
+panel('货币图鉴', () => UI._panels.currencyModal('holy'));
+panel('玩法指南', () => UI._panels.guideModal());
+panel('设置', () => UI._panels.settingsModal());
+panel('商店-主神', () => UI._panels.shopModal('god'));
+panel('商店-回廊', () => UI._panels.shopModal('corridor'));
+panel('任务-主线', () => UI._panels.tasksModal('main'));
+panel('任务-日常', () => UI._panels.tasksModal('daily'));
+panel('角色图鉴', () => UI._panels.codexModal());
+panel('招募', () => UI._panels.recruitModal());
+panel('扫荡', () => UI._panels.sweepModal('W01', 'normal'));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

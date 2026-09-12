@@ -121,6 +121,16 @@ window.Dungeon = (function () {
       else if (sigRes.sold) got.push({ k: 'otherworld', v: sigRes.gain, sold: true });
     }
     if (r.exp) got.push({ k: 'exp', v: r.exp });
+    // 强化材料掉落：精英 35%、Boss 必掉 1~2 件，tier 随世界序号
+    const wi = D.WORLDS.findIndex(x => x.id === worldId);
+    const tier = Math.min(5, wi + 1);
+    const matId = 'mat_t' + tier;
+    if (kind === 'elite' && Math.random() < 0.35) { if (Core.addItem(matId)) got.push({ k: 'item', v: matId, n: 1 }); }
+    if (kind === 'boss') { const n = 1 + (Math.random() < 0.5 ? 1 : 0); if (Core.addItem(matId, n)) got.push({ k: 'item', v: matId, n }); }
+    // 战斗增益补给：精英 25%、Boss 必掉，保证强化剂有稳定来源
+    const buffId = Math.random() < 0.5 ? 'buff_muscle' : 'buff_nerve';
+    if (kind === 'elite' && Math.random() < 0.25) { if (Core.addItem(buffId)) got.push({ k: 'item', v: buffId, n: 1 }); }
+    if (kind === 'boss' && Core.addItem(buffId)) got.push({ k: 'item', v: buffId, n: 1 });
     return { rewards: r, got };
   }
 
@@ -152,7 +162,14 @@ window.Dungeon = (function () {
       const res = Core.grantEquip(worldId, rarity);
       const pts = Math.round(100 * rewardMult(diff));
       Core.addCur('points', pts);
-      return { points: pts, equip: res.equip || null, sold: res.sold, gain: res.gain };
+      // 补给宝箱 45% 额外掉一件探索消耗品
+      let item = null;
+      if (Math.random() < 0.45) {
+        const pool = stage <= 4 ? ['heal_s', 'heal_m'] : ['heal_m', 'buff_muscle', 'buff_nerve', 'heal_l'];
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        if (Core.addItem(pick)) item = pick;
+      }
+      return { points: pts, equip: res.equip || null, sold: res.sold, gain: res.gain, item };
     }
     return null;
   }
