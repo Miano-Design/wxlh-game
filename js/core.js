@@ -6,6 +6,13 @@ window.Core = (function () {
   const slotKey = n => `${SAVE_KEY}_slot${n}`;
   let S = null;
   let uidCounter = 1;
+  // 核心层自己也要给文案用（挂机产线、渡劫消耗），格式与界面保持一致
+  function fmtNum(n) {
+    n = Math.floor(n || 0);
+    if (n >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+    if (n >= 1e4) return (n / 1e4).toFixed(1) + '万';
+    return String(n);
+  }
 
   /* ================= 存档 ================= */
   const ATTR_ZERO = () => ({ muscle: 0, immune: 0, cell: 0, nerve: 0, intelligence: 0, spirit: 0 });
@@ -25,15 +32,18 @@ window.Core = (function () {
       equips: {},           // uid → 装备实例
       equipped: { '@player': { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null } },
       items: {},            // itemId → count
+      serums: {},           // charId（或 '@player'）→ { serumId: 已服支数 }
       buildings: { core: 1, training: 1, medical: 1, workshop: 1, geneLab: 1 },
       worlds: {},           // worldId → {unlocked, stages: {normal:[stars×12], hard, hell}}
       corridor: { floor: 1, best: 0 },
-      recruit: { pityAdv: 0, pityLim: 0, pityAdvS: 0, pityLimS: 0, lastFree: '' },
+      // 保底按池分开记账：高级 / 限定 各自算 SSR / UR / 当期 UP 的累计数
+      recruit: { pity: { advanced: { ssr: 0, ur: 0, up: 0 }, limited: { ssr: 0, ur: 0, up: 0 } }, lastFree: '' },
       shop: { dailyDate: '', dailyItems: [], bought: {} },
       sweep: { date: '', count: 0 },
       tasks: { date: '', daily: {}, claimed: {}, allClaimed: false, weekKey: '', weekly: {}, weeklyClaimed: {}, weeklyAllClaimed: false },
       login: { day: 0, round: 1, lastClaim: '' },
-      idle: { bankSec: 0, lastTs: Date.now() },
+      idle: { bankSec: 0, lastTs: Date.now(), lines: { cultivate: null, gather: null, explore: null, guard: null } },
+      bounty: { start: Date.now(), claimed: {} },   // 限时悬赏：start 是本期起点，每条按自己的 hours 截止
       stats: { battles: 0, wins: 0, bosses: 0, runs: 0, recruits: 0, enhances: 0, bestFloor: 0, profileViews: 0 },
       settings: { speed: 1, autoSellN: false, autoSellR: false, sfx: true, autoBattle: false },
       codex: { chars: [], equipsSeen: 0, claimed: [] },
@@ -74,6 +84,22 @@ window.Core = (function () {
     const def = defaultState();
     S.stats = Object.assign(def.stats, S.stats || {});
     S.recruit = Object.assign(def.recruit, S.recruit || {});
+    // 招募保底从"两个散字段"改成"按池记账"；老档把旧计数搬过来，进度不丢
+    S.recruit.pity = S.recruit.pity || {};
+    [['advanced', 'pityAdvS', 'pityAdv'], ['limited', 'pityLimS', 'pityLim']].forEach(([k, ssrKey, urKey]) => {
+      const cur = S.recruit.pity[k] || {};
+      S.recruit.pity[k] = {
+        ssr: cur.ssr || S.recruit[ssrKey] || 0,
+        ur: cur.ur || S.recruit[urKey] || 0,
+        up: cur.up || 0,
+      };
+      delete S.recruit[ssrKey];
+      delete S.recruit[urKey];
+    });
+    S.idle.lines = Object.assign({ cultivate: null, gather: null, explore: null, guard: null }, S.idle.lines || {});
+    S.bounty = Object.assign({ start: Date.now(), claimed: {} }, S.bounty || {});
+    S.bounty.claimed = S.bounty.claimed || {};
+    S.player.realm = S.player.realm || 0;   // 已突破的境界数
     S.sweep = Object.assign(def.sweep, S.sweep || {});
     // 老存档补新字段：设置项 / 图鉴领取记录 / 登录轮次
     S.settings = Object.assign(def.settings, S.settings || {});
@@ -84,6 +110,7 @@ window.Core = (function () {
     S.presets = Array.isArray(S.presets) ? S.presets.slice(0, 3) : [null, null, null];
     while (S.presets.length < 3) S.presets.push(null);
     S.pendingRun = S.pendingRun || null;
+    S.serums = S.serums || {};   // 老档补齐：血清服用记录
     // 老档补齐：招募角色的装备槽从 3 个扩到 6 个（世界套装 4/6 件效果才可能触发）
     Object.keys(S.chars || {}).forEach(id => {
       S.equipped[id] = Object.assign({ weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null }, S.equipped[id] || {});
@@ -181,16 +208,26 @@ window.Core = (function () {
   }
 
   /* ================= 货币 ================= */
+  // 货币变化广播：UI 订阅它做"±数值跳动"（放置游戏唯一的手感来源）。
+  // 放在 addCur / spend 里，任何来源的收支都会自动有反馈，不需要在每个按钮上重复写。
+  let curListener = null;
+  function setCurListener(fn) { curListener = fn; }
+  function emitCur(id, delta) {
+    if (!curListener || !delta) return;
+    try { curListener(id, delta); } catch (e) { /* UI 出错不影响存档 */ }
+  }
   function addCur(id, n) {
     if (!n) return;
-    S.cur[id] = Math.max(0, (S.cur[id] || 0) + Math.floor(n));
+    const d = Math.floor(n);
+    S.cur[id] = Math.max(0, (S.cur[id] || 0) + d);
+    emitCur(id, d);
   }
   function canAfford(cost) {
     return Object.entries(cost).every(([k, v]) => (S.cur[k] || 0) >= v);
   }
   function spend(cost) {
     if (!canAfford(cost)) return false;
-    Object.entries(cost).forEach(([k, v]) => { S.cur[k] -= v; });
+    Object.entries(cost).forEach(([k, v]) => { S.cur[k] -= v; emitCur(k, -v); });
     return true;
   }
 
@@ -318,6 +355,74 @@ window.Core = (function () {
     save();
     return { ok: true, msg: `+${(item.exp * use).toLocaleString()} EXP（×${use}）`, count: use };
   }
+  /* ================= 血清（永久强化剂） =================
+     对标同类放置游戏的"丹药矩阵"：成长被拆成很多次小成长，喂一支就有一次可见的跳动。
+     规则：每人每种有次数上限；血统血清只有对应血统能用；效果真的进属性计算（不是文案）。 */
+  function serumTaken(charId, serumId) {
+    const m = S.serums[charId];
+    return (m && m[serumId]) || 0;
+  }
+  function serumApplied(charId) {
+    const m = S.serums[charId] || {};
+    return Object.keys(m).reduce((n, k) => n + m[k], 0);
+  }
+  // 把血清加成并进百分比区（与血统 / 天赋同区，加算）
+  function applySerums(charId, pct) {
+    const m = S.serums[charId];
+    if (!m) return;
+    Object.keys(m).forEach(sid => {
+      const sd = D.serumById[sid];
+      if (!sd) return;
+      pct[sd.key] = (pct[sd.key] || 0) + sd.per * m[sid];
+    });
+  }
+  // 炼化：材料 + 点数 → 血清道具
+  function craftSerum(serumId, n = 1) {
+    const sd = D.serumById[serumId];
+    if (!sd) return { ok: false, msg: '没有这个配方' };
+    const want = Math.max(1, Math.floor(n));
+    const haveMat = S.items[sd.mat] || 0;
+    const can = Math.min(want, Math.floor(haveMat / sd.matN), Math.floor(S.cur.points / sd.points));
+    if (can < 1) {
+      if (haveMat < sd.matN) return { ok: false, msg: `${D.ITEMS[sd.mat].name}不足（${haveMat}/${sd.matN}）` };
+      return { ok: false, msg: `点数不足（${S.cur.points.toLocaleString()}/${sd.points.toLocaleString()}）` };
+    }
+    S.items[sd.mat] -= sd.matN * can;
+    if (S.items[sd.mat] <= 0) delete S.items[sd.mat];
+    S.cur.points -= sd.points * can;
+    addItem(D.SERUM_ITEM(serumId), can);
+    task('item1', can);
+    save();
+    return { ok: true, count: can, msg: `炼化「${sd.name}」×${can}` };
+  }
+  // 使用：喂给某名角色（或主角 '@player'）
+  function useSerum(charId, serumId, n = 1) {
+    const sd = D.serumById[serumId];
+    if (!sd) return { ok: false, msg: '没有这支血清' };
+    const itemId = D.SERUM_ITEM(serumId);
+    const have = S.items[itemId] || 0;
+    if (have < 1) return { ok: false, msg: '道具不足' };
+    const isPlayer = charId === '@player';
+    const base = isPlayer ? null : D.charById[charId];
+    if (!isPlayer && !S.chars[charId]) return { ok: false, msg: '未拥有该角色' };
+    if (sd.bloodline) {
+      const bl = isPlayer ? S.player.bloodline : (base && base.bloodline);
+      if (!bl) return { ok: false, msg: `该角色还没觉醒血统，先觉醒「${sd.bloodline}」再用` };
+      if (bl !== sd.bloodline) return { ok: false, msg: `只有「${sd.bloodline}」血统能用这支血清` };
+    }
+    S.serums[charId] = S.serums[charId] || {};
+    const taken = S.serums[charId][serumId] || 0;
+    const room = sd.max - taken;
+    if (room <= 0) return { ok: false, msg: `已达上限（${sd.max} 支）` };
+    const use = Math.max(1, Math.min(n, have, room));
+    S.items[itemId] -= use;
+    if (S.items[itemId] <= 0) delete S.items[itemId];
+    S.serums[charId][serumId] = taken + use;
+    task('item1', use);
+    save();
+    const kn = D.SERUM_KEYS[sd.key] || sd.key;
+    return { ok: true, count: use, msg: `${sd.name} ×${use}：${kn} 永久 +${(sd.per * use * 100).toFixed(1)}%` };
+  }
   function starUp(charId) {
     const c = S.chars[charId];
     const base = D.charById[charId];
@@ -424,6 +529,7 @@ window.Core = (function () {
     // （旧版是两套硬编码数组，说明改了、效果没改，导致 15 个节点写了没实装）
     const tt = talentPct();
     ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'].forEach(k => { pct[k] += tt[k] || 0; });
+    applySerums(charId, pct);                      // 血清（永久强化剂）
     // 装备
     const eq = S.equipped[charId] || {};
     const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
@@ -499,6 +605,10 @@ window.Core = (function () {
     // 转生天赋（主角同样吃满四支天赋）
     const tt = talentPct();
     ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'].forEach(k => { pct[k] += tt[k] || 0; });
+    applySerums('@player', pct);                   // 血清（主角同样是永久加成）
+    // 境界（渡劫）：每突破一境全属性 +5%，与基因锁/血统/血清并列，属于永久成长
+    const rp = realmBonusPct();
+    if (rp) { pct.atkPct += rp; pct.hpPct += rp; pct.defPct += rp; pct.spdPct += rp; }
     // 装备（6 槽）
     const eq = S.equipped['@player'] || {};
     const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
@@ -792,45 +902,107 @@ window.Core = (function () {
   }
 
   /* ================= 招募 ================= */
+  // 三个池子的差异全部由 RECRUIT_POOLS 的数据决定，这里只按结构执行：
+  // 普通池只出 N/R/SR；高级池 SR 起抽 + 优先未拥有；限定池锁当期阵营 + 当期 UP
+  function poolUpChar(pool) {
+    return pool === 'limited' ? D.recruitUpChar() : null;
+  }
   function rollRarityInPool(pool) {
     let r = Math.random(), acc = 0;
     for (const [rar, p] of Object.entries(D.RECRUIT_POOLS[pool].rates)) {
       acc += p;
       if (r <= acc) return rar;
     }
-    return 'R';
+    const keys = Object.keys(D.RECRUIT_POOLS[pool].rates);
+    return keys[keys.length - 1] || 'R';
   }
-  function pickCharOfRarity(rar, pool) {
-    let poolChars = D.characters.filter(c => c.rarity === rar && !c.hidden);
-    if (pool === 'limited') poolChars = poolChars.concat(D.characters.filter(c => c.hidden));
-    return poolChars[Math.floor(Math.random() * poolChars.length)];
+  // 该池该稀有度能出哪些人（限定池锁阵营；该档位在本阵营里没人就退回全量，避免抽空）
+  function charsOfRarity(rar, pool) {
+    let list = D.characters.filter(c => c.rarity === rar && !c.hidden);
+    if (pool === 'limited') {
+      const up = poolUpChar('limited');
+      if (up) {
+        const f = list.filter(c => c.faction === up.faction);
+        if (f.length) list = f;
+      }
+    }
+    return list;
+  }
+  function pickCharOfRarity(rar, pool, opts) {
+    opts = opts || {};
+    let list = charsOfRarity(rar, pool);
+    if (!list.length) list = D.characters.filter(c => c.rarity === rar && !c.hidden);
+    if (!list.length) list = D.characters;
+    // 限定池的 SSR：一半概率直接给当期 UP；保底触发时 100% 给当期 UP
+    if (pool === 'limited' && rar === 'SSR') {
+      const up = poolUpChar('limited');
+      if (up && (opts.forceUp || Math.random() < D.RECRUIT_POOLS.limited.upRatio)) list = [up];
+    }
+    // 高级池的 SSR/UR 优先给没拥有过的角色（"补图鉴"就是这个池子的定位）
+    if (opts.prioritizeNew) {
+      const fresh = list.filter(c => !S.chars[c.id]);
+      if (fresh.length) list = fresh;
+    }
+    return list[Math.floor(Math.random() * list.length)];
+  }
+  function pityOf(pool) {
+    S.recruit.pity = S.recruit.pity || {};
+    const p = S.recruit.pity[pool] || (S.recruit.pity[pool] = { ssr: 0, ur: 0, up: 0 });
+    p.ssr = p.ssr || 0; p.ur = p.ur || 0; p.up = p.up || 0;
+    return p;
+  }
+  // 给界面看的保底进度（普通池没有保底）
+  function pityView(pool) {
+    if (pool === 'normal' || !D.RECRUIT_POOLS[pool]) return null;
+    const p = pityOf(pool);
+    return {
+      ssr: { n: p.ssr, cap: D.PITY.SSR },
+      ur: { n: p.ur, cap: D.PITY.UR },
+      up: pool === 'limited' ? { n: p.up, cap: D.PITY_UP } : null,
+    };
   }
   // opts.noCost：十连已整笔扣费，单抽不再重复扣（见 recruitTen）
   function recruitOnce(pool, opts) {
     opts = opts || {};
     const p = D.RECRUIT_POOLS[pool];
+    if (!p) return { error: '卡池不存在' };
     if (!opts.noCost && !spend(p.cost)) return { error: '货币不足' };
     S.stats.recruits++;
     task('recruit1', 1);
-    const pityKey = pool === 'limited' ? 'pityLim' : 'pityAdv';
-    const pitySsrKey = pool === 'limited' ? 'pityLimS' : 'pityAdvS';
     let rar = rollRarityInPool(pool);
+    let forceUp = false;
     if (pool !== 'normal') {
-      // 双保底独立计数：UR 保底不被 SSR 打断；SSR 保底被 SSR 及以上重置
-      S.recruit[pityKey]++;
-      S.recruit[pitySsrKey]++;
-      if (S.recruit[pityKey] >= D.PITY.UR) rar = 'UR';
-      else if (S.recruit[pitySsrKey] >= D.PITY.SSR && D.RARITIES.indexOf(rar) < 3) rar = 'SSR';
-      if (D.RARITIES.indexOf(rar) >= 3) S.recruit[pitySsrKey] = 0;
+      const pit = pityOf(pool);
+      pit.ssr++; pit.ur++;
+      if (pool === 'limited') pit.up++;
+      // 三档保底各自独立：UR 保底不被 SSR 打断，当期 UP 保底只被"抽到当期 UP"重置
+      if (pit.ur >= D.PITY.UR) rar = 'UR';
+      else if (pit.ssr >= D.PITY.SSR && D.RARITIES.indexOf(rar) < 3) rar = 'SSR';
+      if (pool === 'limited' && pit.up >= D.PITY_UP) { rar = 'SSR'; forceUp = true; }
     }
-    if (D.RARITIES.indexOf(rar) >= 4) S.recruit[pityKey] = 0;
-    const base = pickCharOfRarity(rar, pool);
+    const base = pickCharOfRarity(rar, pool, {
+      forceUp,
+      prioritizeNew: !!p.prioritizeNew && D.RARITIES.indexOf(rar) >= 3,
+    });
+    if (pool !== 'normal') {
+      const pit = pityOf(pool);
+      const up = poolUpChar(pool);
+      if (D.RARITIES.indexOf(base.rarity) >= 3) pit.ssr = 0;
+      if (D.RARITIES.indexOf(base.rarity) >= 4) pit.ur = 0;
+      if (up && base.id === up.id) pit.up = 0;
+    }
     const res = addChar(base.id);
     save();
-    return { id: base.id, name: base.name, rarity: base.rarity, isNew: res.isNew, shards: res.shards || 0 };
+    const upChar = poolUpChar(pool);
+    return {
+      id: base.id, name: base.name, rarity: base.rarity, isNew: res.isNew, shards: res.shards || 0,
+      isUp: !!(upChar && base.id === upChar.id),
+    };
   }
   function recruitTen(pool) {
-    const cost = pool === 'normal' ? { points: 45000 } : D.RECRUIT_TEN_COST;
+    const p = D.RECRUIT_POOLS[pool];
+    if (!p) return { error: '卡池不存在' };
+    const cost = p.ten || p.cost;
     // 十连是一次交易：先按折扣价整笔扣费，再抽 10 次；任一步失败都不会出现"扣了钱看不到结果"
     if (!canAfford(cost)) return { error: '货币不足' };
     spend(cost);
@@ -879,7 +1051,7 @@ window.Core = (function () {
   /* ================= 挂机 ================= */
   // 2026-09-12 调整产出：点数 (10+0.3Lv) / 分、经验 (8+0.5Lv) / 分，
   // 与新的等级曲线（Lv1→100 累计 EXP 148.8 万 / 点数 21.3 万）配套；天赋「主神恩赐」的挂机/经验节点在此生效。
-  function idleRates() {
+  function idleBaseRates() {
     const lv = S.player.level;
     const coreBonus = (1 + S.buildings.core * 0.02 + (S.player.geneLock >= 1 ? 0.10 : 0)) * graceIdleMult();
     return {
@@ -888,6 +1060,70 @@ window.Core = (function () {
       otherworldPer10Min: 1 + Math.floor(lv / 50),
       storyPer30Min: 1,
     };
+  }
+  /* ================= 挂机分工 ================= */
+  // 4 条产线各派一名领队（不能用已上阵的主力，给板凳角色一个去处）。
+  // 领队战力越高，这条线产出越高；没派领队 = 这条线不产出。
+  function idleLineLeader(lineId) {
+    const cid = S.idle.lines[lineId];
+    return cid && S.chars[cid] ? cid : null;
+  }
+  function idleLineBonus(lineId) {
+    const cid = idleLineLeader(lineId);
+    if (!cid) return 0;
+    const line = D.IDLE_LINES.find(l => l.id === lineId);
+    return Math.min((line && line.maxBonus) || 1.5, power(cid) / D.IDLE_LINE_POWER_DIV);
+  }
+  // 各产线"自己那一份"的产出（在基础挂机之外额外加，所以要先算基础值，避免自我引用）
+  function idleLineContrib() {
+    const bonuses = {};
+    D.IDLE_LINES.forEach(l => { bonuses[l.id] = idleLineBonus(l.id); });
+    const base = idleBaseRates();
+    return {
+      bonuses,
+      points: base.pointsPerMin * bonuses.explore,
+      exp: base.expPerMin * bonuses.cultivate,
+      otherworld: base.otherworldPer10Min * bonuses.guard,
+      matPerMin: bonuses.gather > 0 ? D.IDLE_MAT_PER_MIN * (1 + bonuses.gather) : 0,
+    };
+  }
+  function idleRates() {
+    const base = idleBaseRates();
+    const c = idleLineContrib();
+    return {
+      pointsPerMin: base.pointsPerMin + c.points,
+      expPerMin: base.expPerMin + c.exp,
+      otherworldPer10Min: base.otherworldPer10Min + c.otherworld,
+      storyPer30Min: base.storyPer30Min,
+      matPerMin: c.matPerMin,
+      lineBonuses: c.bonuses,
+    };
+  }
+  // 界面用：每条线现在派了谁、加成多少、产出多少
+  function idleLines() {
+    const c = idleLineContrib();
+    return D.IDLE_LINES.map(l => {
+      const leaderId = idleLineLeader(l.id);
+      const bonus = c.bonuses[l.id] || 0;
+      let per = '未派领队，不产出';
+      if (l.out === 'exp') per = `+${fmtNum(c.exp)} EXP / 分`;
+      else if (l.out === 'points') per = `+${fmtNum(c.points)} 点 / 分`;
+      else if (l.out === 'otherworld') per = `+${c.otherworld.toFixed(2)} 结晶 / 10 分`;
+      else per = `+${c.matPerMin.toFixed(2)} 材料 / 分`;
+      return { line: l, leaderId, bonus, per: leaderId ? per : '未派领队，不产出' };
+    });
+  }
+  // 派遣 / 撤下领队：上阵主力不能派（他们要出战），同一个人不能同时管两条线
+  function setIdleLeader(lineId, charId) {
+    if (!D.IDLE_LINES.some(l => l.id === lineId)) return { ok: false, msg: '没有这条产线' };
+    if (!charId) { S.idle.lines[lineId] = null; save(); return { ok: true, msg: '已撤下领队' }; }
+    if (!S.chars[charId]) return { ok: false, msg: '没有这名轮回者' };
+    if (S.party.includes(charId)) return { ok: false, msg: '上阵主力不能派去挂机，先把他换下来' };
+    const other = D.IDLE_LINES.find(l => l.id !== lineId && S.idle.lines[l.id] === charId);
+    if (other) return { ok: false, msg: `他已经在「${other.name}」了` };
+    S.idle.lines[lineId] = charId;
+    save();
+    return { ok: true, msg: `${charName(charId)} 已派往「${D.IDLE_LINES.find(l => l.id === lineId).name}」` };
   }
   function offlineCapHours() {
     let cap = 12 + (S.player.geneLock >= 5 ? 12 : 0);
@@ -912,6 +1148,7 @@ window.Core = (function () {
       exp: Math.round(r.expPerMin * mins),
       otherworld: Math.floor(elapsedSec / 600) * r.otherworldPer10Min,
       story: Math.floor(elapsedSec / 1800) * r.storyPer30Min,
+      mat: Math.floor((r.matPerMin || 0) * mins),
     };
     S.idle.lastTs = now;
     save();
@@ -927,10 +1164,25 @@ window.Core = (function () {
     return {
       points: Math.floor(r.pointsPerMin * mins),
       exp: Math.floor(r.expPerMin * mins),
-      otherworld: Math.floor(S.idle.bankSec / 600) * r.otherworldPer10Min,
+      otherworld: Math.floor(Math.floor(S.idle.bankSec / 600) * r.otherworldPer10Min),
       story: Math.floor(S.idle.bankSec / 1800) * r.storyPer30Min,
+      mat: Math.floor((r.matPerMin || 0) * mins),
       seconds: S.idle.bankSec,
     };
+  }
+  // 采集产线产出的材料按玩家等级换成对应档位（越往后材料越高级，但数量按 2 的幂递减）
+  function idleMatItem() {
+    const tier = Math.min(5, 1 + Math.floor((S.player.level - 1) / 20));
+    return { item: 'mat_t' + tier, tier };
+  }
+  // 折算并入库；背包满就整批跳过（宁可少收，也不吞玩家的东西）
+  function grantIdleMat(units) {
+    if (!(units > 0)) return null;
+    const mi = idleMatItem();
+    const count = Math.floor(units / Math.pow(2, mi.tier - 1));
+    if (count <= 0) return null;
+    if (!addItem(mi.item, count)) return { item: mi.item, count: 0, full: true };
+    return { item: mi.item, count, tier: mi.tier };
   }
   function claimIdle() {
     const g = idleBankGains();
@@ -938,6 +1190,12 @@ window.Core = (function () {
     addCur('otherworld', g.otherworld);
     addCur('story', g.story);
     addPlayerExp(g.exp);
+    // 采集产线的材料：按档位折算，背包满就跳过（不吞玩家的东西，只是这一轮收不进来）
+    if (g.mat > 0) {
+      const m = grantIdleMat(g.mat);
+      if (m && m.count > 0) { g.matItem = m.item; g.matCount = m.count; g.mat = m.count; }
+      else { g.matFull = !!(m && m.full); g.mat = 0; }
+    }
     S.idle.bankSec = 0;
     task('idle1', 1);
     save();
@@ -1361,6 +1619,158 @@ window.Core = (function () {
     return { ok: true, msg: `图鉴奖励已领取（${n} 名）` };
   }
 
+  /* ================= 今日概览 / 一键收取 ================= */
+  // 首页「今日」卡要的三件事：挂机待收、任务进度、免费招募。
+  // 全部从存档现算，不额外存字段——这样"卡上写的"和"实际能领的"不可能对不上。
+  function todayState() {
+    ensureDaily();
+    const bank = idleBankGains();
+    const daily = D.DAILY_TASKS.map(t => ({
+      t, prog: S.tasks.daily[t.id] || 0,
+      done: (S.tasks.daily[t.id] || 0) >= t.target,
+      claimed: !!S.tasks.claimed[t.id],
+    }));
+    const weekly = weeklyState();
+    const dailyClaimable = daily.filter(x => x.done && !x.claimed).length;
+    const weeklyClaimable = weekly.filter(x => x.done && !x.claimed).length
+      + (weekly.every(x => x.done) && !S.tasks.weeklyAllClaimed ? 1 : 0);
+    const achClaimable = achievementState().filter(a => a.done && !a.claimed).length;
+    const codexClaimable = codexState().rewards.filter(r => r.reached && !r.claimed).length;
+    const idleReady = bank.seconds >= 60;
+    return {
+      idle: bank, idleReady, idleSeconds: bank.seconds,
+      dailyDone: daily.filter(x => x.done).length, dailyTotal: daily.length, dailyClaimable,
+      weeklyClaimable, achClaimable, codexClaimable,
+      freeRecruit: freeRecruitAvailable(), freeRecruitReady: freeRecruitAvailable() && isUnlocked('recruit'),
+      claimable: (idleReady ? 1 : 0) + dailyClaimable + weeklyClaimable + achClaimable + codexClaimable,
+    };
+  }
+  // 一键收取：把"已经达成、躺在那儿等点"的奖励一次全领掉。
+  // 不做"帮你花"，只做"帮你收"——收取不会失败，也不会改变任何进度。
+  function claimEverything() {
+    ensureDaily();
+    const beforeCur = Object.assign({}, S.cur);
+    const beforeItems = Object.assign({}, S.items);
+    const detail = { idle: null, tasks: 0, allDaily: false, weekly: 0, allWeekly: false, ach: 0, codex: 0 };
+    // 先收挂机：挂机本身会推进"领挂机"这条日常，所以必须排在任务之前
+    const bank = idleBankGains();
+    if (bank.seconds >= 60) detail.idle = claimIdle();
+    D.DAILY_TASKS.forEach(t => { if (claimTask(t.id).ok) detail.tasks++; });
+    if (claimAllTasks().ok) detail.allDaily = true;
+    D.WEEKLY_TASKS.forEach(t => { if (claimWeekly(t.id).ok) detail.weekly++; });
+    if (claimAllWeekly().ok) detail.allWeekly = true;
+    D.ACHIEVEMENTS.forEach(a => { if (claimAchievement(a.id).ok) detail.ach++; });
+    D.CODEX_REWARDS.forEach(r => { if (claimCodexReward(r.n).ok) detail.codex++; });
+    // 差额由"前后快照"算出来，不依赖各领取函数回报数值——永远和账户实际变化一致
+    const gains = { cur: {}, items: {} };
+    Object.keys(S.cur).forEach(k => { const d = (S.cur[k] || 0) - (beforeCur[k] || 0); if (d) gains.cur[k] = d; });
+    Object.keys(S.items).forEach(k => { const d = (S.items[k] || 0) - (beforeItems[k] || 0); if (d) gains.items[k] = d; });
+    save();
+    const total = (detail.idle ? 1 : 0) + detail.tasks + (detail.allDaily ? 1 : 0)
+      + detail.weekly + (detail.allWeekly ? 1 : 0) + detail.ach + detail.codex;
+    return { detail, gains, seconds: detail.idle ? detail.idle.seconds : 0, total };
+  }
+  // 下一关：同难度往后推一格；打完第 12 关顺延到下一难度，难度打完顺延到下一世界
+  function nextStage(worldId, diff, stageIdx) {
+    if (!S.worlds[worldId] || !S.worlds[worldId].unlocked) return null;
+    if (stageIdx + 1 < 12) {
+      const r = { worldId, diff, stageIdx: stageIdx + 1 };
+      return stageUnlocked(r.worldId, r.diff, r.stageIdx) ? r : null;
+    }
+    const order = D.DIFFICULTY.map(d => d.id);
+    const di = order.indexOf(diff);
+    if (di >= 0 && di < order.length - 1 && worldCleared(worldId, diff)) {
+      const r = { worldId, diff: order[di + 1], stageIdx: 0 };
+      if (stageUnlocked(r.worldId, r.diff, 0)) return r;
+    }
+    const wi = D.WORLDS.findIndex(x => x.id === worldId);
+    if (wi >= 0 && wi < D.WORLDS.length - 1) {
+      const nw = D.WORLDS[wi + 1];
+      if (S.worlds[nw.id] && S.worlds[nw.id].unlocked && stageUnlocked(nw.id, 'normal', 0)) {
+        return { worldId: nw.id, diff: 'normal', stageIdx: 0 };
+      }
+    }
+    return null;
+  }
+
+  /* ================= 限时悬赏 ================= */
+  // 每条悬赏从本期起点开始各算各的截止时间；过期作废，完成才给高价值奖励。
+  // 全部领完或过期后可以开新一轮（长期留个"回来看看"的理由）。
+  function bountyState() {
+    const now = Date.now();
+    const start = (S.bounty && S.bounty.start) || now;
+    const claimed = (S.bounty && S.bounty.claimed) || {};
+    const list = D.BOUNTIES.map(b => {
+      const deadline = start + b.hours * 3600e3;
+      const leftMs = deadline - now;
+      return { b, deadline, leftMs, expired: leftMs <= 0, done: !!b.check(S), claimed: !!claimed[b.id] };
+    });
+    return {
+      list, start,
+      claimable: list.filter(x => x.done && !x.claimed && !x.expired).length,
+      allOver: list.every(x => x.claimed || x.expired),
+    };
+  }
+  function claimBounty(id) {
+    const item = bountyState().list.find(x => x.b.id === id);
+    if (!item) return { ok: false, msg: '悬赏不存在' };
+    if (item.claimed) return { ok: false, msg: '已经领过了' };
+    if (item.expired) return { ok: false, msg: '这条悬赏已经过期' };
+    if (!item.done) return { ok: false, msg: '目标还没完成' };
+    S.bounty.claimed[id] = true;
+    Object.entries(item.b.reward).forEach(([k, v]) => addCur(k, v));
+    save();
+    return { ok: true, msg: `悬赏达成：${item.b.name}`, reward: item.b.reward, name: item.b.name };
+  }
+  function renewBounties() {
+    if (!bountyState().allOver) return { ok: false, msg: '还有悬赏没结束（没领或没过期）' };
+    S.bounty = { start: Date.now(), claimed: {} };
+    save();
+    return { ok: true, msg: '新一期悬赏已刷新' };
+  }
+
+  /* ================= 境界（渡劫） ================= */
+  // 每 10 级一个境界，达标即可渡劫；成功全属性 +5%，失败只扣材料与点数、等级不掉，可以反复挑战。
+  function realmState() {
+    const realm = S.player.realm || 0;
+    const next = D.REALMS[realm] || null;
+    const tier = next ? Math.min(5, 1 + Math.floor((next.lv - 1) / 20)) : 5;
+    const matItem = 'mat_t' + tier;
+    return {
+      realm, next,
+      bonusPct: realm * D.REALM_PCT,
+      levelOk: next ? S.player.level >= next.lv : false,
+      matItem, matN: next ? next.cost.matN : 0,
+      haveMat: next ? (S.items[matItem] || 0) : 0,
+      points: next ? next.cost.points : 0,
+      rate: next ? next.rate : 0,
+    };
+  }
+  function realmBonusPct() { return (S.player.realm || 0) * D.REALM_PCT; }
+  function attemptRealm() {
+    const st = realmState();
+    if (!st.next) return { ok: false, msg: '已经到达最终境界' };
+    if (!st.levelOk) return { ok: false, msg: `先升到 Lv.${st.next.lv}（当前 Lv.${S.player.level}）` };
+    if (st.haveMat < st.matN) {
+      return { ok: false, msg: `渡劫材料不足：需要 ${D.ITEMS[st.matItem].name} ×${st.matN}（现有 ${st.haveMat}）` };
+    }
+    if (!canAfford({ points: st.points })) return { ok: false, msg: `点数不足：需要 ◈${fmtNum(st.points)}` };
+    // 先扣消耗：失败也扣，这是"天道不收白食"；但等级不掉，所以永远有下一次
+    S.items[st.matItem] -= st.matN;
+    if (S.items[st.matItem] <= 0) delete S.items[st.matItem];
+    spend({ points: st.points });
+    const success = Math.random() < st.next.rate;
+    if (success) S.player.realm = st.realm + 1;
+    save();
+    return {
+      ok: true, success, name: st.next.name, rate: st.next.rate,
+      realm: S.player.realm, bonusPct: realmBonusPct(),
+      msg: success
+        ? `渡劫成功：突破「${st.next.name}」，全队主角属性永久 +${Math.round(D.REALM_PCT * 100)}%`
+        : `渡劫失败：消耗已扣除，但等级不掉，再来一次就好`,
+    };
+  }
+
   /* ================= 战斗结算钩子 ================= */
   /* --- 副本进度落盘：刷新 / 切后台被系统回收后可以接着打 ---- */
   function setPendingRun(data) {
@@ -1399,9 +1809,10 @@ window.Core = (function () {
   return {
     get S() { return S; },
     save, load, newGame, wipeSave, exportSave, importSave, saveSlot, loadSlot, slotInfo,
-    addCur, canAfford, spend, addItem, removeItem, canAddItem,
+    addCur, canAfford, spend, addItem, removeItem, canAddItem, setCurListener,
     bagUsage, buyBagCap,
     addChar, addShards, levelCost, levelUp, useExpItem, starUp, skillUp, SKILL_CHIP_COST,
+    craftSerum, useSerum, serumTaken, serumApplied,
     bloodlineUpgrade, geneLockInfo, geneLockUnlock,
     equipStats, effectiveStats, power, teamPower, factionBuffs,
     effectivePlayerStats, playerPower, choosePlayerBloodline, upgradePlayerBloodline,
@@ -1409,7 +1820,8 @@ window.Core = (function () {
     grantEquip, grantSignatureEquip, equipItem, canEquip, unequipItem, enhanceCost, enhance, decompose, decomposeMany, inventoryEquips,
     toggleEquipLock, autoEquipBest, equipScore, savePreset, applyPreset,
     recruitOnce, recruitTen, freeRecruit, freeRecruitAvailable, ssrTicketUse,
-    idleRates, settleOffline, onlineTick, idleBankGains, claimIdle, addPlayerExp, offlineCapHours, offlineEfficiency,
+    idleRates, idleBaseRates, idleLines, idleLineBonus, setIdleLeader, idleMatItem, grantIdleMat,
+    settleOffline, onlineTick, idleBankGains, claimIdle, addPlayerExp, offlineCapHours, offlineEfficiency,
     upgradeBuilding,
     unlockWorld, worldCleared, stageComplete, stageUnlocked,
     refreshUnlocks, isUnlocked, unlockTip,
@@ -1420,6 +1832,8 @@ window.Core = (function () {
     ensureDaily, task, claimTask, claimAllTasks, loginReward,
     ensureWeekly, weeklyState, claimWeekly, claimAllWeekly, weekKey,
     achievementState, achievementSummary, claimAchievement,
+    todayState, claimEverything, nextStage,
+    bountyState, claimBounty, renewBounties, realmState, realmBonusPct, attemptRealm, pityView, pityOf,
     setPendingRun, clearPendingRun, corridorMarks, corridorMarkBonus,
     canReincarnate, reincarnate, buyTalent,
     codexState, claimCodexReward,

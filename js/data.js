@@ -427,12 +427,48 @@ window.DATA = (function () {
   // 消耗品在探索界面里的按钮文案
   const CONSUMABLE_TAG = { healPct: '回血', atkPct: '攻击', spdPct: '速度', defPct: '防御' };
 
+  /* ================= 血清（永久强化剂） =================
+     对标同类放置修仙游戏的"丹药矩阵"：把大块成长拆成很多次小成长，
+     每喂一支都能立刻看见数字变化（档案 G-13：文案与效果必须同源）。 */
+  const SERUM_KEYS = { atkPct: '攻击', defPct: '防御', hpPct: '生命', spdPct: '速度', critPct: '暴击率', skillPct: '技能伤害', evaPct: '闪避' };
+  const SERUMS = [
+    { id: 'sr_atk',   name: '力量血清', key: 'atkPct',   per: 0.010, max: 40, mat: 'mat_t1', matN: 5, points: 300,  bloodline: null, unlock: 1 },
+    { id: 'sr_def',   name: '护壁血清', key: 'defPct',   per: 0.010, max: 40, mat: 'mat_t1', matN: 5, points: 300,  bloodline: null, unlock: 1 },
+    { id: 'sr_hp',    name: '细胞血清', key: 'hpPct',    per: 0.010, max: 40, mat: 'mat_t1', matN: 5, points: 300,  bloodline: null, unlock: 1 },
+    { id: 'sr_spd',   name: '神经血清', key: 'spdPct',   per: 0.010, max: 30, mat: 'mat_t2', matN: 4, points: 600,  bloodline: null, unlock: 3 },
+    { id: 'sr_crit',  name: '感知血清', key: 'critPct',  per: 0.005, max: 30, mat: 'mat_t2', matN: 4, points: 700,  bloodline: null, unlock: 3 },
+    { id: 'sr_skill', name: '灵能血清', key: 'skillPct', per: 0.010, max: 30, mat: 'mat_t2', matN: 4, points: 700,  bloodline: null, unlock: 4 },
+    // 血统专属（对标同类的"门派专属丹"）：只有对应血统能用，单次更强、上限更低
+    { id: 'sr_bl_vampire',  name: '血族·饕餮血清', key: 'atkPct',   per: 0.030, max: 20, mat: 'mat_t3', matN: 3, points: 1200, bloodline: '血族',   unlock: 5 },
+    { id: 'sr_bl_werewolf', name: '狼人·狂化血清', key: 'hpPct',    per: 0.030, max: 20, mat: 'mat_t3', matN: 3, points: 1200, bloodline: '狼人',   unlock: 5 },
+    { id: 'sr_bl_cultivator', name: '修真·剑心血清', key: 'skillPct', per: 0.030, max: 20, mat: 'mat_t3', matN: 3, points: 1200, bloodline: '修真', unlock: 5 },
+    { id: 'sr_bl_magic',    name: '魔法·秘能血清', key: 'critPct',  per: 0.015, max: 20, mat: 'mat_t3', matN: 3, points: 1200, bloodline: '魔法',   unlock: 6 },
+    { id: 'sr_bl_tech',     name: '科技·超频血清', key: 'spdPct',   per: 0.030, max: 20, mat: 'mat_t4', matN: 2, points: 1800, bloodline: '科技',   unlock: 6 },
+    { id: 'sr_bl_psychic',  name: '念动·超感血清', key: 'evaPct',   per: 0.030, max: 20, mat: 'mat_t4', matN: 2, points: 1800, bloodline: '念动力', unlock: 7 },
+  ];
+  const serumById = {};
+  SERUMS.forEach(s => {
+    serumById[s.id] = s;
+    // 文案从数据派生：改了效果，说明自动跟着变，不会各写一份
+    const tag = s.bloodline ? `【${s.bloodline}专属】` : '';
+    ITEMS['serum_' + s.id] = {
+      name: s.name,
+      type: 'serum',
+      serum: { key: s.key, per: s.per, max: s.max, bloodline: s.bloodline },
+      where: 'character',
+      use: `背包里点这张卡，选一名${s.bloodline ? `「${s.bloodline}」血统的` : ''}轮回者喂下；支持 1 / 10 / 全部`,
+      desc: `${tag}${SERUM_KEYS[s.key] || s.key} 永久 +${(s.per * 100).toFixed(1)}%（每人最多 ${s.max} 支）`,
+      src: '炼化台：用装备强化材料 + 点数炼化',
+    };
+  });
+  const SERUM_ITEM = id => 'serum_' + id;
+
   /* ================= 货币图鉴 ================= */
   const CURRENCY_INFO = {
     points:       { use: '强化装备、普通招募、背包扩容、主神商店、建筑升级', gain: '挂机、副本战斗、扫荡、任务、分解装备外的主要产出' },
     story:        { use: '故事商店（角色碎片、材料、装备箱）', gain: '挂机每30分钟、副本事件、首通奖励' },
-    otherworld:   { use: '装备强化、异界商店（高阶装备箱）', gain: '分解装备、副本战斗、扫荡' },
-    holy:         { use: '高级/限定招募（抽卡）', gain: '主线任务、首通奖励、登录奖励、活动' },
+    otherworld:   { use: '装备强化、异界商店（高阶装备箱）、限定招募（定向出当期 UP）', gain: '分解装备、副本战斗、扫荡、悬赏' },
+    holy:         { use: '高级招募（SR 起抽、50 抽保底 SSR、优先给还没有的角色）', gain: '主线任务、首通奖励、登录奖励、限时悬赏' },
     skillChip:    { use: '招募角色技能升级', gain: '副本战斗、扫荡、主神商店兑换' },
     bloodCrystal: { use: '血统选择与升级（主角与招募角色）', gain: 'Boss战、困难/地狱难度、回廊' },
     corridor:     { use: '回廊商店（稀有道具）', gain: '无限回廊层数奖励' },
@@ -492,6 +528,26 @@ window.DATA = (function () {
       '2. 领每日免费招募（招募页第一个按钮，一天一次）。',
       '3. 做完每日任务 + 全部完成奖励（任务面板）。',
       '4. 扫荡已通关的关卡拿材料（每天 60 次）。',
+      '懒得一项项点？首页最上面的「今日」卡有「一键收取」：挂机、任务、周常、成就、图鉴里所有已经达成、躺着等点的奖励，一次全收。',
+    ] },
+    { id: 'recruit', title: '⑨ 三张招募池，花的是三种钱', body: [
+      '普通招募（◈点数）：日常池，只出 N / R / SR，重复角色转碎片。花的是挂机能刷的点数，定位是攒碎片升星。',
+      '高级招募（✦圣洁晶石）：主力池，SR 起抽，50 抽内必出 SSR、100 抽内必出 UR，而且优先给「你还没有的角色」——缺图鉴就抽它。',
+      '限定招募（◆异界结晶）：定向池，本期只出「当期 UP」所属阵营的角色，SSR 里一半是当期 UP，50 抽内必出当期 UP。想要某个特定的人，就盯着它抽。',
+      '保底三个池分开关账：高级池和限定池各自数自己的 SSR / UR / UP 次数，换池不会清零，也不会串。',
+      '每天有一次免费招募（走普通池出率），同样计入主线与每日任务，别忘了领。',
+    ] },
+    { id: 'idle', title: '⑩ 挂机分工：让板凳角色去干活', body: [
+      '首页「轮回挂机」卡里点「🧭 挂机分工」，可以给 4 条产线各派 1 名领队：闭关修炼（经验）、灵材采集（强化材料）、外围探索（点数）、主神守卫（异界结晶）。',
+      '领队战力越高，这条线产出越高（最高 +150%）；不派领队这条线就不产出。',
+      '上阵主力不能派去挂机——所以这里正好是"板凳角色"的用处，练了的人不会白练。',
+      '产线收益和挂机收益一起累计，在首页「一键收取」或挂机卡的领取按钮里结算。',
+    ] },
+    { id: 'bounty', title: '⑪ 限时悬赏与境界', body: [
+      '限时悬赏有截止时间，到点作废：达成后手动领奖，奖励是圣洁晶石 / 异界结晶 / 血统结晶这类硬通货。四条全部结束（领完或过期）后可以开新一期。',
+      '首页「今日」卡会显示最快到期的那条还剩多久，别让它白白过期。',
+      '境界（渡劫）：主角每 10 级一个境界，达标后可以渡劫，成功全属性永久 +5%。',
+      '渡劫失败只扣材料与点数，等级不掉，可以反复挑战——但失败也照扣，所以别在材料不够的时候硬渡。',
     ] },
     { id: 'weekly', title: '⑧ 周常与成就', body: [
       '任务面板有四个页签：主线 / 日常 / 周常 / 成就。',
@@ -670,13 +726,89 @@ window.DATA = (function () {
   };
 
   /* ================= 招募 ================= */
+  // 三个池子按「花什么货币 + 出什么结构」分工，而不是同一套出率换种货币卖两遍：
+  //   普通池（点数·软货币）：日常补碎片，只出 N/R/SR，重复角色转碎片
+  //   高级池（圣洁晶石）：主力池，SR 起抽，保底 SSR/UR，且优先给未拥有的角色
+  //   限定池（异界结晶）：定向池，本期只出指定阵营，SSR 里一半是当期 UP，50 抽必出 UP
   const RECRUIT_POOLS = {
-    normal:  { name: '普通招募', rates: { N: 0.40, R: 0.35, SR: 0.20, SSR: 0.045, UR: 0.005 }, cost: { points: 5000 } },
-    advanced:{ name: '高级招募', rates: { R: 0.30, SR: 0.50, SSR: 0.17, UR: 0.03 }, cost: { holy: 100 } },
-    limited: { name: '限定招募', rates: { R: 0.20, SR: 0.50, SSR: 0.25, UR: 0.05 }, cost: { holy: 100 } },
+    normal: {
+      name: '普通招募', short: '普通', currency: 'points',
+      rates: { N: 0.46, R: 0.36, SR: 0.18 },
+      cost: { points: 5000 }, ten: { points: 45000 },
+      desc: '日常池：只出 N / R / SR，重复角色转碎片。花的是挂机能刷的点数，用来攒碎片升星。',
+      tag: '攒碎片',
+    },
+    advanced: {
+      name: '高级招募', short: '高级', currency: 'holy',
+      rates: { SR: 0.72, SSR: 0.25, UR: 0.03 },
+      cost: { holy: 100 }, ten: { holy: 900 },
+      desc: '主力池：SR 起抽，50 抽内必出 SSR、100 抽内必出 UR，并且优先给「你还没有的角色」。',
+      tag: '补图鉴',
+      prioritizeNew: true,
+    },
+    limited: {
+      name: '限定招募', short: '限定', currency: 'otherworld',
+      rates: { SR: 0.62, SSR: 0.33, UR: 0.05 },
+      cost: { otherworld: 60 }, ten: { otherworld: 540 },
+      desc: '定向池：本期只出「当期 UP」所属阵营的角色，SSR 里一半是当期 UP，50 抽内必出当期 UP。',
+      tag: '定向 UP',
+      upRatio: 0.5,
+    },
   };
-  const RECRUIT_TEN_COST = { holy: 900 };
   const PITY = { SSR: 50, UR: 100 };
+  const PITY_UP = 50;
+  // 当期 UP：按自然周轮换，不写死角色，以后加角色自动进入轮换
+  const weekIndex = ts => Math.floor((ts || Date.now()) / (7 * 86400e3));
+  const recruitUpChar = (ts) => {
+    const pool = characters.filter(c => c.rarity === 'SSR' && !c.hidden);
+    if (!pool.length) return null;
+    return pool[weekIndex(ts) % pool.length];
+  };
+
+  /* ================= 挂机分工 ================= */
+  // 4 条产线，各派 1 名领队（不能用已上阵的主力），领队战力越高产出越高。
+  // 目的：给"多出来的角色"一个去处，让挂机多一层"怎么排"的决定，而不只是干等。
+  const IDLE_LINES = [
+    { id: 'cultivate', name: '闭关修炼', ico: '🧘', out: 'exp', desc: '产出玩家经验（每分钟）', maxBonus: 1.5 },
+    { id: 'gather', name: '灵材采集', ico: '⛏', out: 'mat', desc: '产出装备强化材料（每分钟）', maxBonus: 1.5 },
+    { id: 'explore', name: '外围探索', ico: '🧭', out: 'points', desc: '产出点数（每分钟）', maxBonus: 1.5 },
+    { id: 'guard', name: '主神守卫', ico: '🛡', out: 'otherworld', desc: '产出异界结晶（每 10 分钟）', maxBonus: 1.5 },
+  ];
+  const IDLE_LINE_POWER_DIV = 30000;   // 领队战力 / 30000 = 加成（封顶见 maxBonus）
+  const IDLE_MAT_PER_MIN = 0.08;       // 采材产线基础：每分钟 0.08 个材料（约 5 个/小时，对齐商店 30 点/个的价）
+
+  /* ================= 限时悬赏 ================= */
+  // 带截止时间的目标：过期作废，完成后给高价值奖励（对标"次日中午前晋升领 5000 桃子"的紧迫感）
+  const BOUNTIES = [
+    { id: 'bt1', name: '蜂巢清扫', desc: '通关「生化蜂巢 · 普通」第 3 关', hours: 72,
+      reward: { holy: 600, points: 20000 },
+      check: S => !!(S.worlds.W01 && S.worlds.W01.stages.normal[2] > 0) },
+    { id: 'bt2', name: '第一名强者', desc: '拥有 1 名 SSR 及以上轮回者', hours: 96,
+      reward: { holy: 800, bloodCrystal: 20 },
+      check: S => Object.keys(S.chars).some(id => charById[id] && ['SSR', 'UR'].includes(charById[id].rarity)) },
+    { id: 'bt3', name: '强化达人', desc: '累计强化装备 10 次', hours: 120,
+      reward: { otherworld: 300, holy: 400 },
+      check: S => (S.stats.enhances || 0) >= 10 },
+    { id: 'bt4', name: '回廊初探', desc: '无限回廊到达第 10 层', hours: 168,
+      reward: { holy: 1200, bloodCrystal: 30 },
+      check: S => (S.corridor.best || 0) >= 10 },
+  ];
+
+  /* ================= 境界（渡劫） ================= */
+  // 主角每 10 级一个境界，达标后可渡劫：成功全属性永久 +5%，失败只扣材料、不掉等级，可以反复挑战
+  const REALMS = [
+    { name: '炼气', lv: 10, rate: 0.95, cost: { points: 8000, matN: 6 } },
+    { name: '筑基', lv: 20, rate: 0.90, cost: { points: 20000, matN: 10 } },
+    { name: '金丹', lv: 30, rate: 0.85, cost: { points: 45000, matN: 16 } },
+    { name: '元婴', lv: 40, rate: 0.80, cost: { points: 90000, matN: 24 } },
+    { name: '化神', lv: 50, rate: 0.75, cost: { points: 160000, matN: 34 } },
+    { name: '炼虚', lv: 60, rate: 0.70, cost: { points: 260000, matN: 46 } },
+    { name: '合体', lv: 70, rate: 0.65, cost: { points: 400000, matN: 60 } },
+    { name: '大乘', lv: 80, rate: 0.60, cost: { points: 600000, matN: 78 } },
+    { name: '渡劫', lv: 90, rate: 0.55, cost: { points: 900000, matN: 100 } },
+    { name: '飞升', lv: 100, rate: 0.50, cost: { points: 1400000, matN: 130 } },
+  ];
+  const REALM_PCT = 0.05;   // 每突破一境：全属性 +5%
 
   /* ================= 商店 ================= */
   // req.world：需要先通关该世界（普通难度）才会解锁这一格商品；
@@ -971,7 +1103,9 @@ window.DATA = (function () {
     ITEMS, EVENTS,
     BLOODLINES, BLOODLINE_MAX, bloodlineCost, GENE_LOCKS,
     BUILDINGS, buildingCost,
-    RECRUIT_POOLS, RECRUIT_TEN_COST, PITY,
+    RECRUIT_POOLS, PITY, PITY_UP, recruitUpChar, weekIndex,
+    IDLE_LINES, IDLE_LINE_POWER_DIV, IDLE_MAT_PER_MIN,
+    BOUNTIES, REALMS, REALM_PCT,
     SHOPS, DAILY_TASKS, DAILY_ALL_REWARD, LOGIN_REWARDS, STARTER,
     WEEKLY_TASKS, WEEKLY_ALL_REWARD, ACHIEVEMENTS,
     TALENTS, TALENT_COSTS, talentEffect, talentTexts,
@@ -981,6 +1115,7 @@ window.DATA = (function () {
     UNLOCKS, MAIN_QUESTS, stageDropCap,
     CURRENCY_INFO, CODEX_REWARDS, enhanceMatTier, MAT_SUBSTITUTE_POINTS,
     CONSUMABLE_TAG, GUIDE_CHAPTERS,
+    SERUMS, serumById, SERUM_ITEM, SERUM_KEYS,
     _ri: ri,
   };
 })();

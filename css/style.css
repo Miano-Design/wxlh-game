@@ -40,7 +40,7 @@ body {
 #topbar .genelock { font-size: 11px; color: var(--accent); margin-left: auto; }
 #curbar { display: flex; gap: 6px; overflow-x: auto; padding: 2px 12px 8px; scrollbar-width: none; }
 #curbar::-webkit-scrollbar { display: none; }
-.cur-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--text); font-family: inherit; cursor: pointer; }
+.cur-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 12px; color: var(--text); font-family: inherit; cursor: pointer; position: relative; }
 .cur-chip.more { color: var(--dim); border-style: dashed; }
 .cur-chip b { font-weight: 600; }
 
@@ -65,7 +65,8 @@ body {
 .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: #00000040; }
 .btn.gold { background: linear-gradient(135deg, #b8860b, #8a6508); border-color: #00000040; }
 .btn.ghost { background: transparent; }
-.btn.small { min-height: 34px; padding: 0 12px; font-size: 12px; border-radius: 9px; }
+/* 全局交互规则：所有可点元素热区 ≥ 44×44（小按钮也不再"点不准"） */
+.btn.small { min-height: 44px; min-width: 44px; padding: 0 14px; font-size: 12px; border-radius: 10px; }
 .btn.block { display: flex; width: 100%; }
 .btn[disabled] { opacity: .38; pointer-events: none; }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -229,7 +230,7 @@ body {
 .run-bar { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 8px); left: 50%; transform: translateX(-50%); width: calc(100% - 16px); max-width: 504px; z-index: 45; background: rgba(18,22,34,.97); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; backdrop-filter: blur(10px); box-shadow: 0 -4px 20px rgba(0,0,0,.45); }
 .pill-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
 .pill-tabs::-webkit-scrollbar { display: none; }
-.pill { flex: 0 0 auto; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 12px; color: var(--dim); cursor: pointer; }
+.pill { flex: 0 0 auto; display: flex; align-items: center; padding: 8px 14px; min-height: 40px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 12px; color: var(--dim); cursor: pointer; }
 .pill.active { color: #fff; border-color: var(--accent); background: #d43a4f22; }
 .empty { text-align: center; color: var(--dim); padding: 30px 0; font-size: 13px; }
 
@@ -271,3 +272,61 @@ body {
 .skill-row .sdesc { font-size: 11px; color: var(--dim); margin-top: 3px; }
 .corridor-hero { text-align: center; padding: 20px 0 8px; }
 .corridor-hero .floor-num { font-size: 44px; font-weight: 800; color: var(--accent); text-shadow: 0 0 30px #d43a4f55; }
+
+/* ---------- 首页「今日」卡 ---------- */
+.today-card { border-color: #ffd76a44; }
+.today-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed #ffffff12; }
+.today-row:last-child { border-bottom: none; padding-bottom: 0; }
+.today-row .tico { font-size: 20px; flex: 0 0 auto; }
+.today-row .tgrow { flex: 1; min-width: 0; }
+.today-row .tt1 { font-size: 13px; font-weight: 600; }
+.today-row .tt2 { font-size: 11px; color: var(--dim); margin-top: 2px; }
+
+/* 首页「更多」小字行：低频入口降级到一行里 */
+.more-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; justify-content: center; padding: 6px 0 14px; }
+.more-row .sep { color: var(--line); font-size: 11px; }
+.link-btn { background: none; border: none; color: var(--dim); font-size: 12px; font-family: inherit; padding: 8px 6px; min-height: 40px; cursor: pointer; position: relative; }
+.link-btn .dot { position: absolute; top: 8px; right: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+/* ---------- 列表工具栏（筛选 / 排序 / 搜索） ---------- */
+.filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.filter-bar .flabel { font-size: 11px; color: var(--dim); flex: 0 0 auto; }
+.filter-bar .grow-pills { flex: 1; padding-bottom: 0; margin-bottom: 0; }
+.search-input { flex: 1; min-height: 44px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; color: var(--text); font-size: 13px; font-family: inherit; padding: 0 12px; outline: none; }
+.search-input::placeholder { color: var(--dim); }
+
+/* ---------- 背包卡片上的快捷键 ---------- */
+.bag-card .bquick { display: flex; gap: 4px; margin-top: 6px; }
+.bag-card .qbtn { flex: 1; min-height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 11px; font-family: inherit; cursor: pointer; }
+.bag-card .qbtn:active { transform: scale(.95); }
+.bag-card .qbtn[disabled] { opacity: .35; }
+
+/* ---------- 数值跳动（货币收支） ---------- */
+.float-cur { position: absolute; left: 50%; top: -2px; transform: translateX(-50%); font-size: 11px; font-weight: 800; pointer-events: none; animation: curfloat .6s ease-out forwards; white-space: nowrap; text-shadow: 0 1px 3px #000; }
+.float-cur.up { color: var(--green); }
+.float-cur.down { color: var(--accent); }
+@keyframes curfloat { 0% { opacity: 1; } 100% { transform: translate(-50%, -18px); opacity: 0; } }
+.cur-chip.cur-up { border-color: var(--green); }
+.cur-chip.cur-down { border-color: var(--accent); }
+
+/* ---------- 失败抖动 ---------- */
+.shake { animation: shk .26s; }
+@keyframes shk { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+/* ---------- 挂机分工提示 ---------- */
+.idle-lines-hint { font-size: 11px; color: var(--dim); margin-top: 8px; line-height: 1.7; }
+
+/* ---------- 招募卡池 ---------- */
+.pool-card .rate-row { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; margin-bottom: 6px; }
+.pool-card .pity-row { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+.pool-card .pity-row b { color: var(--text); }
+.up-banner { background: linear-gradient(90deg, #ffd76a22, transparent); border-left: 3px solid var(--gold); border-radius: 6px; padding: 6px 10px; font-size: 11px; line-height: 1.6; margin-bottom: 8px; }
+
+/* ---------- 结算页奖励逐条浮入 ---------- */
+.b-result .reward-chip { animation: chipIn .32s ease both; }
+.b-result .reward-chip:nth-child(2) { animation-delay: .05s; }
+.b-result .reward-chip:nth-child(3) { animation-delay: .1s; }
+.b-result .reward-chip:nth-child(4) { animation-delay: .15s; }
+.b-result .reward-chip:nth-child(5) { animation-delay: .2s; }
+.b-result .reward-chip:nth-child(n+6) { animation-delay: .25s; }
+@keyframes chipIn { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }

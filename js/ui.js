@@ -69,6 +69,64 @@ window.UI = (function () {
     } catch (e) { /* 浏览器不支持音频时静默跳过 */ }
   }
 
+  /* ================= 全局交互规则（四条，所有页面统一） ================= */
+  // 1) 失败回执：提示 + 失败音 + 按钮抖一下（只弹一句话不够"疼"）
+  function shakeEl(el) {
+    if (!el || !el.classList) return;
+    el.classList.remove('shake');
+    try { void el.offsetWidth; } catch (e) { /* 桩环境没有布局 */ }
+    el.classList.add('shake');
+    setTimeout(() => el.classList.remove('shake'), 280);
+  }
+  function failToast(msg, el) { toast(msg); sfx('fail'); shakeEl(el); }
+
+  // 2) 数值跳动：货币一变就在顶栏对应位置冒一个 ±数字（600ms 淡出）。
+  // 由 Core.setCurListener 广播驱动，所以"任何来源的收支"都有反馈，不用在每个按钮上重复写。
+  function pulseCur(id, delta) {
+    const bar = document.getElementById('curbar');
+    if (!bar || !bar.querySelector || !bar.appendChild) return;
+    const chip = bar.querySelector('[data-cur="' + id + '"]');
+    if (!chip || !chip.appendChild) return;
+    const f = document.createElement('span');
+    f.className = 'float-cur ' + (delta > 0 ? 'up' : 'down');
+    f.textContent = (delta > 0 ? '+' : '') + fmt(delta);
+    chip.appendChild(f);
+    chip.classList.add(delta > 0 ? 'cur-up' : 'cur-down');
+    setTimeout(() => { f.remove(); chip.classList.remove('cur-up', 'cur-down'); }, 600);
+  }
+
+  // 3) 防连点：同一个小按钮 300ms 内只吃一次点击（连点会重复扣资源的那种）
+  const GUARD_SEL = 'button, .nav-item, .pill, [data-act], [data-stage], [data-node], [data-final], [data-world],'
+    + ' [data-char], [data-item], [data-quick], [data-pick], [data-target], [data-serumtarget], [data-eq], [data-eqd],'
+    + ' [data-buy], [data-refine], [data-pull1], [data-pull10], [data-free], [data-sstage], [data-stimes], [data-potion],'
+    + ' [data-attr], [data-lvup], [data-roster], [data-cur], [data-claim], [data-mclaim], [data-ach], [data-codex]';
+  function installClickGuard() {
+    if (!document.addEventListener) return;
+    const last = new WeakMap();
+    document.addEventListener('click', ev => {
+      const el = ev.target && ev.target.closest ? ev.target.closest(GUARD_SEL) : null;
+      if (!el) return;
+      const now = Date.now();
+      const prev = last.get(el);
+      if (prev && now - prev < 300) { ev.stopPropagation(); ev.preventDefault(); return; }
+      last.set(el, now);
+    }, true);
+  }
+
+  // 4) 大额消费二次确认：单笔任一币种 ≥1000 就先报一次账（带数字），可在设置里关掉。
+  // 目的不是拦人，是治"不知道自己花的是什么"——确认框里直接把货币名和余额摆出来。
+  function confirmSpend(cost, title, text, onOk) {
+    const S = C().S;
+    const big = Object.values(cost).some(v => v >= 1000);
+    if (!big || S.settings.confirmBig === false) { onOk(); return; }
+    const detail = Object.entries(cost).map(([k, v]) => `${curIcon(k)}${fmt(v)} ${curName(k)}`).join(' + ');
+    const mine = Object.keys(cost).map(k => `${curIcon(k)}${fmt(S.cur[k] || 0)}`).join(' · ');
+    confirmBox(title, `<div style="margin-bottom:6px">将花费 <b style="color:var(--gold)">${detail}</b></div>
+      <div style="font-size:12px">当前持有：${mine}</div>
+      ${text ? `<div style="font-size:12px;margin-top:6px">${text}</div>` : ''}
+      <div style="font-size:11px;color:var(--dim);margin-top:10px">设置存档 → 大额消费二次确认，可以关掉这个提示。</div>`, onOk);
+  }
+
   /* ================= 返回键接管（手机手势/返回键先退面板、再退页面） ================= */
   // 做法：在历史里放一条"哨兵"记录。按返回时先被哨兵挡住 → 关掉最上面的弹窗/子页面 → 再补一条哨兵。
   // 什么都不用关的时候不再补哨兵，下一次返回就是真正退出游戏。
@@ -241,14 +299,25 @@ window.UI = (function () {
   }
 
   /* ================= 顶栏 / 导航 ================= */
+  // 底部只留 4 格：「队伍 / 角色 / 装备」本质是同一个东西（我的人 + 我的装备），
+  // 合并成一个「轮回者」页签用胶囊切子页；腾出来的位置给背包（原来的弹窗是二级入口）。
   const TABS = [
     { id: 'home', name: '主神空间', ico: '⛩' },
     { id: 'dungeon', name: '轮回副本', ico: '🌀' },
-    { id: 'party', name: '队伍', ico: '⚔️' },
-    { id: 'chars', name: '角色', ico: '👥' },
-    { id: 'equip', name: '装备', ico: '🎒' },
+    { id: 'roster', name: '轮回者', ico: '👥' },
+    { id: 'bag', name: '背包', ico: '🎒' },
   ];
+  const ROSTER_TABS = [
+    { id: 'party', name: '队伍编成', ico: '⚔️' },
+    { id: 'chars', name: '角色图鉴', ico: '👥' },
+    { id: 'equip', name: '装备仓库', ico: '🗡' },
+  ];
+  // 旧的三个页签名一律当作「轮回者」的子页，这样任务"前往"、每日跳转、引导高亮都不用改
+  const TAB_ALIAS = { party: 'roster', chars: 'roster', equip: 'roster' };
   let curTab = 'home';
+  let rosterView = 'party';
+  const rosterScroll = {};   // 三个子页各自记住滚动位置，来回切不丢
+  let pendingScroll = null;  // 渲染完要恢复到的位置（切子页用）
   function renderTopbar() {
     const S = C().S;
     document.getElementById('tb-name').textContent = S.player.name;
@@ -264,7 +333,12 @@ window.UI = (function () {
   }
   function renderNavbar() {
     const nav = document.getElementById('navbar');
-    nav.innerHTML = TABS.map(t => `<div class="nav-item ${curTab === t.id ? 'active' : ''}" data-tab="${t.id}"><span class="ico">${t.ico}</span>${t.name}${t.id === 'home' && idleClaimable() ? '<span class="dot"></span>' : ''}</div>`).join('');
+    nav.innerHTML = TABS.map(t => {
+      let dot = false;
+      if (t.id === 'home') dot = idleClaimable();
+      else if (t.id === 'roster') dot = C().isUnlocked('recruit') && C().freeRecruitAvailable();
+      return `<div class="nav-item ${curTab === t.id ? 'active' : ''}" data-tab="${t.id}"><span class="ico">${t.ico}</span>${t.name}${dot ? '<span class="dot"></span>' : ''}</div>`;
+    }).join('');
     nav.querySelectorAll('.nav-item').forEach(el => { el.onclick = () => setTab(el.dataset.tab); });
   }
   function idleClaimable() {
@@ -298,18 +372,22 @@ window.UI = (function () {
   }
   function refresh() { renderTopbar(); renderNavbar(); }
   function setTab(id) {
-    curTab = id;
+    // 旧页签名（party / chars / equip）都落到「轮回者」，并顺手把子页切过去
+    const sub = (id === 'party' || id === 'chars' || id === 'equip') ? id : null;
+    curTab = TAB_ALIAS[id] || id;
+    if (sub) rosterView = sub;
     dungeonView = { page: 'worlds' };
     batchMode = false; batchSel.clear();
     screenEnter = true;
+    pendingScroll = null;
     refresh();
     render();
   }
   let screenEnter = false;
   function render() {
-    const fn = { home: homeScreen, dungeon: dungeonScreen, party: partyScreen, chars: charsScreen, equip: equipScreen }[curTab];
+    const fn = { home: homeScreen, dungeon: dungeonScreen, roster: rosterScreen, bag: bagScreen }[curTab];
     // 切页签回到顶部；同一页内的操作保留滚动位置，避免"点一下跳回顶部"
-    const keepScroll = !screenEnter;
+    const keepScroll = !screenEnter && pendingScroll === null;
     const scrollY = (typeof window !== 'undefined' && window.scrollY) || 0;
     $view().innerHTML = `<div class="screen${screenEnter ? ' enter' : ''}">${fn()}</div>`;
     screenEnter = false;
@@ -318,10 +396,60 @@ window.UI = (function () {
     document.getElementById('navbar').style.display = inRun ? 'none' : '';
     bindScreen();
     refresh();
-    if (keepScroll && scrollY > 0 && typeof window.scrollTo === 'function') window.scrollTo(0, scrollY);
+    if (pendingScroll !== null) {
+      const y = pendingScroll; pendingScroll = null;
+      if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, y);
+    } else if (keepScroll && scrollY > 0 && typeof window.scrollTo === 'function') window.scrollTo(0, scrollY);
+  }
+  // 「轮回者」= 队伍编成 / 角色图鉴 / 装备仓库，三个子页共用一条顶部胶囊
+  function rosterScreen() {
+    const sub = { party: partyScreen, chars: charsScreen, equip: equipScreen }[rosterView] || partyScreen;
+    return `<div class="pill-tabs" style="margin-bottom:10px">
+        ${ROSTER_TABS.map(t => `<div class="pill ${rosterView === t.id ? 'active' : ''}" data-roster="${t.id}">${t.ico} ${t.name}</div>`).join('')}
+      </div>
+      ${sub()}`;
   }
 
   /* ================= 主神空间 ================= */
+  // 今日卡：上线先回答"我现在该做什么"——收菜 / 任务 / 免费招募，三行以内
+  function todayCard() {
+    const t = C().todayState();
+    const bt = C().bountyState();
+    const btLive = bt.list.filter(x => !x.claimed && !x.expired);
+    const btSoon = btLive.length ? Math.min.apply(null, btLive.map(x => x.leftMs)) : 0;
+    const extra = [];
+    if (t.weeklyClaimable) extra.push(`周常 ${t.weeklyClaimable}`);
+    if (t.achClaimable) extra.push(`成就 ${t.achClaimable}`);
+    if (t.codexClaimable) extra.push(`图鉴 ${t.codexClaimable}`);
+    const recruitUnlocked = C().isUnlocked('recruit');
+    return `<div class="card today-card">
+      <h3>🗓 今日 <span class="sub">${t.claimable ? `${t.claimable} 项可收` : '暂无可收'}</span></h3>
+      <div class="today-row">
+        <span class="tico">⏳</span>
+        <div class="tgrow"><div class="tt1">挂机收益</div>
+          <div class="tt2">已累积 ${formatDuration(t.idleSeconds)}${t.idleReady ? '' : ' · 满 60 秒可领'}</div></div>
+        <button class="btn small ${t.claimable ? 'primary' : ''}" data-act="claim-all" ${t.claimable ? '' : 'disabled'}>一键收取</button>
+      </div>
+      <div class="today-row">
+        <span class="tico">📋</span>
+        <div class="tgrow"><div class="tt1">每日任务</div>
+          <div class="tt2">${t.dailyDone}/${t.dailyTotal} 完成${t.dailyClaimable ? ` · ${t.dailyClaimable} 项待领` : ''}${extra.length ? ` · ${extra.join(' / ')}待领` : ''}</div></div>
+        <button class="btn small ghost" data-act="open-tasks">去完成 ›</button>
+      </div>
+      <div class="today-row">
+        <span class="tico">✦</span>
+        <div class="tgrow"><div class="tt1">免费招募</div>
+          <div class="tt2">${!recruitUnlocked ? '通关第 1 关后解锁' : t.freeRecruit ? '今天还没领，免费 1 抽' : '今天已领 · 明天再来'}</div></div>
+        <button class="btn small ${t.freeRecruitReady ? 'gold' : 'ghost'}" data-act="open-recruit">${t.freeRecruitReady ? '去招募 ›' : '看看 ›'}</button>
+      </div>
+      <div class="today-row">
+        <span class="tico">🔥</span>
+        <div class="tgrow"><div class="tt1">限时悬赏</div>
+          <div class="tt2">${btLive.length ? `最快一条还剩 ${formatDuration(Math.floor(btSoon / 1000))}${bt.claimable ? ` · ${bt.claimable} 条可领` : ''}` : bt.allOver ? '本期已结束，可开新一期' : '本期目标已全部处理'}</div></div>
+        <button class="btn small ${bt.claimable ? 'primary' : 'ghost'}" data-act="open-bounty">${bt.claimable ? '去领取 ›' : '去看看 ›'}</button>
+      </div>
+    </div>`;
+  }
   function homeScreen() {
     const S = C().S;
     const r = C().idleRates();
@@ -329,6 +457,7 @@ window.UI = (function () {
     const expNeed = D.EXP_TABLE[S.player.level] || 1;
     const gl = D.GENE_LOCKS[S.player.geneLock - 1];
     return `
+    ${todayCard()}
     <div class="card" data-protag="1" style="cursor:pointer">
       <h3>⛩ 个人房间 <span class="sub">${cname('@player')} · 主角战力 ${fmt(C().playerPower())} · 队伍 ${fmt(C().teamPower())} ›</span></h3>
       <div class="kv"><span class="k">玩家经验</span><span>${fmt(S.player.exp)} / ${fmt(expNeed)}</span></div>
@@ -343,10 +472,6 @@ window.UI = (function () {
       ${featureBtn('open-tasks', '📋 任务', 'tasks')}
       ${featureBtn('open-genelock', '🧬 基因锁', 'geneLock')}
       ${featureBtn('open-reincarn', '♾ 转生', 'reincarn')}
-      <button class="btn" data-act="open-ach">🏅 成就${C().achievementSummary().list.filter(x => x.done && !x.claimed).length ? '<span class="dot"></span>' : ''}</button>
-      <button class="btn" data-act="open-bag">🧰 道具背包</button>
-      <button class="btn" data-act="open-settings">⚙️ 设置存档</button>
-      <button class="btn" data-act="open-guide">❓ 玩法指南</button>
     </div>
     ${questCard()}
     <div class="card">
@@ -354,7 +479,21 @@ window.UI = (function () {
       <div class="kv"><span class="k">已累积</span><span id="idle-time">${formatDuration(bank.seconds)}</span></div>
       <div class="kv"><span class="k">待领取</span><span id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}</span></div>
       <div class="kv"><span class="k">离线规则</span><span>效率 ${Math.round(C().offlineEfficiency() * 100)}% · 上限 ${C().offlineCapHours().toFixed(1)}小时</span></div>
-      <button class="btn primary block" style="margin-top:10px" id="idle-claim-btn" data-act="claim-idle" ${bank.seconds < 60 ? 'disabled' : ''}>一键领取挂机收益</button>
+      <div class="idle-lines-hint">${C().idleLines().map(l => `${l.line.ico}${l.leaderId ? cname(l.leaderId) : '空'}`).join(' · ')}</div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn small ghost" data-act="open-idlelines">🧭 挂机分工</button>
+      </div>
+      <button class="btn primary block" style="margin-top:8px" id="idle-claim-btn" data-act="claim-idle" ${bank.seconds < 60 ? 'disabled' : ''}>一键领取挂机收益</button>
+    </div>
+    <div class="more-row">
+      <button class="link-btn" data-act="open-bag">🧰 道具背包</button><span class="sep">·</span>
+      <button class="link-btn" data-act="open-bounty">🔥 限时悬赏</button><span class="sep">·</span>
+      <button class="link-btn" data-act="open-realm">🌌 境界渡劫</button><span class="sep">·</span>
+      <button class="link-btn" data-act="open-ach">🏅 成就${C().achievementSummary().list.filter(x => x.done && !x.claimed).length ? '<span class="dot"></span>' : ''}</button><span class="sep">·</span>
+      <button class="link-btn" data-act="open-codex">📕 图鉴</button><span class="sep">·</span>
+      <button class="link-btn" data-act="open-curdoc">▤ 货币图鉴</button><span class="sep">·</span>
+      <button class="link-btn" data-act="open-guide">❓ 玩法指南</button><span class="sep">·</span>
+      <button class="link-btn" data-act="open-settings">⚙️ 设置存档</button>
     </div>`;
   }
   function featureBtn(act, label, unlockId, dot) {
@@ -759,6 +898,7 @@ window.UI = (function () {
         </div>
       </div>
       <div style="font-size:11px;color:var(--dim);margin-bottom:10px">主角与招募角色成长体系独立：随玩家等级成长、无星级碎片、6 装备槽、血统自选、基因锁每阶全属性额外+3%</div>
+      <button class="btn small block" style="margin-bottom:10px" data-realm-open="1">🌌 境界 · ${S.player.realm ? D.REALMS[S.player.realm - 1].name : '未突破'} · 全属性 +${Math.round(C().realmBonusPct() * 100)}% · 查看渡劫 ›</button>
       <div class="stat-6">
         <div class="cell"><div class="v">${fmt(st.atk)}</div><div class="k">攻击</div></div>
         <div class="cell"><div class="v">${fmt(st.def)}</div><div class="k">防御</div></div>
@@ -824,6 +964,8 @@ window.UI = (function () {
       if (r.ok) reopenSelf();
     };
     const blBtn = w.querySelector('[data-pblup]');
+    const realmBtn = w.querySelector('[data-realm-open]');
+    if (realmBtn) realmBtn.onclick = () => realmModal();
     if (blBtn) blBtn.onclick = () => {
       const r = C().upgradePlayerBloodline();
       toast(r.msg);
@@ -887,34 +1029,77 @@ window.UI = (function () {
 
   /* ================= 角色 ================= */
   let charFilter = 'all';
-  function charsScreen() {
+  let charSort = 'power';
+  let charQuery = '';
+  // 排序里最有用的两条是「未满级优先」和「没穿装备优先」——它们直接回答"我下一步该练谁"
+  const CHAR_SORTS = [['power', '战力'], ['level', '等级'], ['star', '星级'], ['notmax', '未满级'], ['noequip', '没穿装备']];
+  function equippedCount(id) {
+    const sl = C().S.equipped[id] || {};
+    return Object.keys(sl).filter(k => sl[k]).length;
+  }
+  function charListSorted() {
     const S = C().S;
-    const owned = Object.keys(S.chars);
-    const filters = [['all', '全部'], ['party', '已上阵'], ['SSR', 'SSR+'], ['N', 'N'], ['R', 'R'], ['SR', 'SR']];
-    let list = owned.slice().sort((a, b) => D.RARITIES.indexOf(D.charById[b].rarity) - D.RARITIES.indexOf(D.charById[a].rarity) || C().power(b) - C().power(a));
+    let list = Object.keys(S.chars);
     if (charFilter === 'party') list = list.filter(id => S.party.includes(id));
     else if (charFilter === 'SSR') list = list.filter(id => ['SSR', 'UR'].includes(D.charById[id].rarity));
     else if (charFilter !== 'all') list = list.filter(id => D.charById[id].rarity === charFilter);
-    const cards = list.map(id => {
+    const q = charQuery.trim().toLowerCase();
+    if (q) list = list.filter(id => cname(id).toLowerCase().indexOf(q) >= 0);
+    const rar = id => D.RARITIES.indexOf(D.charById[id].rarity);
+    const cmps = {
+      power: (a, b) => C().power(b) - C().power(a),
+      level: (a, b) => S.chars[b].lv - S.chars[a].lv,
+      star: (a, b) => S.chars[b].star - S.chars[a].star,
+      // "还能不能升级"直接问 levelCost（和实际养成逻辑同源，不另写一套判断）
+      notmax: (a, b) => (C().levelCost(a) ? 0 : 1) - (C().levelCost(b) ? 0 : 1) || C().power(b) - C().power(a),
+      noequip: (a, b) => equippedCount(a) - equippedCount(b) || C().power(b) - C().power(a),
+    };
+    const cmp = cmps[charSort] || cmps.power;
+    return list.sort((a, b) => cmp(a, b) || rar(b) - rar(a));
+  }
+  function charGridHtml() {
+    const S = C().S;
+    const cards = charListSorted().map(id => {
       const ch = D.charById[id];
       const c = S.chars[id];
+      const eq = equippedCount(id);
       return `<div class="char-card rarity-${ch.rarity}" data-char="${id}">
         ${S.party.includes(id) ? '<span class="inparty">上阵</span>' : ''}
         ${charAvatar(id)}
         <div class="cname">${cname(id)}</div>
         <div class="stars">${stars(c.star, D.RARITY_MAXSTAR[ch.rarity])}</div>
-        <div class="cmeta">Lv.${c.lv} · ${ch.role}</div>
+        <div class="cmeta">Lv.${c.lv} · 战力${fmt(C().power(id))}</div>
+        <div class="cmeta">${eq ? `装备 ${eq}/6` : '<span style="color:var(--gold)">未穿装备</span>'}${C().levelCost(id) ? ' · 可升级' : ''}</div>
       </div>`;
     }).join('');
+    if (cards) return cards;
+    if (Object.keys(S.chars).length) return '<div class="empty" style="grid-column:1/-1">没有符合条件的角色</div>';
+    return `<div class="empty" style="grid-column:1/-1">还没有招募到任何角色</div>
+      <button class="btn primary block" style="grid-column:1/-1" data-act="open-recruit">✦ 去招募角色</button>`;
+  }
+  // 只重画网格：搜名字时输入框不会失焦，也不会整页闪
+  function paintCharGrid(root) {
+    const box = root.querySelector ? root.querySelector('#char-list') : null;
+    if (!box || !box.querySelectorAll) return;
+    box.innerHTML = charGridHtml();
+    box.querySelectorAll('[data-char]').forEach(el => el.onclick = () => charDetail(el.dataset.char));
+  }
+  function charsScreen() {
+    const S = C().S;
+    const filters = [['all', '全部'], ['party', '已上阵'], ['SSR', 'SSR+'], ['N', 'N'], ['R', 'R'], ['SR', 'SR']];
     const cs = C().codexState();
     return `
       <div class="pill-tabs">${filters.map(([k, n]) => `<div class="pill ${charFilter === k ? 'active' : ''}" data-filter="${k}">${n}</div>`).join('')}</div>
-      <div style="display:flex;align-items:center;gap:8px;margin:2px 2px 8px">
-        <div style="font-size:11px;color:var(--dim);flex:1">已收集 ${cs.owned}/${cs.total} · 拥有 ${owned.length}</div>
+      <div class="filter-bar">
+        <span class="flabel">排序</span>
+        <div class="pill-tabs grow-pills">${CHAR_SORTS.map(([k, n]) => `<div class="pill ${charSort === k ? 'active' : ''}" data-charsort="${k}">${n}</div>`).join('')}</div>
+      </div>
+      <div class="filter-bar">
+        <input id="char-search" class="search-input" type="text" placeholder="🔍 搜名字" value="${esc(charQuery)}" />
         <button class="btn small ghost" data-act="open-codex">📕 图鉴</button>
       </div>
-      <div class="char-grid">${cards || `<div class="empty" style="grid-column:1/-1">还没有招募到任何角色</div>
-        <button class="btn primary block" style="grid-column:1/-1" data-act="open-recruit">✦ 去招募角色</button>`}</div>`;
+      <div style="font-size:11px;color:var(--dim);margin:0 2px 8px">已收集 ${cs.owned}/${cs.total} · 拥有 ${Object.keys(S.chars).length} · 当前显示 ${charListSorted().length}</div>
+      <div class="char-grid" id="char-list">${charGridHtml()}</div>`;
   }
   function charDetail(id, scrollTop, wrap) {
     const S = C().S;
@@ -1284,15 +1469,28 @@ window.UI = (function () {
         <div style="font-size:11px;color:var(--dim);margin-bottom:8px">一天一次，免费招募同样计入主线与每日任务。</div>
         <button class="btn primary block" data-free="1" ${free ? '' : 'disabled'}>免费招募 1 次</button>
       </div>
-      ${Object.entries(D.RECRUIT_POOLS).map(([pid, p]) => `
-      <div class="card" style="margin-bottom:10px">
-        <h3>${p.name} <span class="sub">${Object.entries(p.rates).map(([r, v]) => `${r} ${(v * 100).toFixed(1)}%`).join(' · ')}</span></h3>
+      ${Object.entries(D.RECRUIT_POOLS).map(([pid, p]) => {
+      const costText = Object.entries(p.cost).map(([k, v]) => `${curIcon(k)}${fmt(v)}`).join('');
+      const tenText = Object.entries(p.ten || p.cost).map(([k, v]) => `${curIcon(k)}${fmt(v)}`).join('');
+      const pv = C().pityView(pid);
+      const up = pid === 'limited' ? D.recruitUpChar() : null;
+      return `<div class="card pool-card" style="margin-bottom:10px">
+        <h3>${p.name} <span class="tag" style="color:var(--gold);border-color:var(--gold)">${p.tag}</span>
+          <span class="sub">用 ${Object.keys(p.cost).map(curName).join(' / ')}</span></h3>
+        <div style="font-size:11px;color:var(--dim);line-height:1.75;margin-bottom:8px">${p.desc}</div>
+        <div class="rate-row">${Object.entries(p.rates).map(([r, v]) => `<span class="rtext-${r}">${r} ${(v * 100).toFixed(1)}%</span>`).join('')}</div>
+        ${up ? `<div class="up-banner">本期 UP：<b>${esc(up.name)}</b> · 本期只出「${up.faction}」阵营（SSR 里一半是他，50 抽必出）</div>` : ''}
+        ${pv ? `<div class="pity-row">
+          <span>SSR 保底 <b>${pv.ssr.n}</b>/${pv.ssr.cap}</span>
+          <span>UR 保底 <b>${pv.ur.n}</b>/${pv.ur.cap}</span>
+          ${pv.up ? `<span style="color:var(--gold)">UP 保底 <b>${pv.up.n}</b>/${pv.up.cap}</span>` : ''}
+        </div>` : `<div class="pity-row"><span>没有保底，纯攒碎片</span></div>`}
         <div class="btn-row">
-          <button class="btn small" data-pull1="${pid}">抽 1 次（${p.cost.holy ? '✦' + p.cost.holy : '◈' + fmt(p.cost.points)}）</button>
-          <button class="btn small gold" data-pull10="${pid}">十连（${pid === 'normal' ? '◈' + fmt(45000) : '✦900'}·保底SR·9折）</button>
+          <button class="btn small" data-pull1="${pid}">抽 1 次（${costText}）</button>
+          <button class="btn small gold" data-pull10="${pid}">十连（${tenText}·保底SR）</button>
         </div>
-        ${pid !== 'normal' ? `<div style="font-size:10px;color:var(--dim);margin-top:6px">SSR保底 ${pid === 'limited' ? S.recruit.pityLimS : S.recruit.pityAdvS}/50 · UR保底 ${pid === 'limited' ? S.recruit.pityLim : S.recruit.pityAdv}/100（同池继承）</div>` : ''}
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
       ${S.ssrTicket > 0 ? `<button class="btn gold block" data-ssrpick="1">🎫 使用SSR自选券（剩 ${S.ssrTicket}）</button>` : ''}
     `);
     const showResults = results => {
@@ -1302,6 +1500,7 @@ window.UI = (function () {
         <div class="char-grid">${results.map(r => {
         const ch = D.charById[r.id];
         return `<div class="char-card rarity-${r.rarity} ${['SSR', 'UR'].includes(r.rarity) ? 'shine' : ''}">
+          ${r.isUp ? '<span class="inparty" style="background:var(--gold);color:#241c08">UP</span>' : ''}
           ${charAvatar(r.id)}
           <div class="cname">${cname(r.id)}</div>
           <div class="cmeta">${r.isNew ? '<span style="color:var(--green)">NEW</span>' : `碎片+${r.shards}`}</div>
@@ -1313,18 +1512,26 @@ window.UI = (function () {
     };
     w.querySelector('[data-free]').onclick = () => {
       const r = C().freeRecruit();
-      if (r.error) { toast(r.error); return; }
+      if (r.error) { failToast(r.error); return; }
       showResults([r]);
     };
     w.querySelectorAll('[data-pull1]').forEach(b => b.onclick = () => {
-      const r = C().recruitOnce(b.dataset.pull1);
-      if (r.error) { toast(r.error); return; }
-      showResults([r]);
+      const pid = b.dataset.pull1;
+      const cost = D.RECRUIT_POOLS[pid].cost;
+      confirmSpend(cost, '确认招募', `卡池：${D.RECRUIT_POOLS[pid].name} · 1 次`, () => {
+        const r = C().recruitOnce(pid);
+        if (r.error) { failToast(r.error, b); return; }
+        showResults([r]);
+      });
     });
     w.querySelectorAll('[data-pull10]').forEach(b => b.onclick = () => {
-      const r = C().recruitTen(b.dataset.pull10);
-      if (r.error) { toast(r.error); return; }
-      showResults(r.results);
+      const pid = b.dataset.pull10;
+      const cost = D.RECRUIT_POOLS[pid].ten || D.RECRUIT_POOLS[pid].cost;
+      confirmSpend(cost, '确认十连', `${D.RECRUIT_POOLS[pid].name} · 10 次（保底 SR，必出更高稀有度）`, () => {
+        const r = C().recruitTen(pid);
+        if (r.error) { failToast(r.error, b); return; }
+        showResults(r.results);
+      });
     });
     const tk = w.querySelector('[data-ssrpick]');
     if (tk) tk.onclick = () => ssrPickModal(w);
@@ -1378,10 +1585,14 @@ window.UI = (function () {
     `);
     w.querySelectorAll('[data-shoptab]').forEach(el => el.onclick = () => shopModal(el.dataset.shoptab, w));
     w.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
-      const r = C().buyShopItem(shopTab, +b.dataset.buy);
-      toast(r.msg);
-      shopModal(shopTab, w);
-      renderTopbar();
+      const idx = +b.dataset.buy;
+      const it = shop.items[idx];
+      confirmSpend({ [shop.currency]: (it && it.price) || 0 }, '确认购买', it ? `商品：${it.name}` : '', () => {
+        const r = C().buyShopItem(shopTab, idx);
+        if (r.ok) toast(r.msg); else failToast(r.msg, b);
+        shopModal(shopTab, w);
+        renderTopbar();
+      });
     });
     return w;
   }
@@ -1408,6 +1619,143 @@ window.UI = (function () {
   }
 
   /* ================= 任务（主线 / 日常） ================= */
+  /* ================= 挂机分工 ================= */
+  // 4 条产线各派 1 名领队：给板凳角色一个去处，也让挂机多一层"怎么排"的决定
+  function idleLinesModal(wrap) {
+    const S = C().S;
+    const rows = C().idleLines();
+    const bench = Object.keys(S.chars).filter(id => !S.party.includes(id));
+    const body = `
+      <div style="font-size:12px;color:var(--dim);line-height:1.75;margin-bottom:10px">
+        4 条产线各派 <b>1 名领队</b>：领队战力越高，这条线产出越高（最高 +150%）。
+        上阵主力不能派去挂机，「板凳上的轮回者」在这里发挥作用；没派领队的产线不产出。
+      </div>
+      ${rows.map(r => {
+      const leader = r.leaderId;
+      return `<div class="card" style="margin-bottom:8px;${leader ? '' : 'border-style:dashed'}">
+        <h3>${r.line.ico} ${r.line.name} <span class="sub">${r.per}</span></h3>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">${r.line.desc}${leader ? ` · 领队加成 +${Math.round(r.bonus * 100)}%` : ''}</div>
+        ${leader
+          ? `<div class="list-row" style="border:none;padding:4px 0">
+               ${charAvatar(leader, 34)}
+               <div class="grow"><div class="t1">${cname(leader)}</div><div class="t2">战力 ${fmt(C().power(leader))}</div></div>
+               <button class="btn small ghost" data-idleclear="${r.line.id}">撤下</button>
+             </div>`
+          : `<button class="btn small block" data-idlepick="${r.line.id}" ${bench.length ? '' : 'disabled'}>${bench.length ? '＋ 派一名领队' : '没有可派的角色（先去招募）'}</button>`}
+      </div>`;
+    }).join('')}
+      <div style="font-size:11px;color:var(--dim);line-height:1.7">可派角色：${bench.length} 名（未上阵的轮回者）。产出的收益和挂机收益一起，在首页「一键收取」里结算。</div>`;
+    const w = showPanel(wrap, '挂机分工', body);
+    w.querySelectorAll('[data-idlepick]').forEach(b => b.onclick = () => pickIdleLeader(b.dataset.idlepick, w));
+    w.querySelectorAll('[data-idleclear]').forEach(b => b.onclick = () => {
+      const r = C().setIdleLeader(b.dataset.idleclear, null);
+      toast(r.msg);
+      idleLinesModal(w);
+      render();
+    });
+    return w;
+  }
+  function pickIdleLeader(lineId, wrap) {
+    const S = C().S;
+    const line = D.IDLE_LINES.find(l => l.id === lineId);
+    const bench = Object.keys(S.chars).filter(id => !S.party.includes(id));
+    const body = `
+      <div style="font-size:12px;color:var(--dim);margin-bottom:10px">选一名轮回者派往「${line.name}」，战力越高产出越高。</div>
+      ${bench.map(id => {
+      const used = D.IDLE_LINES.find(l => l.id !== lineId && S.idle.lines[l.id] === id);
+      return `<div class="list-row" data-idlelead="${id}" style="cursor:pointer${used ? ';opacity:.5' : ''}">
+        ${charAvatar(id, 40)}
+        <div class="grow"><div class="t1">${rarityTag(D.charById[id].rarity)} ${cname(id)}</div>
+        <div class="t2">Lv.${S.chars[id].lv} · 战力 ${fmt(C().power(id))}${used ? ` · 已在「${used.name}」` : ''}</div></div>
+      </div>`;
+    }).join('') || '<div class="empty">没有可派的角色</div>'}
+      <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回挂机分工</button>`;
+    const w = showPanel(wrap, '派遣领队', body);
+    w.querySelector('[data-back]').onclick = () => idleLinesModal(w);
+    w.querySelectorAll('[data-idlelead]').forEach(el => el.onclick = () => {
+      const r = C().setIdleLeader(lineId, el.dataset.idlelead);
+      if (r.ok) toast(r.msg); else failToast(r.msg, el);
+      sfx(r.ok ? 'success' : 'fail');
+      idleLinesModal(w);
+      render();
+    });
+    return w;
+  }
+
+  /* ================= 限时悬赏 ================= */
+  function bountyModal(wrap) {
+    const st = C().bountyState();
+    const body = `
+      <div style="font-size:12px;color:var(--dim);line-height:1.75;margin-bottom:10px">
+        限时悬赏：<b>到点作废</b>，达成才有奖励。每条按自己的截止时间算，全部结束后可以开新一期。
+      </div>
+      ${st.list.map(({ b, leftMs, expired, done, claimed }) => {
+      const state = claimed ? '已领取' : expired ? '已过期' : done ? '可领取' : '进行中';
+      const color = claimed || expired ? 'var(--dim)' : done ? 'var(--green)' : 'var(--gold)';
+      return `<div class="card" style="margin-bottom:8px;${done && !claimed && !expired ? 'border-color:var(--green)' : ''}">
+        <h3>${b.name} <span class="sub" style="color:${color}">${state}</span></h3>
+        <div style="font-size:12px;color:var(--dim);line-height:1.7">${b.desc}</div>
+        <div class="kv"><span class="k">剩余时间</span><span>${expired ? '已结束' : formatDuration(Math.max(0, Math.floor(leftMs / 1000)))}</span></div>
+        <div class="kv"><span class="k">奖励</span><span>${Object.entries(b.reward).map(([k, v]) => `${curIcon(k)}${fmt(v)}`).join(' · ')}</span></div>
+        ${claimed ? '<button class="btn small block" disabled>已领取</button>'
+          : expired ? '<button class="btn small block" disabled>已过期</button>'
+            : done ? `<button class="btn small primary block" data-bounty="${b.id}">领取奖励</button>`
+              : '<button class="btn small block" disabled>目标未完成 · 去副本</button>'}
+      </div>`;
+    }).join('')}
+      ${st.allOver ? '<button class="btn primary block" data-renew="1">🔄 开启新一期悬赏</button>' : ''}`;
+    const w = showPanel(wrap, '限时悬赏', body);
+    w.querySelectorAll('[data-bounty]').forEach(b => b.onclick = () => {
+      const r = C().claimBounty(b.dataset.bounty);
+      if (r.ok) toast(r.msg, 2400); else failToast(r.msg, b);
+      sfx(r.ok ? 'level' : 'fail');
+      bountyModal(w); renderTopbar(); render();
+    });
+    const rn = w.querySelector('[data-renew]');
+    if (rn) rn.onclick = () => { const r = C().renewBounties(); toast(r.msg); bountyModal(w); render(); };
+    return w;
+  }
+
+  /* ================= 境界 · 渡劫 ================= */
+  function realmModal(wrap) {
+    const S = C().S;
+    const st = C().realmState();
+    const body = `
+      <div class="card">
+        <h3>境界 <span class="sub">已突破 ${st.realm} / ${D.REALMS.length}</span></h3>
+        <div style="font-size:12px;color:var(--dim);line-height:1.8">
+          每突破一境，主角全属性永久 <b style="color:var(--gold)">+${Math.round(D.REALM_PCT * 100)}%</b>。
+          当前加成：<b style="color:var(--gold)">+${Math.round(st.bonusPct * 100)}%</b><br>
+          渡劫失败只扣材料与点数，<b>等级不掉</b>，可以反复挑战。
+        </div>
+      </div>
+      ${st.next ? `<div class="card" style="border-color:#ffd76a66">
+        <h3>下一境 · ${st.next.name} <span class="sub">成功率 ${Math.round(st.rate * 100)}%</span></h3>
+        <div class="kv"><span class="k">等级要求</span><span style="color:${st.levelOk ? 'var(--green)' : 'var(--accent)'}">Lv.${st.next.lv}（当前 Lv.${S.player.level}）</span></div>
+        <div class="kv"><span class="k">渡劫材料</span><span style="color:${st.haveMat >= st.matN ? 'var(--green)' : 'var(--accent)'}">${D.ITEMS[st.matItem].name} ${st.haveMat} / ${st.matN}</span></div>
+        <div class="kv"><span class="k">点数</span><span style="color:${(S.cur.points || 0) >= st.points ? 'var(--green)' : 'var(--accent)'}">◈${fmt(st.points)}</span></div>
+        <button class="btn primary block" style="margin-top:10px" data-realm="1" ${st.levelOk && st.haveMat >= st.matN && (S.cur.points || 0) >= st.points ? '' : 'disabled'}>⚡ 渡劫（成功率 ${Math.round(st.rate * 100)}%）</button>
+        <div style="font-size:11px;color:var(--dim);margin-top:6px">失败也会扣掉上面的材料与点数——这就是"渡"字的分量，但等级永远不掉。</div>
+      </div>` : '<div class="card"><h3>已至飞升</h3><div style="font-size:12px;color:var(--dim)">当前境界已是终点。</div></div>'}
+      <div class="section-title">境界一览</div>
+      ${D.REALMS.map((r, i) => `<div class="list-row" style="${i < st.realm ? '' : i === st.realm ? 'border-color:#ffd76a88' : 'opacity:.5'}">
+        <div class="grow"><div class="t1">${i + 1}. ${r.name}${i < st.realm ? ' <span class="tag" style="color:var(--green);border-color:var(--green)">已突破</span>' : i === st.realm ? ' <span class="tag" style="color:var(--gold);border-color:var(--gold)">当前目标</span>' : ''}</div>
+        <div class="t2">Lv.${r.lv} 解锁 · 成功率 ${Math.round(r.rate * 100)}% · ◈${fmt(r.cost.points)} + 材料×${r.cost.matN}</div></div>
+      </div>`).join('')}`;
+    const w = showPanel(wrap, '境界 · 渡劫', body);
+    const go = w.querySelector('[data-realm]');
+    if (go) go.onclick = () => confirmSpend({ points: st.points }, '确认渡劫',
+      `目标「${st.next.name}」· 成功率 ${Math.round(st.rate * 100)}% · 另外消耗材料 ×${st.matN}（失败也扣）`, () => {
+        const r = C().attemptRealm();
+        if (!r.ok) { failToast(r.msg, go); return; }
+        sfx(r.success ? 'level' : 'fail');
+        toast(r.msg, 3200);
+        realmModal(w); render(); renderTopbar();
+      });
+    return w;
+  }
+
+  /* ================= 任务（主线 / 日常） ================= */
   let taskTab = 'main';
   // 主线的"去完成"统一走这里：首页卡片与任务面板共用同一套跳转
   function gotoQuest(qid) {
@@ -1420,9 +1768,44 @@ window.UI = (function () {
       }, 250);
       return;
     }
-    if (qid === 'q03') { setTab('home'); setTimeout(() => openRecruit(), 250); return; }
-    if (qid === 'q09') { setTab('home'); setTimeout(() => buildingsModal(), 250); return; }
-    if (qid === 'q13') { setTab('home'); setTimeout(() => protagonistDetail(), 250); return; }
+    if (qid === 'q03') {
+      setTab('home');
+      setTimeout(() => {
+        openRecruit();
+        coachmark('[data-free="1"]', '每天有一次免费招募，先把它领了——免费抽也计入这条主线。想多抽就往下选池子：普通池花点数、高级池花圣洁晶石、限定池花异界结晶。');
+      }, 250);
+      return;
+    }
+    if (qid === 'q09') {
+      setTab('home');
+      setTimeout(() => {
+        buildingsModal();
+        coachmark('[data-bup]', '建筑每升一级都是永久加成：主神核心加挂机产出，训练室加经验，医疗室加离线效率。');
+      }, 250);
+      return;
+    }
+    if (qid === 'q13') {
+      setTab('home');
+      setTimeout(() => {
+        protagonistDetail();
+        coachmark('[data-pblup]', '血统升级消耗血统结晶 + 点数，是中期最猛的成长线；主角 Lv.10 之后还能在「🌌 境界」里渡劫，每突破一境全属性永久 +5%。');
+      }, 250);
+      return;
+    }
+    if (qid === 'q10') {
+      setTab('dungeon');
+      dungeonView = { page: 'world', worldId: 'W01', diff: 'normal' };
+      render();
+      coachmark('[data-stage="11"]', '第 12 关是守关 Boss。打之前可以先在首页「一键收取」把挂机收益吃掉，再补给一轮装备。');
+      return;
+    }
+    if (qid === 'q08') {
+      setTab('dungeon');
+      dungeonView = { page: 'world', worldId: 'W01', diff: 'normal' };
+      render();
+      coachmark('[data-stage="3"]', '每通关一关解锁下一关；战斗中队伍血量会继承，途中遇到「安全屋」和事件可以回血。');
+      return;
+    }
     if (qid === 'q04') {
       setTab('party');
       coachmark('[data-slot="0"]', '点击空位，把招募到的角色放入队伍。主角必上阵，还可再上 4 名队友（前 2 后 2）。');
@@ -1661,6 +2044,7 @@ window.UI = (function () {
   function itemIcon(it) {
     if (it.type === 'box') return '🎁';
     if (it.type === 'exp') return '📘';
+    if (it.type === 'serum') return '💊';
     if (it.type === 'material') return '⚙️';
     if ((it.effect || {}).healPct) return '🧪';
     return '💉';
@@ -1673,15 +2057,19 @@ window.UI = (function () {
     w.querySelector('[data-back]').onclick = () => backFn(w);
     return w;
   }
-  function bagModal(wrap) {
+  // 背包正文：页签与弹窗共用同一份模板，两处永远长一样（避免"页签版"和"弹窗版"漂移）
+  function bagBody() {
     const S = C().S;
     const entries = Object.entries(S.items).filter(([, n]) => n > 0);
     const usage = C().bagUsage();
     const expandCost = D.bagExpandCost(S.bag.expands);
-    const body = `
+    return `
       <div class="kv" style="margin-bottom:4px"><span class="k">容量</span><span>${usage.used} / ${usage.cap}</span></div>
       <div class="bar exp" style="margin-bottom:10px"><i style="width:${Math.min(100, usage.used / usage.cap * 100)}%;${usage.used / usage.cap > 0.9 ? 'background:var(--accent)' : ''}"></i></div>
-      <button class="btn small block" data-expand="1" style="margin-bottom:12px">🎒 扩容 +${D.BAG_EXPAND_SIZE} 格（◈${fmt(expandCost)}）</button>
+      <div class="btn-row" style="margin-bottom:12px">
+        <button class="btn small" data-expand="1">🎒 扩容 +${D.BAG_EXPAND_SIZE} 格（◈${fmt(expandCost)}）</button>
+        <button class="btn small" data-refine-open="1">⚗️ 炼化台</button>
+      </div>
       <div class="section-title">货币 <span style="font-size:11px;font-weight:400">（点一下看用途）</span></div>
       <div class="cur-chips">
         ${D.CURRENCIES.map(c => `<button class="cur-chip" data-cur="${c.id}"><span style="color:${c.color}">${c.icon}</span><b>${fmt(S.cur[c.id])}</b></button>`).join('')}
@@ -1691,30 +2079,73 @@ window.UI = (function () {
         ${entries.map(([k, n]) => {
           const it = D.ITEMS[k];
           if (!it) return '';
+          // 能批量用的（宝箱 / 经验模块 / 血清）直接在卡片上给快捷键，
+          // 不必"进详情 → 选数量"走三层；长说明仍在详情卡里
+          const batchable = it.type === 'box' || it.type === 'exp' || it.type === 'serum';
+          const verb = it.type === 'box' ? '开' : it.type === 'exp' ? '喂' : it.type === 'serum' ? '服' : '用';
+          const second = Math.min(10, n);
           return `<div class="bag-card" data-item="${k}" style="cursor:pointer${it.type === 'box' ? ';border-color:var(--gold)' : ''}">
             <div class="bico">${itemIcon(it)}</div>
             <div class="bname">${it.name}</div>
-            <div class="bcount">×${n}${it.type === 'box' || it.type === 'exp' ? ' · 可批量' : ''}</div>
+            <div class="bcount">×${n}</div>
+            ${batchable ? `<div class="bquick">
+              <button class="qbtn" data-quick="${k}:1" data-qev="1">${verb}1</button>
+              ${n > 1 ? `<button class="qbtn" data-quick="${k}:${second}" data-qev="1">${verb}${second}</button>` : ''}
+            </div>` : ''}
           </div>`;
         }).join('') || '<div class="empty" style="grid-column:1/-1">背包是空的</div>'}
       </div>
-      <div style="font-size:11px;color:var(--dim);margin-top:10px">点任意道具可看用途与用法；宝箱、经验模块支持 1 / 10 / 全部 批量使用。每种道具占 1 格，未装备的装备每件占 1 格。</div>`;
-    const w = showPanel(wrap, '背包', body);
-    w.querySelector('[data-expand]').onclick = () => {
-      const r = C().buyBagCap();
-      toast(r.msg);
-      bagModal(w);
+      <div style="font-size:11px;color:var(--dim);margin-top:10px">点卡片看用途与用法；卡片上的「开/喂/服 N」是直接用，批量还有 1 / 10 / 全部（详情卡里）。每种道具占 1 格，未装备的装备每件占 1 格。</div>`;
+  }
+  // 背包作为一级页签
+  function bagScreen() { return bagBody(); }
+  // 背包绑定：asDrawer=true 时是"弹窗里的背包"，否则是页签里的背包（返回行为不同）
+  function bindBag(root, asDrawer) {
+    const refresh = () => { renderTopbar(); if (asDrawer) bagModal(root); else render(); };
+    const backToBag = w => { if (asDrawer) bagModal(root); else { closeModal(w); render(); } };
+    const expand = root.querySelector('[data-expand]');
+    if (expand) expand.onclick = () => { const r = C().buyBagCap(); toast(r.msg); refresh(); };
+    const refineBtn = root.querySelector('[data-refine-open]');
+    if (refineBtn) refineBtn.onclick = () => refineModal(null, backToBag);
+    root.querySelectorAll('[data-cur]').forEach(el => el.onclick = () => {
+      if (asDrawer) currencyModal(el.dataset.cur, root, w2 => bagModal(w2));
+      else currencyModal(el.dataset.cur);
+    });
+    root.querySelectorAll('[data-item]').forEach(el => el.onclick = () => itemDetail(el.dataset.item, null, backToBag));
+    root.querySelectorAll('[data-quick]').forEach(b => b.onclick = ev => {
+      ev.stopPropagation();
+      const [k, v] = b.dataset.quick.split(':');
+      quickUse(k, +v, backToBag, asDrawer ? root : null);
+    });
+  }
+  // 卡片上的快捷键：宝箱直接开，经验模块/血清先选目标
+  function quickUse(itemId, count, backToBag, drawerRoot) {
+    const it = D.ITEMS[itemId];
+    if (!it) return;
+    if (it.type === 'box') {
+      const r = C().openBoxes(itemId, count);
+      if (!r.ok) { failToast(r.msg || '开箱失败'); return; }
+      sfx('box');
+      const chips = (r.equips || []).map(e => `<span class="reward-chip rtext-${e.rarity}">${itemIcon(it)} ${e.name} +${e.enhance}</span>`);
+      if (r.sold) chips.push(`<span class="reward-chip">◆+${fmt(r.soldGain)}（自动分解 ${r.sold} 件）</span>`);
       renderTopbar();
-    };
-    w.querySelectorAll('[data-cur]').forEach(el => el.onclick = () => currencyModal(el.dataset.cur, w, w2 => bagModal(w2)));
-    w.querySelectorAll('[data-item]').forEach(el => el.onclick = () => itemDetail(el.dataset.item, w));
+      lootPanel(`开箱结果（×${r.count}）`, chips.join(''), w => backToBag(w), drawerRoot);
+      return;
+    }
+    if (it.type === 'exp') return pickExpTarget(itemId, count, null, backToBag);
+    if (it.type === 'serum') return pickSerumTarget(itemId, count, null, backToBag);
+  }
+  function bagModal(wrap) {
+    const w = showPanel(wrap, '背包', bagBody());
+    bindBag(w, true);
     return w;
   }
   // 道具详情卡：说明 + 在哪用 + 批量操作
-  function itemDetail(itemId, wrap) {
+  function itemDetail(itemId, wrap, backFn) {
     const S = C().S;
     const it = D.ITEMS[itemId];
-    if (!it) return bagModal(wrap);
+    const goBack = backFn || (w2 => bagModal(w2));
+    if (!it) return goBack(wrap);
     const n = S.items[itemId] || 0;
     const where = { explore: '副本探索中', character: '角色培养页', anywhere: '随时' }[it.where] || '—';
     let actions = '';
@@ -1731,6 +2162,16 @@ window.UI = (function () {
         <button class="btn small gold" data-exp="0" ${n >= 1 ? '' : 'disabled'}>全部用（${n}）</button>
       </div>
       <div style="font-size:11px;color:var(--dim);margin-top:6px">先选角色，再确认数量。</div>`;
+    } else if (it.type === 'serum') {
+      const sd = it.serum || {};
+      actions = `<div class="btn-row">
+        <button class="btn small" data-serum="1" ${n >= 1 ? '' : 'disabled'}>用 1 支</button>
+        <button class="btn small" data-serum="10" ${n >= 10 ? '' : 'disabled'}>用 10 支</button>
+        <button class="btn small gold" data-serum="0" ${n >= 1 ? '' : 'disabled'}>全部用（${n}）</button>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-top:6px;line-height:1.7">
+        永久生效，不是临时增益。${sd.bloodline ? `只有「${sd.bloodline}」血统能用；` : '任何轮回者（含主角）都能用；'}每人每种上限 ${sd.max} 支。
+      </div>`;
     } else if (it.type === 'consumable') {
       actions = run
         ? `<div class="btn-row"><button class="btn small gold" data-runuse="1">在本次探索中使用</button></div>`
@@ -1763,8 +2204,8 @@ window.UI = (function () {
       ${actions}
       <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回背包</button>`;
     const w = showPanel(wrap, '道具详情', body);
-    w.querySelector('[data-back]').onclick = () => bagModal(w);
-    const afterChange = () => { renderTopbar(); if ((C().S.items[itemId] || 0) > 0) itemDetail(itemId, w); else bagModal(w); };
+    w.querySelector('[data-back]').onclick = () => goBack(w);
+    const afterChange = () => { renderTopbar(); if ((C().S.items[itemId] || 0) > 0) itemDetail(itemId, w, backFn); else goBack(w); };
     w.querySelectorAll('[data-open]').forEach(b => b.onclick = () => {
       const want = +b.dataset.open;
       const cnt = want === 0 ? (C().S.items[itemId] || 0) : want;
@@ -1782,7 +2223,11 @@ window.UI = (function () {
     });
     w.querySelectorAll('[data-exp]').forEach(b => b.onclick = () => {
       const want = +b.dataset.exp;
-      pickExpTarget(itemId, want === 0 ? (C().S.items[itemId] || 0) : want, w);
+      pickExpTarget(itemId, want === 0 ? (C().S.items[itemId] || 0) : want, w, goBack);
+    });
+    w.querySelectorAll('[data-serum]').forEach(b => b.onclick = () => {
+      const want = +b.dataset.serum;
+      pickSerumTarget(itemId, want === 0 ? (C().S.items[itemId] || 0) : want, w, goBack);
     });
     const runUse = w.querySelector('[data-runuse]');
     if (runUse) runUse.onclick = () => {
@@ -1803,11 +2248,17 @@ window.UI = (function () {
     return w;
   }
   // 经验道具：先选角色
-  function pickExpTarget(itemId, count, wrap) {
+  function pickExpTarget(itemId, count, wrap, backFn) {
     const S = C().S;
     const owned = Object.keys(S.chars);
-    if (!D.ITEMS[itemId] || (S.items[itemId] || 0) <= 0) { toast('道具不足'); return bagModal(wrap); }
-    if (!owned.length) { setTab('home'); closeModal(wrap); setTimeout(() => openRecruit(), 250); return; }
+    const goBack = backFn || (w2 => itemDetail(itemId, w2));
+    if (!D.ITEMS[itemId] || (S.items[itemId] || 0) <= 0) { failToast('道具不足'); return goBack(wrap); }
+    if (!owned.length) {
+      setTab('home');
+      if (wrap) closeModal(wrap);
+      setTimeout(() => openRecruit(), 250);
+      return;
+    }
     const body = `
       <div style="font-size:12px;color:var(--dim);margin-bottom:10px">选择要吃「${D.ITEMS[itemId].name} ×${count}」的角色</div>
       ${owned.map(id => {
@@ -1820,12 +2271,99 @@ window.UI = (function () {
       }).join('')}
       <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回</button>`;
     const w = showPanel(wrap, '使用经验道具', body);
-    w.querySelector('[data-back]').onclick = () => itemDetail(itemId, w);
+    w.querySelector('[data-back]').onclick = () => goBack(w);
     w.querySelectorAll('[data-target]').forEach(el => el.onclick = () => {
       const r = C().useExpItem(el.dataset.target, itemId, count);
-      toast(r.msg);
+      if (r.ok) toast(r.msg); else failToast(r.msg);
+      sfx(r.ok ? 'level' : 'fail');
       renderTopbar();
-      itemDetail(itemId, w);
+      if ((C().S.items[itemId] || 0) > 0) pickExpTarget(itemId, Math.min(count, C().S.items[itemId]), w, backFn);
+      else goBack(w);
+    });
+    return w;
+  }
+  // 血清：先选轮回者（血统血清只列对应血统的人）
+  function pickSerumTarget(itemId, count, wrap, backFn) {
+    const S = C().S;
+    const it = D.ITEMS[itemId];
+    const goBack = backFn || (w2 => itemDetail(itemId, w2));
+    if (!it || (S.items[itemId] || 0) <= 0) { failToast('道具不足'); return goBack(wrap); }
+    const sd = it.serum || {};
+    const serumId = itemId.replace(/^serum_/, '');
+    const rows = [];
+    const pBl = S.player.bloodline;
+    rows.push({ id: '@player', label: `🧍 ${S.player.name || '主角'}`, sub: pBl ? `主角 · ${pBl}` : '主角 · 未觉醒血统', bl: pBl });
+    Object.keys(S.chars).forEach(id => {
+      const ch = D.charById[id];
+      if (!ch) return;
+      const c = S.chars[id];
+      rows.push({ id, label: `${rarityTag(ch.rarity)} ${cname(id)}`, sub: `Lv.${c.lv} · ${ch.role} · ${c.bloodlineLv > 0 ? ch.bloodline : '未觉醒'}`, bl: c.bloodlineLv > 0 ? ch.bloodline : null });
+    });
+    const usable = rows.filter(r => !sd.bloodline || r.bl === sd.bloodline);
+    const body = `
+      <div style="font-size:12px;color:var(--dim);margin-bottom:10px">
+        选择要吃「${it.name} ×${count}」的轮回者 —— <b>永久生效</b>
+      </div>
+      ${usable.length ? usable.map(r => {
+        const taken = C().serumTaken(r.id, serumId);
+        const full = taken >= sd.max;
+        return `<div class="list-row" data-serumtarget="${r.id}" style="cursor:pointer${full ? ';opacity:.5' : ''}">
+          <div class="grow"><div class="t1">${r.label}</div>
+          <div class="t2">${r.sub} · 已服 ${taken}/${sd.max}${full ? ' · 已满' : ''}</div></div>
+        </div>`;
+      }).join('') : `<div class="empty">没有可用对象：这支血清只有「${sd.bloodline}」血统能用（先去角色页觉醒血统）</div>`}
+      <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回</button>`;
+    const w = showPanel(wrap, '使用血清', body);
+    w.querySelector('[data-back]').onclick = () => goBack(w);
+    w.querySelectorAll('[data-serumtarget]').forEach(el => el.onclick = () => {
+      const r = C().useSerum(el.dataset.serumtarget, serumId, count);
+      if (r.ok) toast(r.msg); else failToast(r.msg);
+      sfx(r.ok ? 'success' : 'fail');
+      renderTopbar();
+      pickSerumTarget(itemId, count, w, backFn);
+    });
+    return w;
+  }
+  // 炼化台：强化材料 + 点数 → 血清
+  function refineModal(wrap, onBack) {
+    const S = C().S;
+    const goBack = onBack || (w2 => bagModal(w2));
+    const body = `
+      <div style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:10px">
+        血清是<b>永久强化剂</b>：喂给某名轮回者后永久加属性，每人每种有上限。
+        血统血清只有对应血统能用——先觉醒血统，再决定喂给谁。
+      </div>
+      ${D.SERUMS.map(s => {
+        const itemId = D.SERUM_ITEM(s.id);
+        const own = S.items[itemId] || 0;
+        const matName = D.ITEMS[s.mat].name;
+        const haveMat = S.items[s.mat] || 0;
+        const can = Math.min(Math.floor(haveMat / s.matN), Math.floor(S.cur.points / s.points));
+        return `<div class="card" style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div class="grow">
+              <div style="font-size:13px">💊 <b>${s.name}</b>${s.bloodline ? ` <span style="color:var(--gold);font-size:11px">${s.bloodline}专属</span>` : ''}</div>
+              <div style="font-size:11px;color:var(--dim);margin-top:4px">${D.ITEMS[itemId].desc.replace(/^【[^】]*】/, '')}</div>
+              <div style="font-size:11px;color:var(--dim);margin-top:4px">配方：${matName} ×${s.matN} + ◈${s.points}　（现有 ${matName} ${haveMat} · ◈${fmt(S.cur.points)}）</div>
+              <div style="font-size:11px;color:${own ? 'var(--green)' : 'var(--dim)'};margin-top:4px">已有血清 ×${own}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <button class="btn small" data-refine="1:${s.id}" ${can >= 1 ? '' : 'disabled'}>炼 ×1</button>
+              <button class="btn small" data-refine="10:${s.id}" ${can >= 10 ? '' : 'disabled'}>炼 ×10</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+      <button class="btn ghost block" style="margin-top:6px" data-back>‹ 返回背包</button>`;
+    const w = showPanel(wrap, '⚗️ 炼化台', body);
+    w.querySelector('[data-back]').onclick = () => goBack(w);
+    w.querySelectorAll('[data-refine]').forEach(el => el.onclick = () => {
+      const [n, id] = el.dataset.refine.split(':');
+      const r = C().craftSerum(id, +n);
+      if (r.ok) toast(r.msg); else failToast(r.msg, el);
+      sfx(r.ok ? 'success' : 'fail');
+      renderTopbar();
+      refineModal(w, onBack);
     });
     return w;
   }
@@ -1854,6 +2392,10 @@ window.UI = (function () {
           <div class="grow"><div class="t1">音效</div><div class="t2">点击 / 强化 / 开箱 / 战斗胜负的提示音，可随时关闭</div></div>
           <button class="btn small ${S.settings.sfx !== false ? 'primary' : ''}" data-toggle="sfx">${S.settings.sfx !== false ? '已开启' : '已关闭'}</button>
         </div>
+        <div class="list-row">
+          <div class="grow"><div class="t1">大额消费二次确认</div><div class="t2">单笔花费达到 1000 时，先把"花的是哪种货币、还剩多少"报一遍再扣</div></div>
+          <button class="btn small ${S.settings.confirmBig !== false ? 'primary' : ''}" data-toggle="confirmBig">${S.settings.confirmBig !== false ? '已开启' : '已关闭'}</button>
+        </div>
       </div>
       <div class="card">
         <h3>自动分解 <span class="sub">背包满之前就开始省格子</span></h3>
@@ -1881,7 +2423,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V5.1</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V6.0</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -2143,18 +2685,28 @@ window.UI = (function () {
       start.allies.forEach(u => { const st = units[u.uid]; hpLeft[u.uid] = Math.max(0, st.hp / st.maxHp); });
       const outcome = cfg.onEnd(res.win, res, units) || {};
       const rewards = outcome.rewards || [];
+      const acts = outcome.actions || [];
       const panel = document.createElement('div');
       panel.className = 'b-result';
       panel.innerHTML = `
         <h2 class="${res.win ? 'win' : 'lose'}">${res.win ? '胜 利' : '任务失败'}</h2>
         <div style="color:var(--dim);font-size:12px">${res.rounds} 回合${outcome.sub ? ' · ' + outcome.sub : ''}</div>
         ${rewards.length ? `<div class="reward-chips">${rewards.map(r => `<span class="reward-chip">${r}</span>`).join('')}</div>` : ''}
-        <button class="btn primary" style="min-width:200px" data-close>${res.win ? '收下奖励' : '返回'}</button>`;
+        ${acts.length ? `<div class="btn-row" style="max-width:340px;width:100%">
+          ${acts.map((a, i) => `<button class="btn ${a.primary ? 'primary' : ''}" data-bact="${i}">${a.label}</button>`).join('')}
+        </div>` : ''}
+        <button class="btn ${acts.length ? 'ghost' : 'primary'}" style="min-width:200px" data-close>${res.win ? (acts.length ? '收下奖励并返回' : '收下奖励') : '返回'}</button>`;
       overlay.appendChild(panel);
       panel.querySelector('[data-close]').onclick = () => {
         overlay.remove();
         if (outcome.after) outcome.after();
       };
+      // 结算页的快捷动作：不回到世界列表也能接着打（推图节奏不断）
+      panel.querySelectorAll('[data-bact]').forEach(b => b.onclick = () => {
+        const a = acts[+b.dataset.bact];
+        overlay.remove();
+        if (a && a.run) a.run();
+      });
     }
     function step() {
       if (finished) return;
@@ -2267,6 +2819,8 @@ window.UI = (function () {
   }
   function doFinalBattle(premadeEnemies) {
     const Dun = window.Dungeon;
+    // 先把这一轮的关卡坐标记下来：endRun 之后 run 会被清空
+    const wid = run.worldId, df = run.diff, si = run.stageIdx;
     const kind = run.route.finalKind;
     const allies = buildAllies(run.hpPct, run.buffs);
     if (!allies.length) { toast('全队重伤，探索失败'); endRun(false); return; }
@@ -2294,13 +2848,31 @@ window.UI = (function () {
         if (comp.newUnlocks && comp.newUnlocks.length) {
           comp.newUnlocks.forEach(n => chips.push(`🔓 解锁【${n}】`));
         }
+        // 结算页直接给「再来一次 / 下一关」：不用回世界列表再点关，推图节奏不断
+        // （每关开局都是满血，血量不跨关继承，所以"下一关"不需要血量门槛）
+        const nx = C().nextStage(wid, df, si);
+        const actions = [{ label: '↻ 再来一次', run: () => leaveRunAndStart(wid, df, si) }];
+        if (nx) {
+          const nw = D.WORLDS.find(x => x.id === nx.worldId);
+          actions.push({
+            label: `› 下一关（${nw ? nw.name : nx.worldId} ${nx.stageIdx + 1}/12）`, primary: true,
+            run: () => leaveRunAndStart(nx.worldId, nx.diff, nx.stageIdx),
+          });
+        }
         return {
           rewards: chips,
           sub: '★'.repeat(stars) + ' 通关',
+          actions,
           after: () => endRun(true),
         };
       },
     });
+  }
+  // 结算后直接开下一场：清掉这一轮的探索状态再开局（每关开局满血，不需要手动恢复）
+  function leaveRunAndStart(worldId, diff, stageIdx) {
+    run = null;
+    C().clearPendingRun();
+    startRun(worldId, diff, stageIdx);
   }
   function endRun(cleared) {
     const wid = run ? run.worldId : dungeonView.worldId;
@@ -2351,6 +2923,17 @@ window.UI = (function () {
   /* ================= 界面事件绑定 ================= */
   function bindScreen() {
     const root = $view();
+    // 背包页签的按钮与弹窗共用一套绑定
+    if (curTab === 'bag') bindBag(root, false);
+    // 轮回者的三个子页：切换时各自保留滚动位置
+    root.querySelectorAll('[data-roster]').forEach(el => el.onclick = () => {
+      const next = el.dataset.roster;
+      if (next === rosterView) return;
+      rosterScroll[rosterView] = (typeof window !== 'undefined' && window.scrollY) || 0;
+      rosterView = next;
+      pendingScroll = rosterScroll[next] || 0;
+      render();
+    });
     root.querySelectorAll('[data-act]').forEach(el => el.onclick = () => {
       const act = el.dataset.act;
       const S = C().S;
@@ -2372,12 +2955,30 @@ window.UI = (function () {
           break;
         }
         case 'open-recruit': openRecruit(); break;
+        case 'claim-all': {
+          const r = C().claimEverything();
+          sfx(r.total ? 'coin' : 'fail');
+          const chips = [];
+          if (r.seconds) chips.push(`<span class="reward-chip">⏳ 挂机 ${formatDuration(r.seconds)}</span>`);
+          Object.entries(r.gains.cur).forEach(([k, v]) => { if (v) chips.push(`<span class="reward-chip">${curIcon(k)}${v > 0 ? '+' : ''}${fmt(v)}</span>`); });
+          Object.entries(r.gains.items).forEach(([k, v]) => { if (v) chips.push(`<span class="reward-chip">🎒 ${(D.ITEMS[k] || {}).name || k}×${v}</span>`); });
+          modal('一键收取', `
+            <div style="font-size:12px;color:var(--dim);text-align:center">本次共收取 ${r.total} 项</div>
+            <div class="reward-chips" style="margin:12px 0">${chips.join('') || '<span class="reward-chip">暂时没有可领取的东西</span>'}</div>
+            ${r.total ? '' : '<div style="font-size:12px;color:var(--dim);text-align:center">先去副本打一关，或等挂机满 60 秒再回来。</div>'}
+          `, { center: true });
+          render();
+          break;
+        }
         case 'open-shop': shopModal('god'); break;
         case 'open-buildings': buildingsModal(); break;
         case 'open-tasks': tasksModal(); break;
         case 'open-genelock': geneLockModal(); break;
         case 'open-reincarn': reincarnModal(); break;
-        case 'open-bag': bagModal(); break;
+        case 'open-bag': setTab('bag'); break;
+        case 'open-idlelines': idleLinesModal(); break;
+        case 'open-bounty': bountyModal(); break;
+        case 'open-realm': realmModal(); break;
         case 'open-settings': settingsModal(); break;
         case 'claim-quest': {
           const cur = C().currentQuest();
@@ -2544,6 +3145,9 @@ window.UI = (function () {
     root.querySelectorAll('[data-char]').forEach(el => el.onclick = () => charDetail(el.dataset.char));
     root.querySelectorAll('[data-eqd]').forEach(el => el.onclick = () => equipDetail(el.dataset.eqd));
     root.querySelectorAll('[data-filter]').forEach(el => el.onclick = () => { charFilter = el.dataset.filter; render(); });
+    root.querySelectorAll('[data-charsort]').forEach(el => el.onclick = () => { charSort = el.dataset.charsort; render(); });
+    const charSearch = root.querySelector('#char-search');
+    if (charSearch) charSearch.oninput = () => { charQuery = charSearch.value; paintCharGrid(root); };
     root.querySelectorAll('[data-efilter]').forEach(el => el.onclick = () => { equipFilter = el.dataset.efilter; render(); });
     root.querySelectorAll('[data-ecat]').forEach(el => el.onclick = () => { equipCatFilter = el.dataset.ecat; render(); });
     // 批量分解
@@ -2650,6 +3254,13 @@ window.UI = (function () {
       return;
     }
     if (!g) return;
+    // 先把离线收益入库（含挂机分工产出的材料），再展示"这次拿到了什么"
+    C().addCur('points', g.gains.points);
+    C().addCur('otherworld', g.gains.otherworld);
+    C().addCur('story', g.gains.story);
+    C().addPlayerExp(g.gains.exp);
+    const mat = C().grantIdleMat(g.gains.mat || 0);
+    C().save();
     modal('欢迎回来，轮回者', `
       <div style="text-align:center;padding:6px 0 12px">
         <div style="font-size:13px;color:var(--dim)">离线 ${formatDuration(g.seconds)}（效率 ${Math.round(g.efficiency * 100)}%）</div>
@@ -2658,17 +3269,10 @@ window.UI = (function () {
           <span class="reward-chip">EXP+${fmt(g.gains.exp)}</span>
           ${g.gains.otherworld ? `<span class="reward-chip">◆+${g.gains.otherworld}</span>` : ''}
           ${g.gains.story ? `<span class="reward-chip">❖+${g.gains.story}</span>` : ''}
+          ${mat && mat.count ? `<span class="reward-chip">⚙️ ${D.ITEMS[mat.item].name}×${mat.count}</span>` : ''}
         </div>
+        <div style="font-size:11px;color:var(--dim);margin-top:10px">离线期间挂机分工的产线一样在跑。</div>
       </div>`, { center: true });
-    if (g.gains.points) {
-      // 离线收益直接入库
-      const S = C().S;
-      C().addCur('points', g.gains.points);
-      C().addCur('otherworld', g.gains.otherworld);
-      C().addCur('story', g.gains.story);
-      C().addPlayerExp(g.gains.exp);
-      C().save();
-    }
     refresh();
   }
   function showLoginReward(r) {
@@ -2691,7 +3295,12 @@ window.UI = (function () {
         🧬 解锁血统与基因锁，突破极限<br>
         ♾ 挑战无限回廊，寻找离开的方法<br><br>
         新手补给已发放：◈50,000 · ✦1,000 · 经验模块×20 · 治疗剂×10<br><br>
-        随时可以在主神空间点「❓ 玩法指南」查看完整说明（货币用途、套装、回廊、周常都在里面）。<br><br>
+        <b style="color:var(--gold)">上手就三件事：</b><br>
+        ① 首页最上面的「🗓 今日」卡点「一键收取」——挂机、任务、成就、悬赏，能领的一次全领；<br>
+        ② 点「轮回副本」打进第 1 关，通关后解锁招募；<br>
+        ③ 招募里每天有一次<b>免费</b>，别忘了领。<br><br>
+        三张招募池花的是<b>三种不同的货币</b>：◈点数抽普通（攒碎片）、✦圣洁晶石抽高级（补图鉴）、◆异界结晶抽限定（定向出当期 UP）。<br>
+        随时可以在主神空间点「❓ 玩法指南」看完整说明（货币、套装、挂机分工、限时悬赏、渡劫、回廊、周常都在里面）。<br><br>
         <b>如果下一场轮回真的会死，你会带谁进去？</b>
       </div>
       <button class="btn primary block" style="margin-top:12px" data-start>签订轮回契约</button>
@@ -2729,6 +3338,8 @@ window.UI = (function () {
       // 手机返回键 / 手势：先关弹窗，再退子页面，最后才交给系统
       armGuard();   // 先放一条哨兵，保证"返回"优先被游戏接管
       if (window.addEventListener) window.addEventListener('popstate', onPopState);
+      installClickGuard();                 // 防连点
+      C().setCurListener(pulseCur);        // 货币变化 → ±数值跳动
       // 全局点击音效（按钮级）
       if (document.addEventListener) document.addEventListener('click', ev => {
         const t = ev.target;
@@ -2756,6 +3367,8 @@ window.UI = (function () {
     _panels: {
       bagModal, itemDetail, currencyModal, guideModal, codexModal, shopModal, tasksModal, settingsModal,
       sweepModal, recruitModal, gotoQuest, weeklyHtml, achHtml, reincarnModal, charDetail, equipDetail, geneLockModal,
+      idleLinesModal, pickIdleLeader, bountyModal, realmModal,
+      _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen },
     },
   };
 })();

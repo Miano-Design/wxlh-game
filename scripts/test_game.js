@@ -14,6 +14,9 @@ for (const f of ['js/data.js', 'js/core.js', 'js/battle.js', 'js/dungeon.js']) {
 const D = window.DATA, Core = window.Core, Battle = window.Battle, Dungeon = window.Dungeon;
 let pass = 0, fail = 0;
 function t(name, cond) { if (cond) { pass++; } else { fail++; console.log('FAIL:', name); } }
+const realRandom = Math.random;
+// 需要"固定出率"的用例用这个：把整段随机钉成同一个值，跑完必须还原
+function withRandom(v, fn) { Math.random = () => v; try { return fn(); } finally { Math.random = realRandom; } }
 
 // 1. 新游戏
 Core.newGame();
@@ -698,6 +701,173 @@ Core.S.party[1] = 'C021';
   t('开场能量让第一回合就放必杀', energy.frames.slice(0, 14).some(f => f.type === 'skill' && f.ult));
   const healed = Battle.run({ allies: mk({ healUp: 1 }), enemies: foe(), worldId: null, maxRounds: 6 });
   t('受治疗字段不报错并可正常结算', typeof healed.win === 'boolean' && healed.frames.some(f => f.type === 'end'));
+}
+
+// 49. 血清（永久强化剂）：说明与实装同源 / 炼化 / 上限 / 血统限制 / 真的进属性
+{
+  Core.newGame(); Core.setPlayerName('血清');
+  t('新档自带血清字段', !!Core.S.serums);
+  t('血清表每项都有对应道具', D.SERUMS.every(s => {
+    const it = D.ITEMS[D.SERUM_ITEM(s.id)];
+    return it && it.type === 'serum' && it.serum && it.serum.key === s.key && it.serum.max === s.max;
+  }));
+  t('血清文案从数据派生（攻击 +1.0%）', D.ITEMS['serum_sr_atk'].desc.indexOf('攻击 永久 +1.0%') >= 0);
+  t('血统血清文案带专属标记', D.ITEMS['serum_sr_bl_vampire'].desc.indexOf('【血族专属】') === 0);
+
+  t('材料不足时拒绝炼化', Core.craftSerum('sr_atk', 1).ok === false);
+  Core.S.items.mat_t1 = 20; Core.S.cur.points = 5000;
+  const c1 = Core.craftSerum('sr_atk', 3);
+  t('炼化扣材料与点数', c1.ok && c1.count === 3 && Core.S.items.mat_t1 === 5 && Core.S.cur.points === 4100);
+  t('炼化产出血清道具', (Core.S.items['serum_sr_atk'] || 0) === 3);
+  t('点数不足时拒绝炼化', Core.craftSerum('sr_spd', 10).ok === false);
+
+  const cid = D.characters[0].id;
+  Core.addChar(cid);
+  const atkBefore = Core.effectiveStats(cid).atk;
+  const r1 = Core.useSerum(cid, 'sr_atk', 2);
+  t('喂血清后属性真的变高', r1.ok && Core.effectiveStats(cid).atk > atkBefore);
+  t('服用支数写进存档', Core.serumTaken(cid, 'sr_atk') === 2);
+
+  Core.S.items['serum_sr_atk'] = 999;
+  const capped = Core.useSerum(cid, 'sr_atk', 999);
+  t('一次最多吃到上限', capped.ok && Core.serumTaken(cid, 'sr_atk') === 40);
+  t('达到上限后拒绝使用', Core.useSerum(cid, 'sr_atk', 1).ok === false);
+
+  t('血统不符时拒绝专属血清', Core.useSerum(cid, 'sr_bl_vampire', 1).ok === false);
+  const vamp = D.characters.find(c => c.bloodline === '血族');
+  Core.addChar(vamp.id);
+  Core.S.chars[vamp.id].bloodlineLv = 1;
+  Core.S.items['serum_sr_bl_vampire'] = 3;
+  const okv = Core.useSerum(vamp.id, 'sr_bl_vampire', 3);
+  t('血统匹配后专属血清可用', okv.ok && Core.serumTaken(vamp.id, 'sr_bl_vampire') === 3);
+
+  const pAtk = Core.effectivePlayerStats().atk;
+  Core.S.items['serum_sr_atk'] = 5;
+  const pr = Core.useSerum('@player', 'sr_atk', 5);
+  t('主角也能服血清并涨属性', pr.ok && Core.effectivePlayerStats().atk > pAtk);
+
+  // 战力必须跟着动（防止"属性涨了、战力没算"），而且"只是持有道具"不算数
+  Core.S.serums[cid]['sr_atk'] = 0;
+  Core.S.items['serum_sr_atk'] = 10;
+  const p0 = Core.power(cid);
+  t('只是持有血清不影响战力', Core.power(cid) === p0);
+  Core.useSerum(cid, 'sr_atk', 10);
+  t('喂下血清后战力跟着涨', Core.power(cid) > p0);
+}
+
+// 50. 招募三池：花三种货币、出三种结构、保底各自独立
+{
+  const P = D.RECRUIT_POOLS;
+  t('三池花三种货币', P.normal.currency === 'points' && P.advanced.currency === 'holy' && P.limited.currency === 'otherworld');
+  t('普通池不出 SSR/UR', !P.normal.rates.SSR && !P.normal.rates.UR);
+  t('高级池最低 SR', !P.advanced.rates.N && !P.advanced.rates.R && !!P.advanced.rates.SR);
+  t('三池单抽价各不相同', P.normal.cost.points === 5000 && P.advanced.cost.holy === 100 && P.limited.cost.otherworld === 60);
+
+  Core.newGame(); Core.setPlayerName('招募');
+  Core.addCur('points', 5000 * 220);
+  let high = 0, pulled = 0;
+  withRandom(0.5, () => {
+    for (let i = 0; i < 200; i++) {
+      const r = Core.recruitOnce('normal');
+      if (r.error) break;
+      pulled++;
+      if (D.RARITIES.indexOf(r.rarity) >= 3) high++;
+    }
+  });
+  t('普通池 200 抽不出 SSR', pulled === 200 && high === 0);
+
+  // 高级池：把"除一个人之外"的所有 SSR 都塞进背包，保底那一抽必须给还没有的那个
+  Core.newGame(); Core.setPlayerName('招募2');
+  Core.addCur('holy', 100 * 200);
+  const ssrs = D.characters.filter(c => c.rarity === 'SSR' && !c.hidden);
+  const wantId = ssrs[3].id;
+  ssrs.forEach(c => {
+    if (c.id === wantId) return;
+    Core.S.chars[c.id] = { lv: 1, exp: 0, star: 1, shards: 0, skillLv: [1, 1, 1], bloodlineLv: 0 };
+  });
+  Core.pityOf('advanced').ssr = D.PITY.SSR - 1;
+  const advR = withRandom(0.5, () => Core.recruitOnce('advanced'));
+  t('高级池保底优先给未拥有的角色', advR.rarity === 'SSR' && advR.id === wantId);
+  t('高级池 SSR 保底被重置', Core.pityOf('advanced').ssr === 0);
+
+  // 限定池：UP 保底那一抽必须给当期 UP，且计数与高级池互不干扰
+  Core.newGame(); Core.setPlayerName('招募3');
+  Core.addCur('otherworld', 60 * 120);
+  const up = D.recruitUpChar();
+  Core.pityOf('limited').up = D.PITY_UP - 1;
+  const limR = withRandom(0.5, () => Core.recruitOnce('limited'));
+  t('限定池 50 抽必出当期 UP', !!up && limR.isUp && limR.id === up.id);
+  t('限定池 UP 保底被重置', Core.pityOf('limited').up === 0);
+  t('限定池与高级池保底分开记账', Core.pityOf('advanced').ssr === 0 && Core.pityOf('limited').ssr === 0);
+}
+
+// 51. 挂机分工：派领队 → 产出变高；主力不能派；一人不能占两条线
+{
+  Core.newGame(); Core.setPlayerName('挂机');
+  const cid = D.characters[0].id, cid2 = D.characters[1].id;
+  Core.addChar(cid); Core.addChar(cid2);
+  Core.S.chars[cid].lv = 60;
+  const baseExp = Core.idleRates().expPerMin;
+  const basePoints = Core.idleRates().pointsPerMin;
+  t('没派领队时产线全是空的', Core.idleLines().every(x => !x.leaderId));
+  Core.S.party[0] = cid;
+  t('上阵主力不能派去挂机', Core.setIdleLeader('cultivate', cid).ok === false);
+  Core.S.party[0] = null;
+  t('派领队成功', Core.setIdleLeader('cultivate', cid).ok);
+  t('派了领队后挂机经验变高', Core.idleRates().expPerMin > baseExp);
+  t('没派领队的产线不受影响', Math.abs(Core.idleRates().pointsPerMin - basePoints) < 1e-6);
+  t('同一个人不能同时管两条线', Core.setIdleLeader('gather', cid).ok === false);
+  t('换一个没被占用的人可以派', Core.setIdleLeader('gather', cid2).ok);
+  t('采集产线真的产出材料', Core.idleRates().matPerMin > 0);
+  Core.onlineTick(900);
+  const g = Core.idleBankGains();
+  const matSum = () => ['mat_t1', 'mat_t2', 'mat_t3', 'mat_t4', 'mat_t5'].reduce((s, k) => s + (Core.S.items[k] || 0), 0);
+  const beforeMat = matSum();
+  Core.claimIdle();
+  t('挂机结算把材料一起发下来', g.mat > 0 && matSum() > beforeMat);
+  Core.setIdleLeader('cultivate', null);
+  // 注意：上面领过收益，玩家等级可能升过，所以跟"当前基础速率"比，而不是跟开头的值比
+  t('撤下领队后不再有产线加成', Math.abs(Core.idleRates().expPerMin - Core.idleBaseRates().expPerMin) < 1e-6);
+}
+
+// 52. 限时悬赏：未完成不能领 / 完成后领奖 / 过期作废 / 可开新一期
+{
+  Core.newGame(); Core.setPlayerName('悬赏');
+  const st = Core.bountyState();
+  t('悬赏有多条且带截止时间', st.list.length >= 3 && st.list.every(x => x.leftMs > 0));
+  t('未完成不能领', Core.claimBounty('bt1').ok === false);
+  Core.stageComplete('W01', 'normal', 2, 3);
+  const holy0 = Core.S.cur.holy;
+  const r = Core.claimBounty('bt1');
+  t('完成后可以领悬赏', r.ok && Core.S.cur.holy > holy0);
+  t('同一条不能重复领', Core.claimBounty('bt1').ok === false);
+  Core.S.bounty.start = Date.now() - 400 * 3600e3;   // 全部过期
+  t('过期后不能领', Core.claimBounty('bt1').ok === false);
+  t('全部结束后可以开新一期', Core.bountyState().allOver && Core.renewBounties().ok);
+  t('新一期时间重新计算', Core.bountyState().list.every(x => x.leftMs > 0 && !x.claimed));
+}
+
+// 53. 境界渡劫：等级门槛 / 材料门槛 / 成功永久加成 / 失败只扣材料
+{
+  Core.newGame(); Core.setPlayerName('境界');
+  Core.addCur('points', 500000);
+  Core.S.items.mat_t1 = 100;
+  t('等级不够不能渡劫', Core.attemptRealm().ok === false);
+  Core.S.player.level = 10;
+  const atk0 = Core.effectivePlayerStats().atk;
+  const okR = withRandom(0.01, () => Core.attemptRealm());
+  t('渡劫成功提升境界', okR.ok && okR.success && Core.S.player.realm === 1);
+  t('渡劫消耗被扣除', Core.S.items.mat_t1 === 94);
+  t('境界加成真的进了属性', Core.effectivePlayerStats().atk > atk0);
+  t('境界加成比例正确（1 境 = +5%）', Math.abs(Core.realmBonusPct() - 0.05) < 1e-9);
+
+  Core.S.items.mat_t1 = 2;
+  Core.S.player.level = 20;
+  t('材料不足不能渡劫', Core.attemptRealm().ok === false);
+  Core.S.items.mat_t1 = 100;
+  const failR = withRandom(0.999, () => Core.attemptRealm());
+  t('渡劫失败：不掉等级、只扣消耗', failR.ok && !failR.success && Core.S.player.level === 20 && Core.S.items.mat_t1 === 90);
+  t('失败后境界不变', Core.S.player.realm === 1);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

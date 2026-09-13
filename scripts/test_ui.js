@@ -142,5 +142,55 @@ panel('角色详情（6 装备槽）', () => UI._panels.charDetail('C021'));
 const anyEquipUid = Object.keys(Core.S.equips)[0];
 if (anyEquipUid) panel('装备详情', () => UI._panels.equipDetail(anyEquipUid));
 
+// ---- 新玩法面板（挂机分工 / 限时悬赏 / 境界渡劫） ----
+panel('挂机分工', () => UI._panels.idleLinesModal());
+panel('派遣领队-没有可选人', () => UI._panels.pickIdleLeader('cultivate'));
+panel('限时悬赏', () => UI._panels.bountyModal());
+panel('境界渡劫', () => UI._panels.realmModal());
+panel('招募-三池', () => UI._panels.recruitModal());
+Core.addChar('C021');
+Core.S.party[1] = 'C021';
+Core.addItem('exp_s', 5);
+Core.addItem('box_sr', 3);
+panel('派遣领队-有人可选', () => UI._panels.pickIdleLeader('gather'));
+
+// ---- 一级页面全部能渲染，且模板里不许出现 undefined ----
+for (const s of ['homeScreen', 'dungeonScreen', 'rosterScreen', 'bagScreen', 'partyScreen', 'charsScreen', 'equipScreen']) {
+  t('页面渲染：' + s, () => {
+    const html = UI._panels._screens[s]();
+    if (typeof html !== 'string' || !html.length) throw new Error('空页面');
+    if (html.indexOf('undefined') >= 0) throw new Error('模板出现 undefined');
+  });
+}
+for (const tab of ['bag', 'roster', 'party', 'chars', 'equip', 'home', 'dungeon']) {
+  t('一级页签：' + tab, () => {
+    UI._setTab(tab);
+    const html = byId['view'].innerHTML;
+    if (!html || !html.length) throw new Error('空页面');
+  });
+}
+t('旧页签名映射到「轮回者」子页', () => {
+  UI._setTab('chars');
+  if (UI.tab !== 'roster') throw new Error('chars 没有落到 roster，实际是 ' + UI.tab);
+});
+t('今日卡含一键收取 / 悬赏 / 免费招募', () => {
+  const html = UI._panels._screens.homeScreen();
+  ['一键收取', '限时悬赏', '免费招募', '每日任务'].forEach(k => {
+    if (html.indexOf(k) < 0) throw new Error('今日卡缺少：' + k);
+  });
+});
+t('背包卡片带快捷批量按钮', () => {
+  const html = UI._panels._screens.bagScreen();
+  if (html.indexOf('data-quick') < 0) throw new Error('背包卡没有快捷按钮');
+});
+t('角色页带排序与搜索', () => {
+  const html = UI._panels._screens.charsScreen();
+  if (html.indexOf('data-charsort') < 0 || html.indexOf('char-search') < 0) throw new Error('缺排序或搜索');
+});
+t('悬赏面板写明"过期作废"', () => {
+  const html = UI._panels.bountyModal().innerHTML;
+  if (html.indexOf('作废') < 0) throw new Error('没写清过期规则');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
