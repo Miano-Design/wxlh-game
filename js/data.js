@@ -419,6 +419,7 @@ window.DATA = (function () {
     box_sr: { name: 'SR装备箱', type: 'box', rarity: 'SR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 SR 品质装备', src: '兑换大厅各店、每日任务、副本宝箱' },
     box_ssr: { name: 'SSR装备箱', type: 'box', rarity: 'SSR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 SSR 品质装备', src: '异界/回廊商店、七日登录第 6 天' },
     box_ur: { name: 'UR装备箱', type: 'box', rarity: 'UR', use: '背包里点这张道具卡即可开启，支持批量开箱', desc: '开出一件 UR 品质装备；10% 概率开出 SSR 专属装备', src: '异界/回廊商店（高阶货币）' },
+    beast_egg: { name: '兽魂石', type: 'material', tier: 1, use: '在主神空间「🐾 伴生体」里孵化：10 颗孵 1 只', desc: '伴生体孵化材料：10 颗可以在兽栏孵化 1 只伴生体', src: '副本 Boss（必掉）、精英（概率）、主神商店、限时悬赏' },
   };
   // 强化等级 → 材料 tier（+0~4:T1，+5~9:T2，+10~14:T3，+15~19:T4，+19→20:T5）
   const enhanceMatTier = lv => Math.min(5, Math.floor(lv / 4) + 1);
@@ -539,15 +540,23 @@ window.DATA = (function () {
     ] },
     { id: 'idle', title: '⑩ 挂机分工：让板凳角色去干活', body: [
       '首页「轮回挂机」卡里点「🧭 挂机分工」，可以给 4 条产线各派 1 名领队：闭关修炼（经验）、灵材采集（强化材料）、外围探索（点数）、主神守卫（异界结晶）。',
-      '领队战力越高，这条线产出越高（最高 +150%）；不派领队这条线就不产出。',
+      '每条线看领队的**对应那一维**（不是战力）：闭关看精神、采集看肌肉、探索看神经、守卫看免疫，对应维值越高产出越高（最高 +150%）；不派领队这条线就不产出。',
       '上阵主力不能派去挂机——所以这里正好是"板凳角色"的用处，练了的人不会白练。',
       '产线收益和挂机收益一起累计，在首页「一键收取」或挂机卡的领取按钮里结算。',
     ] },
     { id: 'bounty', title: '⑪ 限时悬赏与境界', body: [
-      '限时悬赏有截止时间，到点作废：达成后手动领奖，奖励是圣洁晶石 / 异界结晶 / 血统结晶这类硬通货。四条全部结束（领完或过期）后可以开新一期。',
+      '限时悬赏有截止时间，到点作废：达成后手动领奖，奖励是圣洁晶石 / 异界结晶 / 血统结晶这类硬通货。',
+      '目标是**按你的当前进度生成的**：推进当前世界、等级再高 5 级、强化次数翻一档，剩下的位置按你缺什么（回廊层数 / SSR 数量 / 伴生体 / 渡劫）补。四条全部结束后开新一期，会重新按那时的进度生成。',
       '首页「今日」卡会显示最快到期的那条还剩多久，别让它白白过期。',
       '境界（渡劫）：主角每 10 级一个境界，达标后可以渡劫，成功全属性永久 +5%。',
       '渡劫失败只扣材料与点数，等级不掉，可以反复挑战——但失败也照扣，所以别在材料不够的时候硬渡。',
+    ] },
+    { id: 'beast', title: '⑫ 伴生体与五行克制', body: [
+      '伴生体是第二条养成线（对标灵兽驯宠）：上阵 1 只，给**全队**加属性，主角也吃。',
+      '孵化花「兽魂石」——副本 Boss 必掉 1~3 颗、精英怪 30% 掉 1 颗，主神商店（通关 W03）也能买。10 颗孵 1 只，稀有度 N 50% / R 30% / SR 17% / SSR 3%。',
+      '重复孵到同一只 → 转成**兽魂**；兽魂用来升阶，每升一阶在基础加成上再 +15%，满级 Lv.10。',
+      '**五行克制**：每个恐怖世界有自己的属性，伴生体也有属性。金克木、木克土、土克水、水克火、火克金——带对了克制的伴生体进本，全队伤害 +15%，带反了 -8%。',
+      '所以打不过某个世界时，先看一眼它的属性，换一只克它的伴生体再去，比硬堆战力便宜得多。',
     ] },
     { id: 'weekly', title: '⑧ 周常与成就', body: [
       '任务面板有四个页签：主线 / 日常 / 周常 / 成就。',
@@ -769,12 +778,12 @@ window.DATA = (function () {
   // 4 条产线，各派 1 名领队（不能用已上阵的主力），领队战力越高产出越高。
   // 目的：给"多出来的角色"一个去处，让挂机多一层"怎么排"的决定，而不只是干等。
   const IDLE_LINES = [
-    { id: 'cultivate', name: '闭关修炼', ico: '🧘', out: 'exp', desc: '产出玩家经验（每分钟）', maxBonus: 1.5 },
-    { id: 'gather', name: '灵材采集', ico: '⛏', out: 'mat', desc: '产出装备强化材料（每分钟）', maxBonus: 1.5 },
-    { id: 'explore', name: '外围探索', ico: '🧭', out: 'points', desc: '产出点数（每分钟）', maxBonus: 1.5 },
-    { id: 'guard', name: '主神守卫', ico: '🛡', out: 'otherworld', desc: '产出异界结晶（每 10 分钟）', maxBonus: 1.5 },
+    { id: 'cultivate', name: '闭关修炼', ico: '🧘', out: 'exp', attr: 'spirit', attrName: '精神', desc: '产出玩家经验（每分钟）· 看领队的【精神】', maxBonus: 1.5 },
+    { id: 'gather', name: '灵材采集', ico: '⛏', out: 'mat', attr: 'muscle', attrName: '肌肉', desc: '产出装备强化材料（每分钟）· 看领队的【肌肉】', maxBonus: 1.5 },
+    { id: 'explore', name: '外围探索', ico: '🧭', out: 'points', attr: 'nerve', attrName: '神经', desc: '产出点数（每分钟）· 看领队的【神经】', maxBonus: 1.5 },
+    { id: 'guard', name: '主神守卫', ico: '🛡', out: 'otherworld', attr: 'immune', attrName: '免疫', desc: '产出异界结晶（每 10 分钟）· 看领队的【免疫】', maxBonus: 1.5 },
   ];
-  const IDLE_LINE_POWER_DIV = 30000;   // 领队战力 / 30000 = 加成（封顶见 maxBonus）
+  const IDLE_LINE_ATTR_DIV = 260;      // 领队对应六维值 / 260 = 加成（封顶见 maxBonus）
   const IDLE_MAT_PER_MIN = 0.08;       // 采材产线基础：每分钟 0.08 个材料（约 5 个/小时，对齐商店 30 点/个的价）
 
   /* ================= 限时悬赏 ================= */
@@ -793,6 +802,66 @@ window.DATA = (function () {
       reward: { holy: 1200, bloodCrystal: 30 },
       check: S => (S.corridor.best || 0) >= 10 },
   ];
+  // 悬赏按"你现在的进度"动态生成：目标永远是下一步本来就要做的事，不再是四条写死的。
+  // 生成结果存进存档（S.bounty.list），所以刷新页面不会换目标；开新一期时重新生成。
+  const makeBounties = function (S) {
+    const out = [];
+    const push = (kind, param, name, desc, hours, reward) => {
+      if (out.length >= 4) return;
+      out.push({ id: 'b' + (out.length + 1) + '_' + kind, kind, param, name, desc, hours, reward });
+    };
+    const lv = S.player.level || 1;
+    // 1) 推进：当前已解锁世界里第一个没通关的关卡
+    let target = null;
+    WORLDS.forEach(w => {
+      if (target) return;
+      const st = S.worlds && S.worlds[w.id];
+      if (!st || !st.unlocked) return;
+      const idx = st.stages.normal.findIndex(s => !(s > 0));
+      target = idx >= 0 ? { w, stage: idx + 1 } : { w, stage: 12 };
+    });
+    if (target) {
+      push('stage', { world: target.w.id, diff: 'normal', stage: target.stage },
+        `推进 · ${target.w.name}`,
+        `通关「${target.w.name} · 普通」第 ${target.stage} 关`,
+        72, { holy: 400 + target.stage * 30, points: 8000 + target.stage * 1500 });
+    }
+    // 2) 等级：比当前高 5 级（每期都会往前推）
+    const lvTarget = Math.max(10, lv + 5);
+    push('level', { n: lvTarget }, '修炼有成', `玩家等级到达 Lv.${lvTarget}`, 96,
+      { holy: 500, points: 20000 + lvTarget * 500 });
+    // 3) 强化：按已强化次数往上加
+    const enhTarget = Math.max(10, Math.floor(((S.stats && S.stats.enhances) || 0) / 10) * 10 + 10);
+    push('enhance', { n: enhTarget }, '强化达人', `累计强化装备 ${enhTarget} 次`, 120,
+      { otherworld: 200 + enhTarget * 10, holy: 400 });
+    // 4) 剩下一个位置按进度挑：图鉴 / 回廊 / 伴生体 / 境界
+    const owned = Object.keys(S.chars || {}).length;
+    const ssrN = Object.keys(S.chars || {}).filter(id => {
+      const c = charById[id];
+      return c && ['SSR', 'UR'].includes(c.rarity);
+    }).length;
+    const best = (S.corridor && S.corridor.best) || 0;
+    const beasts = Object.keys((S.beast && S.beast.owned) || {}).length;
+    const realm = (S.player && S.player.realm) || 0;
+    if (best < 10) {
+      push('corridor', { n: 10 }, '回廊初探', '无限回廊到达第 10 层', 168,
+        { holy: 1200, bloodCrystal: 30 });
+    } else if (ssrN < 3) {
+      push('ssr', { n: 3 }, '强者如林', '拥有 3 名 SSR 及以上轮回者', 168,
+        { holy: 1500, bloodCrystal: 40 });
+    } else if (beasts < 3) {
+      push('beast', { n: 3 }, '兽栏初成', '孵化 3 只伴生体', 168,
+        { holy: 1000, points: 60000 });
+    } else if (realm < 1) {
+      push('realm', { n: 1 }, '初渡天劫', '完成第一次渡劫（突破到炼气）', 168,
+        { holy: 1200, bloodCrystal: 30 });
+    } else {
+      const next = Math.min(60, owned + 3);
+      push('chars', { n: next }, '广纳英才', `拥有 ${next} 名轮回者`, 168,
+        { holy: 1500, points: 80000 });
+    }
+    return out;
+  };
 
   /* ================= 境界（渡劫） ================= */
   // 主角每 10 级一个境界，达标后可渡劫：成功全属性永久 +5%，失败只扣材料、不掉等级，可以反复挑战
@@ -810,6 +879,57 @@ window.DATA = (function () {
   ];
   const REALM_PCT = 0.05;   // 每突破一境：全属性 +5%
 
+  /* ================= 五行 / 伴生体 ================= */
+  // 五行相克：金克木、木克土、土克水、水克火、火克金。
+  // 每个恐怖世界有自己的属性，伴生体带属性 —— 带对了克制的伴生体进本，全队伤害 +15%，带反了 -8%。
+  const ELEMENTS = ['金', '木', '水', '火', '土'];
+  const ELEMENT_ICON = { 金: '⚔️', 木: '🌿', 水: '💧', 火: '🔥', 土: '⛰️' };
+  const ELEMENT_COUNTER = { 金: '木', 木: '土', 土: '水', 水: '火', 火: '金' };
+  const ELEMENT_BONUS = 0.15;
+  const ELEMENT_PENALTY = 0.08;
+  const worldElement = id => {
+    const i = WORLDS.findIndex(w => w.id === id);
+    return i < 0 ? null : ELEMENTS[i % ELEMENTS.length];
+  };
+
+  // 伴生体：第二条养成线（对标灵兽驯宠）。上阵 1 只，给全队加属性 + 一个被动 + 五行克制。
+  // pct 里的每一项都会真的进属性计算（见 core 的 beastPct），说明也由同一份数据派生。
+  const BEAST_PCT_NAME = {
+    atkPct: '攻击', defPct: '防御', hpPct: '生命', spdPct: '速度',
+    critPct: '暴击率', skillPct: '技能伤害', lifesteal: '吸血', dmgReduce: '减伤',
+  };
+  const BEASTS = [
+    { id: 'bs01', name: '铁脊狼',   rarity: 'N',   elem: '金', pct: { atkPct: 0.020 } },
+    { id: 'bs02', name: '苔背龟',   rarity: 'N',   elem: '木', pct: { hpPct: 0.020 } },
+    { id: 'bs03', name: '寒潭鲤',   rarity: 'N',   elem: '水', pct: { defPct: 0.020 } },
+    { id: 'bs04', name: '灰烬枭',   rarity: 'R',   elem: '火', pct: { critPct: 0.010, atkPct: 0.010 } },
+    { id: 'bs05', name: '磐岩犀',   rarity: 'R',   elem: '土', pct: { hpPct: 0.030, defPct: 0.015 } },
+    { id: 'bs06', name: '裂风隼',   rarity: 'R',   elem: '金', pct: { spdPct: 0.040 } },
+    { id: 'bs07', name: '青木藤',   rarity: 'SR',  elem: '木', pct: { hpPct: 0.040, lifesteal: 0.020 } },
+    { id: 'bs08', name: '深渊魇',   rarity: 'SR',  elem: '水', pct: { skillPct: 0.060 } },
+    { id: 'bs09', name: '燧石兽',   rarity: 'SR',  elem: '火', pct: { atkPct: 0.045, critPct: 0.015 } },
+    { id: 'bs10', name: '山河巨灵', rarity: 'SR',  elem: '土', pct: { hpPct: 0.050, dmgReduce: 0.030 } },
+    { id: 'bs11', name: '主神残影', rarity: 'SSR', elem: '金', pct: { atkPct: 0.070, skillPct: 0.050 } },
+    { id: 'bs12', name: '轮回之种', rarity: 'SSR', elem: '土', pct: { hpPct: 0.070, dmgReduce: 0.050, lifesteal: 0.030 } },
+  ];
+  const beastById = id => BEASTS.find(b => b.id === id) || null;
+  const BEAST_RARITY_RATE = { N: 0.50, R: 0.30, SR: 0.17, SSR: 0.03 };
+  const BEAST_EGG_ITEM = 'beast_egg';
+  const BEAST_EGG_COST = 10;          // 孵一次：兽魂石 ×10
+  const BEAST_MAX_LV = 10;
+  const BEAST_SOUL_PER_LV = 10;       // 重复获得转兽魂，10 兽魂升 1 级
+  const BEAST_LV_PCT = 0.15;          // 每级在基础加成上 +15%（相对值）
+  // 说明文案由 pct 派生，避免"写了没实装"
+  const beastDesc = b => Object.entries(b.pct)
+    .map(([k, v]) => `${BEAST_PCT_NAME[k] || k} +${(v * 100).toFixed(1)}%`).join(' · ');
+  // 满级时的最终加成
+  const beastPctAt = (b, lv) => {
+    const m = 1 + (Math.max(1, lv) - 1) * BEAST_LV_PCT;
+    const out = {};
+    Object.entries(b.pct).forEach(([k, v]) => { out[k] = v * m; });
+    return out;
+  };
+
   /* ================= 商店 ================= */
   // req.world：需要先通关该世界（普通难度）才会解锁这一格商品；
   // 2026-09-12 补齐：高阶经验模块与 T4/T5 强化材料此前没有任何稳定来源，属于"看得到拿不到"。
@@ -820,6 +940,7 @@ window.DATA = (function () {
       { item: 'exp_l', name: '高级经验模块', price: 12000, stock: -1, req: { world: 'W04' } },
       { item: 'exp_xl', name: '超级经验模块', price: 45000, stock: -1, req: { world: 'W07' } },
       { item: 'heal_s', name: '小型治疗剂', price: 500, stock: -1 },
+      { item: 'beast_egg', name: '兽魂石×5', price: 4000, count: 5, stock: -1, req: { world: 'W03' } },
       { item: 'heal_m', name: '中型治疗剂', price: 1200, stock: -1 },
       { item: 'heal_l', name: '大型治疗剂', price: 3000, stock: -1, req: { world: 'W03' } },
       { item: 'buff_muscle', name: '肌肉强化剂', price: 1500, stock: -1 },
@@ -925,6 +1046,7 @@ window.DATA = (function () {
     { id: 'corridor',  name: '无限回廊',   world: 'W01', stage: 12, tip: '通关 生化蜂巢·第12关 解锁' },
     { id: 'bloodline', name: '血统强化',   world: 'W02', stage: 1,  tip: '通关 异形巢穴·第1关 解锁' },
     { id: 'reincarn',  name: '转生',       world: 'W03', stage: 12, tip: '通关 咒怨凶宅·第12关 解锁' },
+    { id: 'beast',     name: '伴生体',     world: 'W02', stage: 3,  tip: '通关 异形巢穴·第3关 解锁' },
   ];
 
   /* ================= 主线任务 ================= */
@@ -1104,8 +1226,11 @@ window.DATA = (function () {
     BLOODLINES, BLOODLINE_MAX, bloodlineCost, GENE_LOCKS,
     BUILDINGS, buildingCost,
     RECRUIT_POOLS, PITY, PITY_UP, recruitUpChar, weekIndex,
-    IDLE_LINES, IDLE_LINE_POWER_DIV, IDLE_MAT_PER_MIN,
-    BOUNTIES, REALMS, REALM_PCT,
+    IDLE_LINES, IDLE_LINE_ATTR_DIV, IDLE_MAT_PER_MIN,
+    BOUNTIES, makeBounties, REALMS, REALM_PCT,
+    ELEMENTS, ELEMENT_ICON, ELEMENT_COUNTER, ELEMENT_BONUS, ELEMENT_PENALTY, worldElement,
+    BEASTS, beastById, beastDesc, beastPctAt, BEAST_PCT_NAME, BEAST_RARITY_RATE,
+    BEAST_EGG_ITEM, BEAST_EGG_COST, BEAST_MAX_LV, BEAST_SOUL_PER_LV, BEAST_LV_PCT,
     SHOPS, DAILY_TASKS, DAILY_ALL_REWARD, LOGIN_REWARDS, STARTER,
     WEEKLY_TASKS, WEEKLY_ALL_REWARD, ACHIEVEMENTS,
     TALENTS, TALENT_COSTS, talentEffect, talentTexts,

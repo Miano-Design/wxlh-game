@@ -145,6 +145,13 @@ window.Dungeon = (function () {
     const buffId = Math.random() < 0.5 ? 'buff_muscle' : 'buff_nerve';
     if (kind === 'elite' && Math.random() < Math.min(1, 0.25 * dropBoost)) { if (Core.addItem(buffId)) got.push({ k: 'item', v: buffId, n: 1 }); }
     if (kind === 'boss' && Core.addItem(buffId)) got.push({ k: 'item', v: buffId, n: 1 });
+    // 兽魂石：伴生体的唯一稳定来源。Boss 必掉 1~3 颗，精英 30% 掉 1 颗
+    if (kind === 'boss') {
+      const n = 1 + (Math.random() < 0.5 ? 1 : 0) + (Math.random() < 0.25 ? 1 : 0);
+      if (Core.addItem(D.BEAST_EGG_ITEM, n)) got.push({ k: 'item', v: D.BEAST_EGG_ITEM, n });
+    } else if (kind === 'elite' && Math.random() < Math.min(1, 0.30 * dropBoost)) {
+      if (Core.addItem(D.BEAST_EGG_ITEM, 1)) got.push({ k: 'item', v: D.BEAST_EGG_ITEM, n: 1 });
+    }
     return { rewards: r, got };
   }
 

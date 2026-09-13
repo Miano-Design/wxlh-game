@@ -153,6 +153,17 @@ Core.S.party[1] = 'C021';
 Core.addItem('exp_s', 5);
 Core.addItem('box_sr', 3);
 panel('派遣领队-有人可选', () => UI._panels.pickIdleLeader('gather'));
+panel('伴生体兽栏-空', () => UI._panels.beastModal());
+Core.addItem('beast_egg', 30);
+panel('伴生体兽栏-有兽魂石', () => UI._panels.beastModal());
+t('首页有伴生体入口', () => {
+  const html = UI._panels._screens.homeScreen();
+  if (html.indexOf('伴生体') < 0) throw new Error('首页没有伴生体入口');
+});
+t('今日卡的悬赏按进度生成（不是写死的名字）', () => {
+  const html = UI._panels._screens.homeScreen();
+  if (html.indexOf('限时悬赏') < 0) throw new Error('缺悬赏行');
+});
 
 // ---- 一级页面全部能渲染，且模板里不许出现 undefined ----
 for (const s of ['homeScreen', 'dungeonScreen', 'rosterScreen', 'bagScreen', 'partyScreen', 'charsScreen', 'equipScreen']) {

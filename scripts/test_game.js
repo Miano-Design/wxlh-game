@@ -834,17 +834,23 @@ Core.S.party[1] = 'C021';
 {
   Core.newGame(); Core.setPlayerName('悬赏');
   const st = Core.bountyState();
-  t('悬赏有多条且带截止时间', st.list.length >= 3 && st.list.every(x => x.leftMs > 0));
-  t('未完成不能领', Core.claimBounty('bt1').ok === false);
-  Core.stageComplete('W01', 'normal', 2, 3);
+  t('悬赏按进度生成 4 条且都带截止时间', st.list.length === 4 && st.list.every(x => x.leftMs > 0));
+  t('目标里一定有"推进当前世界"', st.list.some(x => x.b.kind === 'stage'));
+  const stageB = st.list.find(x => x.b.kind === 'stage');
+  t('开局这条悬赏还没完成', stageB.done === false);
+  t('未完成不能领', Core.claimBounty(stageB.b.id).ok === false);
+  const p = stageB.b.param;
+  Core.stageComplete(p.world, p.diff, p.stage - 1, 3);
   const holy0 = Core.S.cur.holy;
-  const r = Core.claimBounty('bt1');
+  const r = Core.claimBounty(stageB.b.id);
   t('完成后可以领悬赏', r.ok && Core.S.cur.holy > holy0);
-  t('同一条不能重复领', Core.claimBounty('bt1').ok === false);
+  t('同一条不能重复领', Core.claimBounty(stageB.b.id).ok === false);
   Core.S.bounty.start = Date.now() - 400 * 3600e3;   // 全部过期
-  t('过期后不能领', Core.claimBounty('bt1').ok === false);
+  t('过期后不能领', Core.claimBounty(stageB.b.id).ok === false);
   t('全部结束后可以开新一期', Core.bountyState().allOver && Core.renewBounties().ok);
-  t('新一期时间重新计算', Core.bountyState().list.every(x => x.leftMs > 0 && !x.claimed));
+  const st2 = Core.bountyState();
+  t('新一期时间重算且按新进度生成', st2.list.every(x => x.leftMs > 0 && !x.claimed) && st2.list.length === 4);
+  t('新一期的推进目标往后挪了', st2.list.find(x => x.b.kind === 'stage').b.param.stage > p.stage || st2.list.find(x => x.b.kind === 'stage').b.param.world !== p.world);
 }
 
 // 53. 境界渡劫：等级门槛 / 材料门槛 / 成功永久加成 / 失败只扣材料
@@ -868,6 +874,102 @@ Core.S.party[1] = 'C021';
   const failR = withRandom(0.999, () => Core.attemptRealm());
   t('渡劫失败：不掉等级、只扣消耗', failR.ok && !failR.success && Core.S.player.level === 20 && Core.S.items.mat_t1 === 90);
   t('失败后境界不变', Core.S.player.realm === 1);
+}
+
+// 54. 伴生体：孵化 / 重复转兽魂 / 随行加成 / 五行克制 / 升阶
+{
+  Core.newGame(); Core.setPlayerName('伴生体');
+  t('每个世界都有自己的五行属性', D.WORLDS.every(w => !!D.worldElement(w.id)));
+  t('五行相克自洽（五条环）', D.ELEMENTS.every(e => D.ELEMENTS.indexOf(D.ELEMENT_COUNTER[e]) >= 0));
+  t('伴生体数据完整且说明由数据派生', D.BEASTS.every(b => b.elem && D.ELEMENTS.indexOf(b.elem) >= 0 && D.beastDesc(b).length > 0));
+
+  t('没有兽魂石不能孵化', Core.hatchBeast(1).ok === false);
+  Core.S.items[D.BEAST_EGG_ITEM] = 30;
+  const h = withRandom(0.5, () => Core.hatchBeast(1));   // 0.5 → 命中 N 档
+  t('孵化扣兽魂石并得到 1 只', h.ok && h.got.length === 1 && Core.S.items[D.BEAST_EGG_ITEM] === 20);
+  t('第一只自动随行', !!Core.beastState().active);
+  const firstId = h.got[0].id;
+  t('重复获得转兽魂', (() => {
+    Core.S.beast.owned[firstId].soul = 8;
+    Core.S.items[D.BEAST_EGG_ITEM] = 300;
+    withRandom(0.5, () => Core.hatchBeast(20));
+    return Core.S.beast.owned[firstId].soul > 8;
+  })());
+
+  // 随行加成真的进属性
+  const cid = D.characters[0].id;
+  Core.addChar(cid);
+  Core.setActiveBeast(null);
+  const baseAtk = Core.effectiveStats(cid).atk;
+  Core.setActiveBeast(firstId);
+  const bp = D.beastPctAt(D.beastById(firstId), Core.S.beast.owned[firstId].lv);
+  const withBeastAtk = Core.effectiveStats(cid).atk;
+  t('随行伴生体的加成进了角色属性', bp.atkPct ? withBeastAtk > baseAtk : withBeastAtk >= baseAtk);
+  t('收回后加成消失', (() => { Core.setActiveBeast(null); return Core.effectiveStats(cid).atk === baseAtk; })());
+  Core.setActiveBeast(firstId);
+
+  t('兽魂不足不能升阶', (() => {
+    Core.S.beast.owned[firstId].lv = 3; Core.S.beast.owned[firstId].soul = 1;
+    return Core.beastLevelUp(firstId).ok === false;
+  })());
+  t('兽魂够就能升阶', (() => {
+    Core.S.beast.owned[firstId].soul = 999;
+    const r = Core.beastLevelUp(firstId);
+    return r.ok && Core.S.beast.owned[firstId].lv === 4;
+  })());
+  t('满级后拒绝再升', (() => {
+    Core.S.beast.owned[firstId].lv = D.BEAST_MAX_LV; Core.S.beast.owned[firstId].soul = 9999;
+    return Core.beastLevelUp(firstId).ok === false;
+  })());
+
+  // 五行克制：换一只克制"当前世界属性"的伴生体，倍率必须正好 +15%
+  const worldId = D.WORLDS[0].id;
+  const foeElem = D.worldElement(worldId);
+  const goodBeast = D.BEASTS.find(x => D.ELEMENT_COUNTER[x.elem] === foeElem);
+  const badBeast = D.BEASTS.find(x => D.ELEMENT_COUNTER[foeElem] === x.elem);
+  if (goodBeast) {
+    Core.S.beast.owned[goodBeast.id] = { lv: 1, soul: 0 };
+    Core.setActiveBeast(goodBeast.id);
+    t('带对属性 → 伤害 +15%', Math.abs(Core.elementMultiplier(worldId).mult - 1.15) < 1e-9);
+  }
+  if (badBeast) {
+    Core.setActiveBeast(badBeast.id);
+    t('带反属性 → 伤害 -8%', Math.abs(Core.elementMultiplier(worldId).mult - 0.92) < 1e-9);
+  }
+  Core.setActiveBeast(null);
+  t('不带伴生体时没有五行加成', Core.elementMultiplier(worldId).mult === 1);
+
+  // 引擎真的用了这两个字段（不是只在界面上写写）
+  const pstB = Core.effectivePlayerStats();
+  const allyB = Object.assign({ name: '主角', kind: 'warrior', faction: null, position: 'front', skills: D.PROTAGONIST.skills, skillLv: [1, 1, 1], maxHp: pstB.hp, charId: '@player', elem: null }, pstB, { beastElem: goodBeast ? goodBeast.elem : null });
+  const foeB = Dungeon.makeEnemies('W01', 'normal', 1, 'combat').map(e => Object.assign({}, e, { elem: foeElem }));
+  const resB = Battle.run({ allies: [allyB], enemies: foeB, worldId: 'W01', maxRounds: 30 });
+  t('战斗引擎消费 beastElem / elem 字段', resB.frames.some(f => f.type === 'damage') && typeof resB.win === 'boolean');
+}
+
+// 55. 挂机分工改成看六维（不是战力）
+{
+  Core.newGame(); Core.setPlayerName('六维');
+  const bySpirit = D.characters.filter(c => c.attrs && c.attrs.spirit).sort((a, b) => b.attrs.spirit - a.attrs.spirit);
+  const high = bySpirit[0], low = bySpirit[bySpirit.length - 1];
+  Core.addChar(high.id);
+  if (low.id !== high.id) Core.addChar(low.id);
+  Core.S.chars[high.id].lv = 60;
+  if (low.id !== high.id) Core.S.chars[low.id].lv = 60;
+  const lines = Core.idleLines();
+  t('每条产线都标出看哪一维', lines.every(x => x.line.attr && x.line.attrName));
+  Core.setIdleLeader('cultivate', high.id);
+  const l = Core.idleLines().find(x => x.line.id === 'cultivate');
+  t('派遣后显示领队的对应维值', l.attrValue > 0 && l.bonus > 0);
+  t('精神高的当闭关领队，加成不低于精神低的', (() => {
+    const hi = Core.idleLineBonus('cultivate');
+    if (low.id === high.id) return true;
+    Core.setIdleLeader('cultivate', low.id);
+    const lo = Core.idleLineBonus('cultivate');
+    Core.setIdleLeader('cultivate', high.id);
+    return hi >= lo;
+  })());
+  t('加成封顶不超过 maxBonus', Core.idleLines().every(x => x.bonus <= 1.5 + 1e-9));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -43,7 +43,8 @@ window.Core = (function () {
       tasks: { date: '', daily: {}, claimed: {}, allClaimed: false, weekKey: '', weekly: {}, weeklyClaimed: {}, weeklyAllClaimed: false },
       login: { day: 0, round: 1, lastClaim: '' },
       idle: { bankSec: 0, lastTs: Date.now(), lines: { cultivate: null, gather: null, explore: null, guard: null } },
-      bounty: { start: Date.now(), claimed: {} },   // 限时悬赏：start 是本期起点，每条按自己的 hours 截止
+      bounty: { start: Date.now(), claimed: {}, list: null },   // 限时悬赏：list 按当前进度生成，本期固定
+      beast: { owned: {}, active: null },                       // 伴生体：owned[id] = {lv, soul}；active = 随行的那只
       stats: { battles: 0, wins: 0, bosses: 0, runs: 0, recruits: 0, enhances: 0, bestFloor: 0, profileViews: 0 },
       settings: { speed: 1, autoSellN: false, autoSellR: false, sfx: true, autoBattle: false },
       codex: { chars: [], equipsSeen: 0, claimed: [] },
@@ -97,8 +98,13 @@ window.Core = (function () {
       delete S.recruit[urKey];
     });
     S.idle.lines = Object.assign({ cultivate: null, gather: null, explore: null, guard: null }, S.idle.lines || {});
-    S.bounty = Object.assign({ start: Date.now(), claimed: {} }, S.bounty || {});
+    S.bounty = Object.assign({ start: Date.now(), claimed: {}, list: null }, S.bounty || {});
     S.bounty.claimed = S.bounty.claimed || {};
+    // 悬赏改成"按进度动态生成"，老档没有 list 就在这里补一份（不改变已领记录）
+    if (!Array.isArray(S.bounty.list) || !S.bounty.list.length) S.bounty.list = D.makeBounties(S);
+    S.beast = Object.assign({ owned: {}, active: null }, S.beast || {});
+    S.beast.owned = S.beast.owned || {};
+    if (S.beast.active && !S.beast.owned[S.beast.active]) S.beast.active = null;
     S.player.realm = S.player.realm || 0;   // 已突破的境界数
     S.sweep = Object.assign(def.sweep, S.sweep || {});
     // 老存档补新字段：设置项 / 图鉴领取记录 / 登录轮次
@@ -376,6 +382,11 @@ window.Core = (function () {
       pct[sd.key] = (pct[sd.key] || 0) + sd.per * m[sid];
     });
   }
+  // 随行伴生体：给全队（含主角）的加成，同样并进百分比区
+  function applyBeast(pct) {
+    const bp = beastPct();
+    Object.keys(bp).forEach(k => { pct[k] = (pct[k] || 0) + bp[k]; });
+  }
   // 炼化：材料 + 点数 → 血清道具
   function craftSerum(serumId, n = 1) {
     const sd = D.serumById[serumId];
@@ -530,6 +541,7 @@ window.Core = (function () {
     const tt = talentPct();
     ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'].forEach(k => { pct[k] += tt[k] || 0; });
     applySerums(charId, pct);                      // 血清（永久强化剂）
+    applyBeast(pct);                               // 随行伴生体（全队加成）
     // 装备
     const eq = S.equipped[charId] || {};
     const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
@@ -606,6 +618,7 @@ window.Core = (function () {
     const tt = talentPct();
     ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'].forEach(k => { pct[k] += tt[k] || 0; });
     applySerums('@player', pct);                   // 血清（主角同样是永久加成）
+    applyBeast(pct);                               // 随行伴生体（全队加成）
     // 境界（渡劫）：每突破一境全属性 +5%，与基因锁/血统/血清并列，属于永久成长
     const rp = realmBonusPct();
     if (rp) { pct.atkPct += rp; pct.hpPct += rp; pct.defPct += rp; pct.spdPct += rp; }
@@ -1072,7 +1085,10 @@ window.Core = (function () {
     const cid = idleLineLeader(lineId);
     if (!cid) return 0;
     const line = D.IDLE_LINES.find(l => l.id === lineId);
-    return Math.min((line && line.maxBonus) || 1.5, power(cid) / D.IDLE_LINE_POWER_DIV);
+    // 按"这条产线要看的那一维"算加成：闭关看精神、采集看肌肉、探索看神经、守卫看免疫
+    const st = effectiveStats(cid);
+    const v = (st && st.attrs && line && line.attr) ? (st.attrs[line.attr] || 0) : 0;
+    return Math.min((line && line.maxBonus) || 1.5, v / D.IDLE_LINE_ATTR_DIV);
   }
   // 各产线"自己那一份"的产出（在基础挂机之外额外加，所以要先算基础值，避免自我引用）
   function idleLineContrib() {
@@ -1110,7 +1126,9 @@ window.Core = (function () {
       else if (l.out === 'points') per = `+${fmtNum(c.points)} 点 / 分`;
       else if (l.out === 'otherworld') per = `+${c.otherworld.toFixed(2)} 结晶 / 10 分`;
       else per = `+${c.matPerMin.toFixed(2)} 材料 / 分`;
-      return { line: l, leaderId, bonus, per: leaderId ? per : '未派领队，不产出' };
+      const st = leaderId ? effectiveStats(leaderId) : null;
+      const attrValue = (st && st.attrs && l.attr) ? Math.round(st.attrs[l.attr] || 0) : 0;
+      return { line: l, leaderId, bonus, attrValue, per: leaderId ? per : '未派领队，不产出' };
     });
   }
   // 派遣 / 撤下领队：上阵主力不能派（他们要出战），同一个人不能同时管两条线
@@ -1694,16 +1712,34 @@ window.Core = (function () {
   }
 
   /* ================= 限时悬赏 ================= */
-  // 每条悬赏从本期起点开始各算各的截止时间；过期作废，完成才给高价值奖励。
-  // 全部领完或过期后可以开新一轮（长期留个"回来看看"的理由）。
+  // 悬赏按当前进度动态生成（D.makeBounties），生成结果存进存档，本期固定不再变。
+  // 每条从本期起点开始各算各的截止时间；过期作废，全部结束后可以开新一轮。
+  function bountyCheck(b) {
+    const p = b.param || {};
+    switch (b.kind) {
+      case 'stage': return !!(S.worlds[p.world] && S.worlds[p.world].stages[p.diff || 'normal'][p.stage - 1] > 0);
+      case 'level': return S.player.level >= p.n;
+      case 'chars': return Object.keys(S.chars).length >= p.n;
+      case 'ssr': return Object.keys(S.chars).filter(id => {
+        const c = D.charById[id];
+        return c && ['SSR', 'UR'].includes(c.rarity);
+      }).length >= p.n;
+      case 'enhance': return (S.stats.enhances || 0) >= p.n;
+      case 'corridor': return (S.corridor.best || 0) >= p.n;
+      case 'beast': return Object.keys(S.beast.owned || {}).length >= p.n;
+      case 'realm': return (S.player.realm || 0) >= p.n;
+      default: return false;
+    }
+  }
   function bountyState() {
+    if (!Array.isArray(S.bounty.list) || !S.bounty.list.length) S.bounty.list = D.makeBounties(S);
     const now = Date.now();
     const start = (S.bounty && S.bounty.start) || now;
     const claimed = (S.bounty && S.bounty.claimed) || {};
-    const list = D.BOUNTIES.map(b => {
+    const list = S.bounty.list.map(b => {
       const deadline = start + b.hours * 3600e3;
       const leftMs = deadline - now;
-      return { b, deadline, leftMs, expired: leftMs <= 0, done: !!b.check(S), claimed: !!claimed[b.id] };
+      return { b, deadline, leftMs, expired: leftMs <= 0, done: bountyCheck(b), claimed: !!claimed[b.id] };
     });
     return {
       list, start,
@@ -1724,9 +1760,102 @@ window.Core = (function () {
   }
   function renewBounties() {
     if (!bountyState().allOver) return { ok: false, msg: '还有悬赏没结束（没领或没过期）' };
-    S.bounty = { start: Date.now(), claimed: {} };
+    S.bounty = { start: Date.now(), claimed: {}, list: D.makeBounties(S) };
     save();
-    return { ok: true, msg: '新一期悬赏已刷新' };
+    return { ok: true, msg: '新一期悬赏已按你的进度刷新' };
+  }
+
+  /* ================= 伴生体（第二条养成线） ================= */
+  // 上阵 1 只：给全队属性加成 + 一个被动 + 五行克制（进本看世界属性）。
+  // 孵化花兽魂石，重复获得转兽魂，兽魂升等级 —— 和角色的"抽卡→碎片→升星"是同一套结构。
+  function beastState() {
+    const owned = S.beast.owned || {};
+    const list = Object.keys(owned).map(id => {
+      const b = D.beastById(id);
+      if (!b) return null;
+      const lv = owned[id].lv || 1;
+      return {
+        id, b, lv, soul: owned[id].soul || 0,
+        active: S.beast.active === id,
+        pct: D.beastPctAt(b, lv),
+        maxLv: lv >= D.BEAST_MAX_LV,
+      };
+    }).filter(Boolean).sort((a, b) => D.RARITIES.indexOf(b.b.rarity) - D.RARITIES.indexOf(a.b.rarity) || b.lv - a.lv);
+    return {
+      list, count: list.length,
+      active: S.beast.active || null,
+      activeBeast: S.beast.active ? D.beastById(S.beast.active) : null,
+      eggs: S.items[D.BEAST_EGG_ITEM] || 0,
+      eggCost: D.BEAST_EGG_COST,
+      canHatch: (S.items[D.BEAST_EGG_ITEM] || 0) >= D.BEAST_EGG_COST,
+    };
+  }
+  // 随行伴生体的属性加成（会被 effectiveStats / effectivePlayerStats / 战斗一起用）
+  function beastPct() {
+    const id = S.beast.active;
+    const owned = id && S.beast.owned[id];
+    const b = id ? D.beastById(id) : null;
+    if (!owned || !b) return {};
+    return D.beastPctAt(b, owned.lv || 1);
+  }
+  function activeBeastElem() {
+    const b = S.beast.active ? D.beastById(S.beast.active) : null;
+    return b ? b.elem : null;
+  }
+  // 五行克制：我方随行属性克本世界属性 → 伤害 +15%；被反克 → -8%
+  function elementMultiplier(worldId) {
+    const mine = activeBeastElem();
+    const foe = D.worldElement(worldId);
+    if (!mine || !foe) return { mine: null, foe: null, mult: 1, state: 'none' };
+    if (D.ELEMENT_COUNTER[mine] === foe) return { mine, foe, mult: 1 + D.ELEMENT_BONUS, state: 'up' };
+    if (D.ELEMENT_COUNTER[foe] === mine) return { mine, foe, mult: 1 - D.ELEMENT_PENALTY, state: 'down' };
+    return { mine, foe, mult: 1, state: 'even' };
+  }
+  function hatchBeast(n) {
+    n = Math.max(1, Math.floor(n || 1));
+    const need = D.BEAST_EGG_COST * n;
+    const have = S.items[D.BEAST_EGG_ITEM] || 0;
+    if (have < need) return { ok: false, msg: `兽魂石不足：孵 ${n} 只要 ${need} 颗（现有 ${have}）` };
+    S.items[D.BEAST_EGG_ITEM] -= need;
+    if (S.items[D.BEAST_EGG_ITEM] <= 0) delete S.items[D.BEAST_EGG_ITEM];
+    const got = [];
+    for (let i = 0; i < n; i++) {
+      let r = Math.random(), acc = 0, rar = 'N';
+      for (const [k, v] of Object.entries(D.BEAST_RARITY_RATE)) { acc += v; if (r <= acc) { rar = k; break; } }
+      const pool = D.BEASTS.filter(b => b.rarity === rar);
+      const b = pool[Math.floor(Math.random() * pool.length)] || D.BEASTS[0];
+      const cur = S.beast.owned[b.id];
+      if (cur) {
+        cur.soul = (cur.soul || 0) + 2;
+        got.push({ id: b.id, name: b.name, rarity: b.rarity, elem: b.elem, dup: true, soul: cur.soul });
+      } else {
+        S.beast.owned[b.id] = { lv: 1, soul: 0 };
+        got.push({ id: b.id, name: b.name, rarity: b.rarity, elem: b.elem, dup: false });
+      }
+    }
+    // 第一只自动随行，省一步操作
+    if (!S.beast.active && got.length) S.beast.active = got[0].id;
+    S.stats.beasts = (S.stats.beasts || 0) + n;
+    save();
+    return { ok: true, got, count: n, msg: `孵化 ${n} 只伴生体` };
+  }
+  function setActiveBeast(id) {
+    if (id && !S.beast.owned[id]) return { ok: false, msg: '还没有这只伴生体' };
+    S.beast.active = id || null;
+    save();
+    return { ok: true, msg: id ? `${D.beastById(id).name} 已随行` : '已收回伴生体' };
+  }
+  function beastLevelUp(id) {
+    const cur = S.beast.owned[id];
+    const b = D.beastById(id);
+    if (!cur || !b) return { ok: false, msg: '还没有这只伴生体' };
+    if ((cur.lv || 1) >= D.BEAST_MAX_LV) return { ok: false, msg: '已经是满级' };
+    const need = D.BEAST_SOUL_PER_LV * (cur.lv || 1);
+    if ((cur.soul || 0) < need) return { ok: false, msg: `兽魂不足：升到 Lv.${(cur.lv || 1) + 1} 需要 ${need} 兽魂（现有 ${cur.soul || 0}）` };
+    cur.soul -= need;
+    cur.lv = (cur.lv || 1) + 1;
+    save();
+    return { ok: true, msg: `${b.name} 升到 Lv.${cur.lv}`, lv: cur.lv };
   }
 
   /* ================= 境界（渡劫） ================= */
@@ -1834,6 +1963,7 @@ window.Core = (function () {
     achievementState, achievementSummary, claimAchievement,
     todayState, claimEverything, nextStage,
     bountyState, claimBounty, renewBounties, realmState, realmBonusPct, attemptRealm, pityView, pityOf,
+    beastState, hatchBeast, setActiveBeast, beastLevelUp, beastPct, activeBeastElem, elementMultiplier,
     setPendingRun, clearPendingRun, corridorMarks, corridorMarkBonus,
     canReincarnate, reincarnate, buyTalent,
     codexState, claimCodexReward,

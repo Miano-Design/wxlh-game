@@ -71,6 +71,11 @@ window.Battle = (function () {
       if (D.FACTION_COUNTER[src.faction] === dst.faction) dmg *= 1.15;
       else if (D.FACTION_COUNTER[dst.faction] === src.faction) dmg *= 0.90;
     }
+    // 五行克制：随行伴生体的属性克敌人属性 → +15%；被反克 → -8%（只有我方在算）
+    if (src.side === 'ally' && src.beastElem && dst.elem) {
+      if (D.ELEMENT_COUNTER[src.beastElem] === dst.elem) dmg *= 1 + D.ELEMENT_BONUS;
+      else if (D.ELEMENT_COUNTER[dst.elem] === src.beastElem) dmg *= 1 - D.ELEMENT_PENALTY;
+    }
     dmg *= 0.9 + Math.random() * 0.2;
     if (hasStatus(dst, 'bleed')) dmg *= 1.15;
     if (dst.kind === 'tank') dmg *= 0.88;
@@ -138,6 +143,7 @@ window.Battle = (function () {
       crit: 0.05, critDmg: 2.0, eva: spec.eva || 0.02, skillMult: 1, lifesteal: spec.lifesteal || 0,
       resPct: spec.resPct || 0, energy: 0, statuses: [], shield: spec.shield || 0,
       isBoss: !!spec.isBoss, isElite: !!spec.isElite, kind: 'mob',
+      elem: spec.elem || null, beastElem: null,
       phase70: false, phase30: false, revived: false, summoned: false,
     }, {});
   }
@@ -159,6 +165,7 @@ window.Battle = (function () {
       u.firstStrike = spec.firstStrike || 0;
       u.ultPct = spec.ultPct || 0;
       u.energy = Math.min(100, spec.initEnergy || 0);
+      u.beastElem = spec.beastElem || null;   // 随行伴生体属性（五行克制用）
       return u;
     });
     const enemies = cfg.enemies.map(spec => makeEnemyUnit(spec));

@@ -425,12 +425,6 @@ window.UI = (function () {
     return `<div class="card today-card">
       <h3>🗓 今日 <span class="sub">${t.claimable ? `${t.claimable} 项可收` : '暂无可收'}</span></h3>
       <div class="today-row">
-        <span class="tico">⏳</span>
-        <div class="tgrow"><div class="tt1">挂机收益</div>
-          <div class="tt2">已累积 ${formatDuration(t.idleSeconds)}${t.idleReady ? '' : ' · 满 60 秒可领'}</div></div>
-        <button class="btn small ${t.claimable ? 'primary' : ''}" data-act="claim-all" ${t.claimable ? '' : 'disabled'}>一键收取</button>
-      </div>
-      <div class="today-row">
         <span class="tico">📋</span>
         <div class="tgrow"><div class="tt1">每日任务</div>
           <div class="tt2">${t.dailyDone}/${t.dailyTotal} 完成${t.dailyClaimable ? ` · ${t.dailyClaimable} 项待领` : ''}${extra.length ? ` · ${extra.join(' / ')}待领` : ''}</div></div>
@@ -456,7 +450,30 @@ window.UI = (function () {
     const bank = C().idleBankGains();
     const expNeed = D.EXP_TABLE[S.player.level] || 1;
     const gl = D.GENE_LOCKS[S.player.geneLock - 1];
+    const lines = C().idleLines();
+    const t0 = C().todayState();
     return `
+    <div class="card hero-idle">
+      <div class="hero-top">
+        <div>
+          <div class="hero-label">⏳ 轮回挂机中</div>
+          <div class="hero-num">◈${r.pointsPerMin.toFixed(1)}<span class="hero-unit">/分</span></div>
+        </div>
+        <div class="hero-right">
+          <div class="hero-sub">EXP ${r.expPerMin.toFixed(1)}/分</div>
+          <div class="hero-sub">离线效率 ${Math.round(C().offlineEfficiency() * 100)}% · 上限 ${C().offlineCapHours().toFixed(1)}h</div>
+        </div>
+      </div>
+      <div class="hero-bank">
+        <div class="hb-item"><span class="hb-k">已累积</span><b id="idle-time">${formatDuration(bank.seconds)}</b></div>
+        <div class="hb-item"><span class="hb-k">待领取</span><b id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.mat ? ` · ⚙️${bank.mat}` : ''}</b></div>
+      </div>
+      <div class="idle-lines-hint">${lines.map(l => `${l.line.ico}${l.leaderId ? cname(l.leaderId) : '空'}`).join(' · ')}　（点「挂机分工」派人：闭关看精神 / 采集看肌肉 / 探索看神经 / 守卫看免疫）</div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn small ghost" data-act="open-idlelines">🧭 挂机分工</button>
+        <button class="btn primary" data-act="claim-all" ${t0.claimable ? '' : 'disabled'}>${t0.claimable ? `⚡ 一键收取（${t0.claimable}）` : '⚡ 一键收取'}</button>
+      </div>
+    </div>
     ${todayCard()}
     <div class="card" data-protag="1" style="cursor:pointer">
       <h3>⛩ 个人房间 <span class="sub">${cname('@player')} · 主角战力 ${fmt(C().playerPower())} · 队伍 ${fmt(C().teamPower())} ›</span></h3>
@@ -472,24 +489,14 @@ window.UI = (function () {
       ${featureBtn('open-tasks', '📋 任务', 'tasks')}
       ${featureBtn('open-genelock', '🧬 基因锁', 'geneLock')}
       ${featureBtn('open-reincarn', '♾ 转生', 'reincarn')}
+      ${featureBtn('open-beast', '🐾 伴生体', 'beast')}
+      <button class="btn" data-act="open-ach">🏅 成就${C().achievementSummary().list.filter(x => x.done && !x.claimed).length ? '<span class="dot"></span>' : ''}</button>
     </div>
     ${questCard()}
-    <div class="card">
-      <h3>⏳ 轮回挂机 <span class="sub">${r.pointsPerMin.toFixed(1)} 点/分 · ${r.expPerMin.toFixed(1)} EXP/分</span></h3>
-      <div class="kv"><span class="k">已累积</span><span id="idle-time">${formatDuration(bank.seconds)}</span></div>
-      <div class="kv"><span class="k">待领取</span><span id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}</span></div>
-      <div class="kv"><span class="k">离线规则</span><span>效率 ${Math.round(C().offlineEfficiency() * 100)}% · 上限 ${C().offlineCapHours().toFixed(1)}小时</span></div>
-      <div class="idle-lines-hint">${C().idleLines().map(l => `${l.line.ico}${l.leaderId ? cname(l.leaderId) : '空'}`).join(' · ')}</div>
-      <div class="btn-row" style="margin-top:10px">
-        <button class="btn small ghost" data-act="open-idlelines">🧭 挂机分工</button>
-      </div>
-      <button class="btn primary block" style="margin-top:8px" id="idle-claim-btn" data-act="claim-idle" ${bank.seconds < 60 ? 'disabled' : ''}>一键领取挂机收益</button>
-    </div>
     <div class="more-row">
       <button class="link-btn" data-act="open-bag">🧰 道具背包</button><span class="sep">·</span>
       <button class="link-btn" data-act="open-bounty">🔥 限时悬赏</button><span class="sep">·</span>
       <button class="link-btn" data-act="open-realm">🌌 境界渡劫</button><span class="sep">·</span>
-      <button class="link-btn" data-act="open-ach">🏅 成就${C().achievementSummary().list.filter(x => x.done && !x.claimed).length ? '<span class="dot"></span>' : ''}</button><span class="sep">·</span>
       <button class="link-btn" data-act="open-codex">📕 图鉴</button><span class="sep">·</span>
       <button class="link-btn" data-act="open-curdoc">▤ 货币图鉴</button><span class="sep">·</span>
       <button class="link-btn" data-act="open-guide">❓ 玩法指南</button><span class="sep">·</span>
@@ -497,8 +504,14 @@ window.UI = (function () {
     </div>`;
   }
   function featureBtn(act, label, unlockId, dot) {
-    if (C().isUnlocked(unlockId)) return `<button class="btn" data-act="${act}">${label}${dot ? '<span class="dot"></span>' : ''}</button>`;
-    return `<button class="btn" data-locked="${unlockId}" style="opacity:.5">🔒 ${label.replace(/^[^ ]+ /, '')}</button>`;
+    // 图标在上、名字在下的宫格按钮（放置类主界面的通用做法：一眼扫得到功能，点得到区域够大）
+    const sp = label.indexOf(' ');
+    const ico = sp > 0 ? label.slice(0, sp) : '';
+    const name = sp > 0 ? label.slice(sp + 1) : label;
+    if (C().isUnlocked(unlockId)) {
+      return `<button class="btn feat" data-act="${act}"><span class="fico">${ico}</span><span class="fname">${name}</span>${dot ? '<span class="dot"></span>' : ''}</button>`;
+    }
+    return `<button class="btn feat" data-locked="${unlockId}" style="opacity:.5"><span class="fico">🔒</span><span class="fname">${name}</span></button>`;
   }
   function questCard() {
     const list = C().mainQuestState();
@@ -1634,11 +1647,11 @@ window.UI = (function () {
       const leader = r.leaderId;
       return `<div class="card" style="margin-bottom:8px;${leader ? '' : 'border-style:dashed'}">
         <h3>${r.line.ico} ${r.line.name} <span class="sub">${r.per}</span></h3>
-        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">${r.line.desc}${leader ? ` · 领队加成 +${Math.round(r.bonus * 100)}%` : ''}</div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">${r.line.desc}${leader ? ` · 领队【${r.line.attrName}】${r.attrValue} → 加成 +${Math.round(r.bonus * 100)}%` : ''}</div>
         ${leader
           ? `<div class="list-row" style="border:none;padding:4px 0">
                ${charAvatar(leader, 34)}
-               <div class="grow"><div class="t1">${cname(leader)}</div><div class="t2">战力 ${fmt(C().power(leader))}</div></div>
+               <div class="grow"><div class="t1">${cname(leader)}</div><div class="t2">${r.line.attrName} ${r.attrValue} · 战力 ${fmt(C().power(leader))}</div></div>
                <button class="btn small ghost" data-idleclear="${r.line.id}">撤下</button>
              </div>`
           : `<button class="btn small block" data-idlepick="${r.line.id}" ${bench.length ? '' : 'disabled'}>${bench.length ? '＋ 派一名领队' : '没有可派的角色（先去招募）'}</button>`}
@@ -1666,7 +1679,7 @@ window.UI = (function () {
       return `<div class="list-row" data-idlelead="${id}" style="cursor:pointer${used ? ';opacity:.5' : ''}">
         ${charAvatar(id, 40)}
         <div class="grow"><div class="t1">${rarityTag(D.charById[id].rarity)} ${cname(id)}</div>
-        <div class="t2">Lv.${S.chars[id].lv} · 战力 ${fmt(C().power(id))}${used ? ` · 已在「${used.name}」` : ''}</div></div>
+        <div class="t2">Lv.${S.chars[id].lv} · ${line.attrName} ${Math.round(((C().effectiveStats(id) || {}).attrs || {})[line.attr] || 0)} · 战力 ${fmt(C().power(id))}${used ? ` · 已在「${used.name}」` : ''}</div></div>
       </div>`;
     }).join('') || '<div class="empty">没有可派的角色</div>'}
       <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回挂机分工</button>`;
@@ -1713,6 +1726,92 @@ window.UI = (function () {
     });
     const rn = w.querySelector('[data-renew]');
     if (rn) rn.onclick = () => { const r = C().renewBounties(); toast(r.msg); bountyModal(w); render(); };
+    return w;
+  }
+
+  /* ================= 伴生体（兽栏） ================= */
+  function beastModal(wrap) {
+    const st = C().beastState();
+    const elemIcon = e => e ? (D.ELEMENT_ICON[e] || '') + e : '—';
+    const activeRow = st.activeBeast ? (() => {
+      const a = st.list.find(x => x.active);
+      const ctr = D.ELEMENT_COUNTER[st.activeBeast.elem];
+      return `<div class="card" style="border-color:var(--gold)">
+        <h3>🐾 随行中 · ${st.activeBeast.name}
+          <span class="sub">${st.activeBeast.rarity} · ${elemIcon(st.activeBeast.elem)} · Lv.${a ? a.lv : 1}</span></h3>
+        <div style="font-size:11px;color:var(--dim);line-height:1.8">
+          ${D.beastDesc(st.activeBeast)}（全队生效，主角也吃）<br>
+          五行：<b style="color:var(--gold)">${st.activeBeast.elem}</b> 克 <b>${ctr}</b> —— 进「${ctr}」属性的世界，全队伤害 +${Math.round(D.ELEMENT_BONUS * 100)}%；
+          遇到克你的世界则 -${Math.round(D.ELEMENT_PENALTY * 100)}%。
+        </div>
+        <button class="btn small ghost block" style="margin-top:8px" data-beastoff="1">收回伴生体</button>
+      </div>`;
+    })() : `<div class="card" style="border-style:dashed">
+      <h3>🐾 还没有随行伴生体</h3>
+      <div style="font-size:11px;color:var(--dim)">孵化一只并让它随行，全队立刻吃到加成。</div>
+    </div>`;
+    const body = `
+      <div style="font-size:12px;color:var(--dim);line-height:1.8;margin-bottom:10px">
+        伴生体是<b>第二条养成线</b>：上阵 1 只，给<b>全队</b>加属性 + 五行克制。孵化花兽魂石，
+        重复获得转<b>兽魂</b>，兽魂用来升阶。兽魂石从副本 Boss（必掉 1~3 颗）和精英怪出。
+      </div>
+      ${activeRow}
+      <div class="card">
+        <h3>孵化 <span class="sub">兽魂石 ${st.eggs} 颗 · 每 ${st.eggCost} 颗孵 1 只</span></h3>
+        <div class="btn-row">
+          <button class="btn small ${st.canHatch ? 'primary' : ''}" data-hatch="1" ${st.canHatch ? '' : 'disabled'}>孵 1 只（🥚${st.eggCost}）</button>
+          <button class="btn small gold" data-hatch="10" ${st.eggs >= st.eggCost * 10 ? '' : 'disabled'}>孵 10 只（🥚${st.eggCost * 10}）</button>
+        </div>
+        <div class="rate-row" style="margin-top:8px">${Object.entries(D.BEAST_RARITY_RATE).map(([r, v]) => `<span class="rtext-${r}">${r} ${(v * 100).toFixed(1)}%</span>`).join('')}</div>
+      </div>
+      <div class="section-title">我的伴生体（${st.count} / ${D.BEASTS.length}）</div>
+      ${st.list.map(x => {
+      const counter = D.ELEMENT_COUNTER[x.b.elem];
+      const need = D.BEAST_SOUL_PER_LV * x.lv;
+      return `<div class="card" style="margin-bottom:8px;${x.active ? 'border-color:var(--gold)' : ''}">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div class="bico" style="font-size:24px">${elemIcon(x.b.elem)}</div>
+          <div class="grow">
+            <div><span class="rtext-${x.b.rarity}">${x.b.rarity}</span> <b>${x.b.name}</b>
+              <span class="tag">Lv.${x.lv}/${D.BEAST_MAX_LV}</span>${x.active ? ' <span class="tag" style="color:var(--gold);border-color:var(--gold)">随行中</span>' : ''}</div>
+            <div style="font-size:11px;color:var(--dim);margin-top:4px">${D.beastDesc(x.b)}（全队）</div>
+            <div style="font-size:11px;color:var(--dim);margin-top:2px">克 ${counter} · 兽魂 ${x.soul}${x.maxLv ? ' · 已满级' : ` / 升阶需 ${need}`}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${x.active ? '' : `<button class="btn small" data-beaston="${x.id}">随行</button>`}
+            <button class="btn small ${x.soul >= need && !x.maxLv ? 'gold' : ''}" data-beastup="${x.id}" ${x.maxLv || x.soul < need ? 'disabled' : ''}>升阶</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('') || '<div class="empty">还没有伴生体，去孵化一只</div>'}
+      <div class="section-title">五行相克</div>
+      <div class="card" style="font-size:11px;line-height:1.9;color:var(--dim)">
+        ${D.ELEMENTS.map(e => `${D.ELEMENT_ICON[e]}${e} 克 ${D.ELEMENT_ICON[D.ELEMENT_COUNTER[e]]}${D.ELEMENT_COUNTER[e]}`).join('　')}
+        <div style="margin-top:8px">各世界的属性：${D.WORLDS.map(w => { const e = D.worldElement(w.id); return `${w.name.slice(0, 2)}${D.ELEMENT_ICON[e]}${e}`; }).join(' · ')}</div>
+      </div>`;
+    const w = showPanel(wrap, '伴生体 · 兽栏', body);
+    w.querySelectorAll('[data-hatch]').forEach(b => b.onclick = () => {
+      const r = C().hatchBeast(+b.dataset.hatch);
+      if (!r.ok) { failToast(r.msg, b); return; }
+      sfx('box');
+      const chips = r.got.map(g => `<span class="reward-chip rtext-${g.rarity}">${D.ELEMENT_ICON[g.elem]}${g.name}${g.dup ? `（转兽魂 ${g.soul}）` : ''}</span>`);
+      renderTopbar();
+      lootPanel(`孵化结果（×${r.count}）`, chips.join(''), w2 => { beastModal(w2); render(); }, w);
+    });
+    w.querySelectorAll('[data-beaston]').forEach(b => b.onclick = () => {
+      const r = C().setActiveBeast(b.dataset.beaston);
+      if (r.ok) toast(r.msg); else failToast(r.msg, b);
+      sfx(r.ok ? 'success' : 'fail');
+      beastModal(w); render();
+    });
+    w.querySelectorAll('[data-beastup]').forEach(b => b.onclick = () => {
+      const r = C().beastLevelUp(b.dataset.beastup);
+      if (r.ok) toast(r.msg); else failToast(r.msg, b);
+      sfx(r.ok ? 'level' : 'fail');
+      beastModal(w); render();
+    });
+    const off = w.querySelector('[data-beastoff]');
+    if (off) off.onclick = () => { C().setActiveBeast(null); toast('已收回伴生体'); beastModal(w); render(); };
     return w;
   }
 
@@ -2041,7 +2140,8 @@ window.UI = (function () {
   }
 
   /* ================= 背包 / 设置 ================= */
-  function itemIcon(it) {
+  function itemIcon(it, id) {
+    if (id === D.BEAST_EGG_ITEM) return '🥚';
     if (it.type === 'box') return '🎁';
     if (it.type === 'exp') return '📘';
     if (it.type === 'serum') return '💊';
@@ -2085,7 +2185,7 @@ window.UI = (function () {
           const verb = it.type === 'box' ? '开' : it.type === 'exp' ? '喂' : it.type === 'serum' ? '服' : '用';
           const second = Math.min(10, n);
           return `<div class="bag-card" data-item="${k}" style="cursor:pointer${it.type === 'box' ? ';border-color:var(--gold)' : ''}">
-            <div class="bico">${itemIcon(it)}</div>
+            <div class="bico">${itemIcon(it, k)}</div>
             <div class="bname">${it.name}</div>
             <div class="bcount">×${n}</div>
             ${batchable ? `<div class="bquick">
@@ -2527,11 +2627,21 @@ window.UI = (function () {
         charId: id,
       }));
     });
+    // 随行伴生体：全队五行属性（进本看世界属性算克制）+ 减伤类被动
+    const beastElem = C().activeBeastElem();
+    const bp = C().beastPct();
+    allies.forEach(a => {
+      a.beastElem = beastElem;
+      if (bp.dmgReduce) a.dmgReduce = (a.dmgReduce || 0) + bp.dmgReduce;
+    });
     return allies;
   }
   // 战斗配置：{ title, allies, enemies, worldId, maxRounds, onEnd(win, result, hpLeft) }
   function startBattle(cfg) {
     const S = C().S;
+    // 敌人的五行属性跟着世界走（回廊没有世界就不带属性）—— 五行克制在战斗引擎里结算
+    const foeElem = cfg.worldId ? D.worldElement(cfg.worldId) : null;
+    if (foeElem) (cfg.enemies || []).forEach(e => { if (!e.elem) e.elem = foeElem; });
     const res = window.Battle.run({
       allies: JSON.parse(JSON.stringify(cfg.allies)),
       enemies: cfg.enemies,
@@ -2979,6 +3089,7 @@ window.UI = (function () {
         case 'open-idlelines': idleLinesModal(); break;
         case 'open-bounty': bountyModal(); break;
         case 'open-realm': realmModal(); break;
+        case 'open-beast': beastModal(); break;
         case 'open-settings': settingsModal(); break;
         case 'claim-quest': {
           const cur = C().currentQuest();
@@ -3357,9 +3468,16 @@ window.UI = (function () {
       const bank = C().idleBankGains();
       timeEl.textContent = formatDuration(bank.seconds);
       const gainsEl = document.getElementById('idle-gains');
-      if (gainsEl) gainsEl.textContent = `◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}`;
-      const btn = document.getElementById('idle-claim-btn');
-      if (btn && bank.seconds >= 60 && btn.disabled) btn.disabled = false;
+      if (gainsEl) gainsEl.textContent = `◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.mat ? ` · ⚙️${bank.mat}` : ''}`;
+      // 「一键收取」的可用状态跟着可领取项实时变（挂机满 60 秒就会亮）
+      if (document.querySelector) {
+        const btn = document.querySelector('#view [data-act="claim-all"]');
+        if (btn) {
+          const t = C().todayState();
+          btn.disabled = !t.claimable;
+          btn.textContent = t.claimable ? `⚡ 一键收取（${t.claimable}）` : '⚡ 一键收取';
+        }
+      }
     },
     get tab() { return curTab; },
     _setTab: setTab,
@@ -3368,6 +3486,7 @@ window.UI = (function () {
       bagModal, itemDetail, currencyModal, guideModal, codexModal, shopModal, tasksModal, settingsModal,
       sweepModal, recruitModal, gotoQuest, weeklyHtml, achHtml, reincarnModal, charDetail, equipDetail, geneLockModal,
       idleLinesModal, pickIdleLeader, bountyModal, realmModal,
+      beastModal,
       _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen },
     },
   };
