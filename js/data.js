@@ -788,20 +788,6 @@ window.DATA = (function () {
 
   /* ================= 限时悬赏 ================= */
   // 带截止时间的目标：过期作废，完成后给高价值奖励（对标"次日中午前晋升领 5000 桃子"的紧迫感）
-  const BOUNTIES = [
-    { id: 'bt1', name: '蜂巢清扫', desc: '通关「生化蜂巢 · 普通」第 3 关', hours: 72,
-      reward: { holy: 600, points: 20000 },
-      check: S => !!(S.worlds.W01 && S.worlds.W01.stages.normal[2] > 0) },
-    { id: 'bt2', name: '第一名强者', desc: '拥有 1 名 SSR 及以上轮回者', hours: 96,
-      reward: { holy: 800, bloodCrystal: 20 },
-      check: S => Object.keys(S.chars).some(id => charById[id] && ['SSR', 'UR'].includes(charById[id].rarity)) },
-    { id: 'bt3', name: '强化达人', desc: '累计强化装备 10 次', hours: 120,
-      reward: { otherworld: 300, holy: 400 },
-      check: S => (S.stats.enhances || 0) >= 10 },
-    { id: 'bt4', name: '回廊初探', desc: '无限回廊到达第 10 层', hours: 168,
-      reward: { holy: 1200, bloodCrystal: 30 },
-      check: S => (S.corridor.best || 0) >= 10 },
-  ];
   // 悬赏按"你现在的进度"动态生成：目标永远是下一步本来就要做的事，不再是四条写死的。
   // 生成结果存进存档（S.bounty.list），所以刷新页面不会换目标；开新一期时重新生成。
   const makeBounties = function (S) {
@@ -1227,7 +1213,7 @@ window.DATA = (function () {
     BUILDINGS, buildingCost,
     RECRUIT_POOLS, PITY, PITY_UP, recruitUpChar, weekIndex,
     IDLE_LINES, IDLE_LINE_ATTR_DIV, IDLE_MAT_PER_MIN,
-    BOUNTIES, makeBounties, REALMS, REALM_PCT,
+    makeBounties, REALMS, REALM_PCT,
     ELEMENTS, ELEMENT_ICON, ELEMENT_COUNTER, ELEMENT_BONUS, ELEMENT_PENALTY, worldElement,
     BEASTS, beastById, beastDesc, beastPctAt, BEAST_PCT_NAME, BEAST_RARITY_RATE,
     BEAST_EGG_ITEM, BEAST_EGG_COST, BEAST_MAX_LV, BEAST_SOUL_PER_LV, BEAST_LV_PCT,

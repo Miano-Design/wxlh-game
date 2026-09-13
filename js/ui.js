@@ -466,7 +466,7 @@ window.UI = (function () {
       </div>
       <div class="hero-bank">
         <div class="hb-item"><span class="hb-k">已累积</span><b id="idle-time">${formatDuration(bank.seconds)}</b></div>
-        <div class="hb-item"><span class="hb-k">待领取</span><b id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.mat ? ` · ⚙️${bank.mat}` : ''}</b></div>
+        <div class="hb-item"><span class="hb-k">待领取</span><b id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}${bank.mat ? ` · ⚙️${bank.mat}` : ''}</b></div>
       </div>
       <div class="idle-lines-hint">${lines.map(l => `${l.line.ico}${l.leaderId ? cname(l.leaderId) : '空'}`).join(' · ')}　（点「挂机分工」派人：闭关看精神 / 采集看肌肉 / 探索看神经 / 守卫看免疫）</div>
       <div class="btn-row" style="margin-top:10px">
