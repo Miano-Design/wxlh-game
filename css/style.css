@@ -1,18 +1,39 @@
+/* ============================================================
+   《无限轮回》界面系统
+   ------------------------------------------------------------
+   2026-09-14 重做。参照对标产品（《道友修仙》）的界面语法：
+   近黑面板 + 一道细描边 + 标题带竖条，不用大圆角气泡和彩色渐变；
+   颜色只做"含义"用（金=资源/关键、红=主动作、绿=完成），不做装饰。
+   所有间距与字号都走下面的令牌，模板里不再写散落的内联尺寸。
+   ============================================================ */
 :root {
-  --bg: #0a0d13;
-  --bg2: #0e1220;
-  --panel: #151b2a;
-  --panel2: #1c2436;
-  --line: #2a3450;
+  /* 背景与面板 */
+  --bg: #07090e;
+  --bg2: #0b0e15;
+  --panel: #111621;
+  --panel2: #161d2a;
+  --panel3: #1d2534;
+  --line: #232b3b;
+  --line2: #333e55;
+  --line-soft: #ffffff0d;
+  /* 文字三级 */
   --text: #e9edf6;
-  --dim: #8b94ab;
+  --text2: #b6bfd0;
+  --dim: #7a849b;
+  /* 含义色（克制使用） */
   --accent: #d43a4f;
-  --accent2: #8b2f3f;
-  --gold: #ffd76a;
-  --green: #5dd39e;
+  --accent2: #97273a;
+  --gold: #e6b64c;
+  --green: #56c894;
   --blue: #6ec6ff;
-  --radius: 14px;
-  --nav-h: 64px;
+  /* 间距台阶 */
+  --sp1: 4px; --sp2: 8px; --sp3: 12px; --sp4: 16px; --sp5: 22px;
+  /* 圆角（统一收敛，不再到处 12/14/18） */
+  --radius: 10px;
+  --radius-sm: 7px;
+  /* 字号阶梯 */
+  --fs-xs: 10px; --fs-sm: 11px; --fs-md: 12px; --fs-lg: 13px; --fs-1: 15px; --fs-2: 17px;
+  --nav-h: 62px;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; height: 100%; }
@@ -27,20 +48,28 @@ body {
 #app { max-width: 520px; margin: 0 auto; min-height: 100%; position: relative; background: linear-gradient(180deg, var(--bg2), var(--bg)); }
 
 /* ---------- 顶栏 ---------- */
+/* 三行结构：名字行（含设置/指南）→ 货币行。不再把系统入口塞进正文。 */
 #topbar {
   position: fixed; top: 0; left: 50%; transform: translateX(-50%);
   width: 100%; max-width: 520px; z-index: 40;
-  background: rgba(10,13,19,.92); backdrop-filter: blur(8px);
+  background: rgba(7,9,14,.94); backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
   padding-top: env(safe-area-inset-top);
 }
-#topbar .player-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px 4px; }
-#topbar .pname { font-weight: 700; font-size: 14px; }
-#topbar .plv { font-size: 11px; color: var(--gold); border: 1px solid var(--gold); border-radius: 8px; padding: 0 6px; }
-#topbar .genelock { font-size: 11px; color: var(--accent); margin-left: auto; }
-#curbar { display: flex; gap: 6px; overflow-x: auto; padding: 2px 12px 8px; scrollbar-width: none; }
+#topbar .player-row { display: flex; align-items: center; gap: var(--sp2); padding: var(--sp2) var(--sp3) var(--sp1); }
+#topbar .pname { font-weight: 700; font-size: var(--fs-1); }
+#topbar .plv { font-size: var(--fs-sm); color: var(--gold); border: 1px solid #e6b64c66; border-radius: var(--radius-sm); padding: 0 6px; }
+#topbar .genelock { font-size: var(--fs-sm); color: var(--accent); }
+#topbar .tb-spacer { flex: 1; }
+.tb-icon {
+  width: 34px; height: 34px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel);
+  color: var(--text2); font-size: 15px; cursor: pointer; position: relative; font-family: inherit;
+}
+.tb-icon:active { background: var(--panel3); }
+#curbar { display: flex; gap: 6px; overflow-x: auto; padding: 2px var(--sp3) var(--sp2); scrollbar-width: none; }
 #curbar::-webkit-scrollbar { display: none; }
-.cur-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 12px; color: var(--text); font-family: inherit; cursor: pointer; position: relative; }
+.cur-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 5px 11px; font-size: var(--fs-md); color: var(--text); font-family: inherit; cursor: pointer; position: relative; }
 .cur-chip.more { color: var(--dim); border-style: dashed; }
 .cur-chip b { font-weight: 600; }
 
@@ -49,30 +78,67 @@ body {
 .screen.enter { animation: fadein .18s ease; }
 @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
-.card h3 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 6px; }
-.card h3 .sub { font-size: 11px; color: var(--dim); font-weight: 400; margin-left: auto; }
-.section-title { font-size: 13px; color: var(--dim); margin: 16px 4px 8px; letter-spacing: 1px; }
+/* ---------- 面板（统一的"匾额"结构） ---------- */
+/* 所有卡片共用一套：近黑底 + 细描边 + 顶部 1px 高光；标题左侧一道竖条。
+   这是全站一致性的根：改这里，首页 / 副本 / 角色 / 背包 / 所有弹窗同时生效。 */
+.card, .panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: var(--sp3) var(--sp3) var(--sp3); margin-bottom: var(--sp2);
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+.card h3, .panel h3 {
+  margin: 0 0 10px; font-size: var(--fs-1); font-weight: 700;
+  display: flex; align-items: center; gap: 7px; letter-spacing: .2px;
+}
+.card h3::before, .panel h3::before {
+  content: ''; flex: 0 0 auto; width: 3px; height: 13px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--gold), #8a6a1e);
+}
+.card h3 .sub, .panel h3 .sub { font-size: var(--fs-sm); color: var(--dim); font-weight: 400; margin-left: auto; letter-spacing: 0; }
+.card.plain h3::before, .panel.plain h3::before { display: none; }
+.section-title {
+  display: flex; align-items: center; gap: var(--sp2);
+  font-size: var(--fs-md); color: var(--text2); font-weight: 600; letter-spacing: 1px;
+  margin: var(--sp4) var(--sp1) var(--sp2);
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line2), transparent); }
+
+/* ---------- 文字层级与工具类（替代散落的内联 font-size / color / margin） ---------- */
+.hint { font-size: var(--fs-sm); color: var(--dim); line-height: 1.7; }
+.note { font-size: var(--fs-md); color: var(--dim); line-height: 1.75; }
+.lead { font-size: var(--fs-lg); color: var(--text2); line-height: 1.75; }
+.gold { color: var(--gold); } .green { color: var(--green); } .red { color: var(--accent); } .blue { color: var(--blue); }
+.dim { color: var(--dim); } .strong { font-weight: 700; }
+.mb1 { margin-bottom: var(--sp1); } .mb2 { margin-bottom: var(--sp2); } .mb3 { margin-bottom: var(--sp3); } .mb4 { margin-bottom: var(--sp4); }
+.mt1 { margin-top: var(--sp1); } .mt2 { margin-top: var(--sp2); } .mt3 { margin-top: var(--sp3); } .mt4 { margin-top: var(--sp4); }
+.tap { cursor: pointer; }
+.kv { display: flex; align-items: baseline; gap: var(--sp2); padding: 3px 0; font-size: var(--fs-lg); }
+.kv .k { color: var(--dim); flex: 0 0 auto; }
+.kv > span:last-child { margin-left: auto; text-align: right; }
+.empty { text-align: center; color: var(--dim); font-size: var(--fs-md); padding: var(--sp5) 0; }
 
 /* ---------- 按钮 ---------- */
+/* ---------- 按钮 ---------- */
+/* 三级就够：primary（主动作·实心红）/ gold（资源相关·实心金）/ 默认（次要·描边）。
+   ghost 是"更轻的次要"，用于取消、返回。不再出现第四第五种按钮长相。 */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  min-height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--line);
-  background: var(--panel2); color: var(--text); font-size: 14px; font-weight: 600;
-  cursor: pointer; transition: transform .08s, opacity .15s;
+  min-height: 44px; padding: 0 18px; border-radius: var(--radius-sm); border: 1px solid var(--line2);
+  background: var(--panel2); color: var(--text); font-size: var(--fs-lg); font-weight: 600;
+  cursor: pointer; transition: transform .08s, background .15s; font-family: inherit;
+  position: relative;
 }
-.btn:active { transform: scale(.96); }
-.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: #00000040; }
-.btn.gold { background: linear-gradient(135deg, #b8860b, #8a6508); border-color: #00000040; }
-.btn.ghost { background: transparent; }
+.btn:active { transform: scale(.97); background: var(--panel3); }
+.btn.primary { background: linear-gradient(180deg, #c9364a, var(--accent2)); border-color: #e05a6d40; }
+.btn.gold { background: linear-gradient(180deg, #b98d2a, #87631a); border-color: #e6b64c44; color: #fdf3dc; }
+.btn.ghost { background: transparent; border-color: var(--line); color: var(--text2); }
 /* 全局交互规则：所有可点元素热区 ≥ 44×44（小按钮也不再"点不准"） */
-.btn.small { min-height: 44px; min-width: 44px; padding: 0 14px; font-size: 12px; border-radius: 10px; }
+.btn.small { min-height: 40px; min-width: 44px; padding: 0 13px; font-size: var(--fs-md); border-radius: var(--radius-sm); }
 .btn.block { display: flex; width: 100%; }
-.btn[disabled] { opacity: .38; pointer-events: none; }
-.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn[disabled] { opacity: .34; pointer-events: none; }
+.btn-row { display: flex; gap: var(--sp2); flex-wrap: wrap; }
 .btn-row .btn { flex: 1; white-space: nowrap; }
-.btn { position: relative; }
-.btn .dot { position: absolute; top: 5px; right: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--panel2), 0 0 8px rgba(212,58,79,.85); }
+.btn .dot { position: absolute; top: 5px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--panel2), 0 0 8px rgba(212,58,79,.85); }
 
 /* ---------- 底部导航 ---------- */
 #navbar {
@@ -83,9 +149,11 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
   height: calc(var(--nav-h) + env(safe-area-inset-bottom));
 }
-.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--dim); font-size: 11px; cursor: pointer; position: relative; }
-.nav-item .ico { font-size: 20px; line-height: 1; }
-.nav-item.active { color: var(--accent); }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--dim); font-size: var(--fs-sm); cursor: pointer; position: relative; }
+.nav-item .ico { font-size: 19px; line-height: 1; filter: grayscale(.55) opacity(.8); }
+.nav-item.active { color: var(--gold); }
+.nav-item.active .ico { filter: none; }
+.nav-item.active::before { content: ''; position: absolute; top: 0; width: 26px; height: 2px; border-radius: 0 0 2px 2px; background: var(--gold); }
 .nav-item .dot { position: absolute; top: 8px; right: calc(50% - 18px); width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 
 /* ---------- 角色卡片 ---------- */
@@ -122,12 +190,12 @@ body {
 .bar .txt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; text-shadow: 0 1px 2px #000; }
 
 /* ---------- 列表 ---------- */
-.list-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid #ffffff0d; }
+.list-row { display: flex; align-items: center; gap: var(--sp3); padding: 10px var(--sp1); border-bottom: 1px solid var(--line-soft); }
 .list-row:last-child { border-bottom: none; }
 .list-row .grow { flex: 1; min-width: 0; }
-.list-row .t1 { font-size: 14px; font-weight: 600; }
-.list-row .t2 { font-size: 11px; color: var(--dim); margin-top: 2px; }
-.tag { font-size: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--dim); }
+.list-row .t1 { font-size: var(--fs-1); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.list-row .t2 { font-size: var(--fs-sm); color: var(--dim); margin-top: 3px; line-height: 1.6; }
+.tag { font-size: var(--fs-xs); border: 1px solid var(--line2); border-radius: var(--radius-sm); padding: 1px 6px; color: var(--text2); font-weight: 400; }
 
 /* ---------- 弹窗（底部抽屉） ---------- */
 #modal-root { position: fixed; inset: 0; z-index: 80; pointer-events: none; }
@@ -141,10 +209,13 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 @keyframes slideup { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
-.sheet .sheet-head { display: flex; align-items: center; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
-.sheet .sheet-head h3 { margin: 0; font-size: 16px; flex: 1; }
-.sheet .sheet-body { overflow-y: auto; padding: 12px 16px; -webkit-overflow-scrolling: touch; }
-.sheet .close-x { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--dim); font-size: 15px; }
+.sheet .sheet-head { display: flex; align-items: center; gap: var(--sp2); padding: 14px var(--sp4) 12px; border-bottom: 1px solid var(--line); }
+.sheet .sheet-head h3 { margin: 0; font-size: var(--fs-2); flex: 1; display: flex; align-items: center; gap: var(--sp2); font-weight: 700; }
+/* 弹窗标题与面板标题同一套：左侧金色竖条，全站"匾额"感一致 */
+.sheet .sheet-head h3::before { content: ''; flex: 0 0 auto; width: 3px; height: 15px; border-radius: 2px; background: linear-gradient(180deg, var(--gold), #8a6a1e); }
+.sheet .sheet-body { overflow-y: auto; padding: var(--sp3) var(--sp4) var(--sp4); -webkit-overflow-scrolling: touch; }
+.sheet .close-x { width: 34px; height: 34px; flex: 0 0 auto; border-radius: var(--radius-sm); border: 1px solid var(--line2); background: var(--panel); color: var(--dim); font-size: 15px; cursor: pointer; }
+.sheet .close-x:active { background: var(--panel3); }
 .sheet.center { top: 50%; bottom: auto; transform: translate(-50%, -50%); border-radius: 18px; border: 1px solid var(--line); max-height: 80%; animation: pop .18s ease; width: 92%; }
 @keyframes pop { from { transform: translate(-50%, -50%) scale(.92); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
 
@@ -274,36 +345,42 @@ body {
 .corridor-hero .floor-num { font-size: 44px; font-weight: 800; color: var(--accent); text-shadow: 0 0 30px #d43a4f55; }
 
 /* ---------- 首页「今日」卡 ---------- */
-.hero-idle { border-color: #6ec6ff33; background: linear-gradient(135deg, #16203a, var(--panel)); }
-.hero-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
-.hero-label { font-size: 11px; color: var(--dim); }
-.hero-num { font-size: 30px; font-weight: 800; color: var(--gold); line-height: 1.15; text-shadow: 0 0 18px #ffd76a33; }
-.hero-num .hero-unit { font-size: 12px; font-weight: 600; color: var(--dim); margin-left: 2px; }
+/* 挂机主卡：全页唯一的"主角块"，靠金色描边与更大的数字拉层级，不再靠蓝紫渐变抢眼 */
+.hero-idle { border-color: #e6b64c44; background: linear-gradient(180deg, #161d29, var(--panel)); }
+.hero-top { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp3); }
+.hero-label { font-size: var(--fs-sm); color: var(--dim); letter-spacing: 1px; }
+.hero-num { font-size: 32px; font-weight: 800; color: var(--gold); line-height: 1.1; letter-spacing: -.5px; }
+.hero-num .hero-unit { font-size: var(--fs-md); font-weight: 600; color: var(--dim); margin-left: 3px; }
 .hero-right { text-align: right; }
-.hero-sub { font-size: 11px; color: var(--dim); line-height: 1.6; }
-.hero-bank { display: flex; gap: 10px; margin-top: 10px; }
-.hero-bank .hb-item { flex: 1; min-width: 0; background: #0d1120; border-radius: 10px; padding: 8px 10px; }
-.hero-bank .hb-k { display: block; font-size: 10px; color: var(--dim); margin-bottom: 2px; }
-.hero-bank b { font-size: 13px; font-weight: 700; }
+.hero-sub { font-size: var(--fs-sm); color: var(--dim); line-height: 1.65; }
+.hero-bank { display: flex; gap: var(--sp2); margin-top: var(--sp3); }
+.hero-bank .hb-item { flex: 1; min-width: 0; background: #0a0e16; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--sp2) 10px; }
+.hero-bank .hb-k { display: block; font-size: var(--fs-xs); color: var(--dim); margin-bottom: 3px; letter-spacing: 1px; }
+.hero-bank b { font-size: var(--fs-lg); font-weight: 700; }
 
-/* 功能宫格：图标在上、名字在下 */
-.btn.feat { flex-direction: column; gap: 3px; min-height: 74px; padding: 10px 6px; }
-.btn.feat .fico { font-size: 22px; line-height: 1; }
-.btn.feat .fname { font-size: 12px; font-weight: 600; }
+/* 功能宫格：图标在上、名字在下。三列排布，一眼扫完所有系统入口（对标主界面的"宫格"做法） */
+.feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp2); margin-bottom: var(--sp2); }
+.btn.feat {
+  flex-direction: column; gap: 5px; min-height: 82px; padding: 12px 6px;
+  background: var(--panel); border-color: var(--line);
+}
+.btn.feat .fico { font-size: 24px; line-height: 1; }
+.btn.feat .fname { font-size: var(--fs-md); font-weight: 600; color: var(--text2); }
+.btn.feat:active { border-color: var(--line2); }
+/* 宫格分组标题：比 section-title 更轻，紧贴宫格 */
+.grid-title { font-size: var(--fs-sm); color: var(--dim); letter-spacing: 2px; margin: var(--sp3) 2px var(--sp2); }
+.grid-title:first-child { margin-top: 0; }
 
-.today-card { border-color: #ffd76a44; }
-.today-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed #ffffff12; }
+.today-card { border-color: #e6b64c33; }
+.today-row { display: flex; align-items: center; gap: var(--sp3); padding: 9px 0; border-bottom: 1px dashed var(--line-soft); }
 .today-row:last-child { border-bottom: none; padding-bottom: 0; }
-.today-row .tico { font-size: 20px; flex: 0 0 auto; }
+.today-row .tico { font-size: 19px; flex: 0 0 auto; opacity: .9; }
 .today-row .tgrow { flex: 1; min-width: 0; }
-.today-row .tt1 { font-size: 13px; font-weight: 600; }
-.today-row .tt2 { font-size: 11px; color: var(--dim); margin-top: 2px; }
+.today-row .tt1 { font-size: var(--fs-lg); font-weight: 600; }
+.today-row .tt2 { font-size: var(--fs-sm); color: var(--dim); margin-top: 3px; }
 
-/* 首页「更多」小字行：低频入口降级到一行里 */
-.more-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; justify-content: center; padding: 6px 0 14px; }
-.more-row .sep { color: var(--line); font-size: 11px; }
-.link-btn { background: none; border: none; color: var(--dim); font-size: 12px; font-family: inherit; padding: 8px 6px; min-height: 40px; cursor: pointer; position: relative; }
-.link-btn .dot { position: absolute; top: 8px; right: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+/* 首页「更多」小字行已取消（V7.1）：系统入口一律走三列宫格，低频入口收到顶栏图标里。
+   对应样式一并删掉，避免留下没人用的类把后来的改动带偏。 */
 
 /* ---------- 列表工具栏（筛选 / 排序 / 搜索） ---------- */
 .filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }

@@ -243,7 +243,7 @@ window.UI = (function () {
           <div style="font-size:12px;line-height:1.75;color:var(--dim)"><b>来源</b>：${info.gain || '—'}</div>
         </div>`;
       }).join('')}`;
-    const w = showPanel(wrap, '货币图鉴', body + `<button class="btn ghost block" style="margin-top:6px" data-back>‹ 返回</button>`);
+    const w = showPanel(wrap, '货币图鉴', body + `<button class="btn ghost block mt1" data-back>‹ 返回</button>`);
     w.querySelector('[data-back]').onclick = () => { if (backFn) backFn(w); else closeModal(w); };
     if (focusId) {
       const el = w.querySelector('#cur-' + focusId);
@@ -258,8 +258,8 @@ window.UI = (function () {
         ${ch.body.map(line => `<div style="font-size:12px;line-height:1.85;color:var(--text)">· ${line}</div>`).join('')}
       </div>`).join('')
       + `<div class="card" style="background:var(--panel2)"><h3>📖 看不懂就点这里</h3>
-        <div style="font-size:12px;color:var(--dim);line-height:1.8">任何一屏里有「?」或小字说明的地方，都可以点开看解释；货币、道具也都能点开看用途。</div>
-        <button class="btn small block" style="margin-top:8px" data-curdoc>▤ 打开货币图鉴</button></div>`;
+        <div class="note">任何一屏里有「?」或小字说明的地方，都可以点开看解释；货币、道具也都能点开看用途。</div>
+        <button class="btn small block mt2" data-curdoc>▤ 打开货币图鉴</button></div>`;
     const w = showPanel(wrap, '玩法指南', body);
     w.querySelector('[data-curdoc]').onclick = () => currencyModal(null, w, w2 => guideModal(null, w2));
     if (chapterId) {
@@ -273,7 +273,7 @@ window.UI = (function () {
     const S = C().S;
     const cs = C().codexState();
     const body = `
-      <div class="card" style="margin-bottom:10px">
+      <div class="card mb3">
         <h3>收集进度 <span class="sub">${cs.owned} / ${cs.total}</span></h3>
         <div class="bar exp" style="margin:6px 0 10px"><i style="width:${Math.min(100, cs.owned / cs.total * 100)}%"></i></div>
         ${cs.rewards.map(r => `<div class="list-row" style="${r.claimed ? 'opacity:.5' : ''}">
@@ -334,11 +334,16 @@ window.UI = (function () {
     document.getElementById('tb-gene').textContent = S.player.geneLock > 0 ? `基因锁·${D.GENE_LOCKS[S.player.geneLock - 1].name}` : '';
     const bar = document.getElementById('curbar');
     const main = D.CURRENCIES.filter(c => ['points', 'holy', 'otherworld'].includes(c.id));
-    bar.innerHTML = main.map(c => `<button class="cur-chip" data-cur="${c.id}" title="${c.name}·查看用途"><span style="color:${c.color}">${c.icon}</span><b>${fmt(S.cur[c.id])}</b></button>`).join('')
-      + `<button class="cur-chip more" data-cur="__all">▤ 货币</button>`;
+    // 只保留三种主力货币 + 一个入口；其余货币在图鉴里看（顶栏放太多会盖过正文）
+    bar.innerHTML = main.map(c => `<button class="cur-chip" data-cur="${c.id}" title="${c.name}·查看用途"><span class="dim" style="color:${c.color}">${c.icon}</span><b>${fmt(S.cur[c.id])}</b></button>`).join('')
+      + `<button class="cur-chip more" data-cur="__all">▤ 全部货币</button>`;
     bar.querySelectorAll('[data-cur]').forEach(el => {
       el.onclick = () => currencyModal(el.dataset.cur === '__all' ? null : el.dataset.cur);
     });
+    // 系统级入口收到顶栏：正文里就不再堆"设置 / 指南"这类小字按钮
+    const g = document.getElementById('tb-guide'), st = document.getElementById('tb-settings');
+    if (g && !g._bound) { g._bound = true; g.onclick = () => guideModal(); }
+    if (st && !st._bound) { st._bound = true; st.onclick = () => settingsModal(); }
   }
   function renderNavbar() {
     const nav = document.getElementById('navbar');
@@ -372,7 +377,7 @@ window.UI = (function () {
           <div class="coach-box" style="left:${r.left - 6}px;top:${r.top - 6}px;width:${r.width + 12}px;height:${r.height + 12}px"></div>
           <div class="coach-tip" style="left:${Math.max(12, Math.min(r.left, innerWidth - 292))}px;top:${Math.max(12, tipTop)}px">
             <div style="font-size:13px;line-height:1.6">${text}</div>
-            <button class="btn small primary" style="margin-top:10px">知道了</button>
+            <button class="btn small primary mt3">知道了</button>
           </div>`;
         ov.onclick = () => ov.remove();
         document.body.appendChild(ov);
@@ -413,7 +418,7 @@ window.UI = (function () {
   // 「轮回者」= 队伍编成 / 角色图鉴 / 装备仓库，三个子页共用一条顶部胶囊
   function rosterScreen() {
     const sub = { party: partyScreen, chars: charsScreen, equip: equipScreen }[rosterView] || partyScreen;
-    return `<div class="pill-tabs" style="margin-bottom:10px">
+    return `<div class="pill-tabs mb3">
         ${ROSTER_TABS.map(t => `<div class="pill ${rosterView === t.id ? 'active' : ''}" data-roster="${t.id}">${t.ico} ${t.name}</div>`).join('')}
       </div>
       ${sub()}`;
@@ -504,40 +509,55 @@ window.UI = (function () {
         <div class="hb-item"><span class="hb-k">待领取</span><b id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}${bank.mat ? ` · ⚙️${bank.mat}` : ''}</b></div>
       </div>
       <div class="idle-lines-hint">${lines.map(l => `${l.line.ico}${l.leaderId ? cname(l.leaderId) : '空'}`).join(' · ')}　（点「挂机分工」派人：闭关看精神 / 采集看肌肉 / 探索看神经 / 守卫看免疫）</div>
-      <div class="btn-row" style="margin-top:10px">
+      <div class="btn-row mt3">
         <button class="btn small ghost" data-act="open-idlelines">🧭 挂机分工</button>
         <button class="btn primary" data-act="claim-all" ${t0.claimable ? '' : 'disabled'}>${t0.claimable ? `⚡ 一键收取（${t0.claimable}）` : '⚡ 一键收取'}</button>
       </div>
     </div>
     ${todayCard()}
-    <div class="card" data-protag="1" style="cursor:pointer">
-      <h3>⛩ 个人房间 <span class="sub">${cname('@player')} · 主角战力 ${fmt(C().playerPower())} · 队伍 ${fmt(C().teamPower())} ›</span></h3>
-      <div class="kv"><span class="k">玩家经验</span><span>${fmt(S.player.exp)} / ${fmt(expNeed)}</span></div>
-      <div class="bar exp" style="margin:6px 0 10px"><i style="width:${Math.min(100, S.player.exp / expNeed * 100)}%"></i></div>
-      <div class="kv"><span class="k">基因锁</span><span>${gl ? `${S.player.geneLock}阶·${gl.name}` : '未解锁'}</span></div>
-      <div class="kv"><span class="k">转生次数</span><span>${S.player.reincarnations}</span></div>
-    </div>
-    <div class="grid2">
-      ${featureBtn('open-recruit', '✦ 轮回者招募', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable())}
-      ${featureBtn('open-shop', '🏪 兑换大厅', 'shop')}
+    ${protagRow()}
+    <div class="section-title">系统</div>
+    <div class="grid-title">养成</div>
+    <div class="feat-grid">
       ${featureBtn('open-buildings', '🏗 基地建设', 'buildings')}
       ${featureBtn('open-authority', '🔑 主神权限', 'buildings')}
-      ${featureBtn('open-tasks', '📋 任务', 'tasks')}
+      ${featureBtn('open-realm', '🌌 境界渡劫', null)}
       ${featureBtn('open-genelock', '🧬 基因锁', 'geneLock')}
       ${featureBtn('open-reincarn', '♾ 转生', 'reincarn')}
       ${featureBtn('open-beast', '🐾 伴生体', 'beast')}
-      ${featureBtn('open-codex', '📕 图鉴', 'recruit')}
-      <button class="btn" data-act="open-ach">🏅 成就${C().achievementSummary().list.filter(x => x.done && !x.claimed).length ? '<span class="dot"></span>' : ''}</button>
+    </div>
+    <div class="grid-title">收集</div>
+    <div class="feat-grid">
+      ${featureBtn('open-recruit', '✦ 轮回者招募', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable())}
+      ${featureBtn('open-shop', '🏪 兑换大厅', 'shop')}
+      ${featureBtn('open-codex', '📕 轮回图鉴', 'recruit')}
+      ${featureBtn('open-ach', '🏅 成就', null, C().achievementSummary().list.filter(x => x.done && !x.claimed).length > 0)}
+    </div>
+    <div class="grid-title">目标</div>
+    <div class="feat-grid">
+      ${featureBtn('open-tasks', '📋 任务', 'tasks')}
+      ${featureBtn('open-bounty', '🔥 限时悬赏', null, C().bountyState().list.some(x => x.done && !x.claimed))}
+      ${featureBtn('open-bag', '🧰 道具背包', null)}
+      ${featureBtn('open-curdoc', '▤ 货币图鉴', null)}
     </div>
     ${questCard()}
-    <div class="more-row">
-      <button class="link-btn" data-act="open-bag">🧰 道具背包</button><span class="sep">·</span>
-      <button class="link-btn" data-act="open-bounty">🔥 限时悬赏</button><span class="sep">·</span>
-      <button class="link-btn" data-act="open-realm">🌌 境界渡劫</button><span class="sep">·</span>
-      <button class="link-btn" data-act="open-authority">🔑 主神权限</button><span class="sep">·</span>
-      <button class="link-btn" data-act="open-curdoc">▤ 货币图鉴</button><span class="sep">·</span>
-      <button class="link-btn" data-act="open-guide">❓ 玩法指南</button><span class="sep">·</span>
-      <button class="link-btn" data-act="open-settings">⚙️ 设置存档</button>
+    `;
+  }
+  // 个人房间：从"一整张卡 + 3 行 + 进度条"收成一行——经验条已经在顶部状态区里了
+  function protagRow() {
+    const S = C().S;
+    const gl = D.GENE_LOCKS[S.player.geneLock - 1];
+    return `<div class="card plain tap" data-protag="1">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px;line-height:1">⛩</span>
+        <div class="grow" style="flex:1;min-width:0">
+          <div class="t1" style="font-size:var(--fs-1);font-weight:600">${cname('@player')} · 个人房间</div>
+          <div class="t2" style="font-size:var(--fs-sm);color:var(--dim);margin-top:3px">
+            战力 ${fmt(C().playerPower())} · 基因锁 ${S.player.geneLock > 0 ? `${S.player.geneLock}阶·${gl.name}` : '未解锁'} · 转生 ${S.player.reincarnations} 世
+          </div>
+        </div>
+        <span class="dim" style="font-size:18px">›</span>
+      </div>
     </div>`;
   }
   function featureBtn(act, label, unlockId, dot) {
@@ -545,7 +565,8 @@ window.UI = (function () {
     const sp = label.indexOf(' ');
     const ico = sp > 0 ? label.slice(0, sp) : '';
     const name = sp > 0 ? label.slice(sp + 1) : label;
-    if (C().isUnlocked(unlockId)) {
+    // unlockId 传 null = 没有解锁条件，永远可用（别用"有没有解锁记录"当判据）
+    if (!unlockId || C().isUnlocked(unlockId)) {
       return `<button class="btn feat" data-act="${act}"><span class="fico">${ico}</span><span class="fname">${name}</span>${dot ? '<span class="dot"></span>' : ''}</button>`;
     }
     return `<button class="btn feat" data-locked="${unlockId}" style="opacity:.5"><span class="fico">🔒</span><span class="fname">${name}</span></button>`;
@@ -555,7 +576,7 @@ window.UI = (function () {
     const idx = list.findIndex(x => !x.claimed);
     if (idx < 0) {
       return `<div class="card"><h3>📜 主线任务 <span class="sub">全部完成</span></h3>
-        <div style="font-size:12px;color:var(--dim)">你已走完当前全部主线。继续挑战更高难度的世界与无限回廊吧。</div></div>`;
+        <div class="note">你已走完当前全部主线。继续挑战更高难度的世界与无限回廊吧。</div></div>`;
     }
     const cur = list[idx];
     const q = cur.q;
@@ -622,7 +643,7 @@ window.UI = (function () {
       const w = D.WORLDS.find(x => x.id === pr.worldId);
       return `<div class="card" style="border-color:#ffd76a88;margin-bottom:10px">
         <h3>▶ 继续上次探索 <span class="sub">${w ? w.name : pr.worldId} · 第 ${pr.stage}/12 关 · 第 ${Math.min(pr.step + 1, pr.route.steps.length + 1)}/${pr.route.steps.length + 1} 段</span></h3>
-        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">进度已经保存，随时可以接着打（已获得的奖励不会丢）。</div>
+        <div class="hint mb2">进度已经保存，随时可以接着打（已获得的奖励不会丢）。</div>
         <div class="btn-row">
           <button class="btn small primary" data-resume-run="1">继续探索</button>
           <button class="btn small ghost" data-drop-run="1">放弃这一轮</button>
@@ -647,11 +668,11 @@ window.UI = (function () {
     }).join('');
     const canSweep = st && st.stages[diff].some(s => s > 0);
     return `
-      <button class="btn ghost small" data-act="back-worlds" style="margin-bottom:10px">‹ 返回世界列表</button>
+      <button class="btn ghost small mb3" data-act="back-worlds">‹ 返回世界列表</button>
       <div class="card">
         <h3>${WORLD_ICONS[w.theme]} ${w.name}</h3>
         <div style="font-size:12px;color:var(--dim);line-height:1.6">${w.desc}</div>
-        <div class="kv" style="margin-top:8px"><span class="k">世界机制</span><span style="color:var(--accent)">${w.mechanic}</span></div>
+        <div class="kv mt2"><span class="k">世界机制</span><span style="color:var(--accent)">${w.mechanic}</span></div>
         <div class="kv"><span class="k">守关Boss</span><span>${w.boss}</span></div>
       </div>
       <div class="diff-tabs">
@@ -754,7 +775,7 @@ window.UI = (function () {
     const buffList = consumables.filter(k => !(D.ITEMS[k].effect || {}).healPct);
     const potionBtn = id => `<button class="btn small" data-potion="${id}">${(D.ITEMS[id].effect || {}).healPct ? '🧪' : '💉'} ${D.ITEMS[id].name} ×${bagItems[id]}</button>`;
     const potionBar = (healList.length || buffList.length) ? `
-      <div style="margin-top:8px">
+      <div class="mt2">
         ${healList.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${healList.map(potionBtn).join('')}</div>` : ''}
         ${buffList.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${buffList.map(potionBtn).join('')}</div>` : ''}
         <div style="font-size:10px;color:var(--dim);margin-top:5px">副本内使用 · 本场探索全程有效</div>
@@ -816,7 +837,7 @@ window.UI = (function () {
         <div class="grow"><div class="t1">${e.isBoss ? '👹 ' : ''}${esc(e.name)}</div>
         <div class="t2">HP ${fmt(e.hp)} · 攻 ${fmt(e.atk)} · 防 ${fmt(e.def)}${e.faction ? ` · ${e.faction}` : ''}</div></div>
       </div>`).join('')}
-      <div class="btn-row" style="margin-top:12px">
+      <div class="btn-row mt4">
         <button class="btn ghost" data-cancel>再想想</button>
         <button class="btn primary" data-fight>⚔️ 出战</button>
       </div>
@@ -831,15 +852,15 @@ window.UI = (function () {
     const e = D.corridorEnemy(S.corridor.floor);
     const rw = D.corridorReward(S.corridor.floor);
     return `
-      <button class="btn ghost small" data-act="back-worlds" style="margin-bottom:8px">‹ 返回</button>
+      <button class="btn ghost small mb2" data-act="back-worlds">‹ 返回</button>
       <div class="corridor-hero">
-        <div style="font-size:12px;color:var(--dim)">无限回廊</div>
+        <div class="note">无限回廊</div>
         <div class="floor-num">${S.corridor.floor}</div>
-        <div style="font-size:12px;color:var(--dim)">历史最高 ${S.corridor.best} 层</div>
+        <div class="note">历史最高 ${S.corridor.best} 层</div>
       </div>
       <div class="card">
         <h3>♜ 回廊印记 <span class="sub">${C().corridorMarks()}/${D.CORRIDOR_MARK_CAP} 枚</span></h3>
-        <div style="font-size:12px;color:var(--dim);line-height:1.7">
+        <div class="note">
           历史最高层每 ${D.CORRIDOR_MARK_STEP} 层积 1 枚，每枚在回廊内给全队 <b style="color:var(--gold)">+1.5%</b> 全属性。
           当前回廊内加成：<b style="color:var(--gold)">+${Math.round(C().corridorMarkBonus() * 100)}%</b>
         </div>
@@ -851,7 +872,7 @@ window.UI = (function () {
         <div class="kv"><span class="k">通关奖励</span><span>◈${rw.points} · ❖${rw.story} · ♜${rw.corridor}${rw.bloodCrystal ? ` · ❥${rw.bloodCrystal}` : ''}</span></div>
       </div>
       <button class="btn primary block" data-act="fight-corridor">⚔️ 挑战本层</button>
-      <button class="btn block" style="margin-top:8px" data-act="open-corridor-shop">🏪 回廊商店（♜${fmt(S.cur.corridor)}）</button>
+      <button class="btn block mt2" data-act="open-corridor-shop">🏪 回廊商店（♜${fmt(S.cur.corridor)}）</button>
     `;
   }
 
@@ -887,21 +908,21 @@ window.UI = (function () {
     return `
       <div class="card">
         <h3>⚔️ 轮回小队 <span class="sub">总战力 ${fmt(C().teamPower())}（主角必上阵）</span></h3>
-        <div style="margin-bottom:10px">${protag}</div>
+        <div class="mb3">${protag}</div>
         <div class="party-slots">${slots}</div>
         <div style="margin-top:10px;font-size:11px;color:var(--dim)">主角（你）永远参战 · 前排受击概率更高 · 后排相对安全</div>
-        <div class="btn-row" style="margin-top:10px">
+        <div class="btn-row mt3">
           <button class="btn small" data-act="auto-equip">⚡ 一键最优装备</button>
           <button class="btn small ghost" data-preset-save="0">存预设 1</button>
           <button class="btn small ghost" data-preset-save="1">存预设 2</button>
           <button class="btn small ghost" data-preset-save="2">存预设 3</button>
         </div>
-        <div class="btn-row" style="margin-top:6px">
+        <div class="btn-row mt1">
           <button class="btn small gold" data-preset-use="0">套用预设 1</button>
           <button class="btn small gold" data-preset-use="1">套用预设 2</button>
           <button class="btn small gold" data-preset-use="2">套用预设 3</button>
         </div>
-        <div style="font-size:11px;color:var(--dim);margin-top:6px">
+        <div class="hint mt1">
           当前预设：${C().S.presets.map((p, i) => `${i + 1}${p && p.filter(Boolean).length ? '✓' : '—'}`).join(' ')} · 预设记录 4 个上阵位置，一键切换阵容
         </div>
       </div>
@@ -920,7 +941,7 @@ window.UI = (function () {
         </div>`;
       }).join('')}</div>
         <div style="margin-top:8px;font-size:11px;color:var(--dim)">「同阵营」一族只取命中的最高档，不重复叠；主角不属于任何阵营，但可以顶任意一个阵营的名额。</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:4px">克制环：先锋→策略→科技→异能→先锋（克制伤害+15%）</div>
+        <div class="hint mt1">克制环：先锋→策略→科技→异能→先锋（克制伤害+15%）</div>
       </div>
       <div class="card">
         <h3>成员一览</h3>
@@ -935,7 +956,7 @@ window.UI = (function () {
             <button class="btn small ghost" data-remove="${id}">下阵</button>
           </div>`;
         }).join('') || `<div class="empty">还没有上阵任何角色。招募到的角色在这里上阵，前 2 后 2 共 4 位（主角必上阵）。</div>
-          <button class="btn primary block" style="margin-top:10px" data-act="open-recruit">✦ 去招募角色</button>`}
+          <button class="btn primary block mt3" data-act="open-recruit">✦ 去招募角色</button>`}
       </div>`;
   }
   /* ================= 主角详情 ================= */
@@ -957,7 +978,7 @@ window.UI = (function () {
         </div>
       </div>
       <div style="font-size:11px;color:var(--dim);margin-bottom:10px">主角与招募角色成长体系独立：随玩家等级成长、无星级碎片、6 装备槽、血统自选、基因锁每阶全属性额外+3%</div>
-      <button class="btn small block" style="margin-bottom:10px" data-realm-open="1">🌌 境界 · ${S.player.realm ? D.REALMS[S.player.realm - 1].name : '未突破'} · 全属性 +${Math.round(C().realmBonusPct() * 100)}% · 查看渡劫 ›</button>
+      <button class="btn small block mb3" data-realm-open="1">🌌 境界 · ${S.player.realm ? D.REALMS[S.player.realm - 1].name : '未突破'} · 全属性 +${Math.round(C().realmBonusPct() * 100)}% · 查看渡劫 ›</button>
       <div class="stat-6">
         <div class="cell"><div class="v">${fmt(st.atk)}</div><div class="k">攻击</div></div>
         <div class="cell"><div class="v">${fmt(st.def)}</div><div class="k">防御</div></div>
@@ -967,7 +988,7 @@ window.UI = (function () {
         <div class="cell"><div class="v">${Math.round(st.eva * 100)}%</div><div class="k">闪避</div></div>
       </div>
       <div class="section-title">六维属性 <span style="color:var(--gold)">可用点数 ${S.player.attrPoints || 0}</span></div>
-      <div style="font-size:11px;color:var(--dim);margin-bottom:8px">每升 1 级获得 ${D.ATTR_POINTS_PER_LV} 点，每点 +${D.ATTR_POINT_VALUE} 维值</div>
+      <div class="hint mb2">每升 1 级获得 ${D.ATTR_POINTS_PER_LV} 点，每点 +${D.ATTR_POINT_VALUE} 维值</div>
       ${D.ATTR_META.map(a => `
         <div class="list-row">
           <div class="grow"><div class="t1">${a.name} <span style="color:var(--dim);font-size:11px">${a.desc}</span></div>
@@ -976,21 +997,21 @@ window.UI = (function () {
           <button class="btn small ghost" data-attr="${a.id}" data-n="10" ${(S.player.attrPoints || 0) >= 1 ? '' : 'disabled'}>+10</button>
         </div>`).join('')}
       <div class="section-title">${S.player.bloodline ? S.player.bloodline + '血统技能' : '技能'} <span style="color:var(--gold)">可用技能点 ${S.player.skillPoints || 0}</span></div>
-      <div style="font-size:11px;color:var(--dim);margin-bottom:8px">每升 1 级获得 1 点技能点${S.player.bloodline ? '' : '；觉醒血统（Lv.' + D.BLOODLINE_UNLOCK_LV + '）后技能栏将替换为血统技能'}</div>
+      <div class="hint mb2">每升 1 级获得 1 点技能点${S.player.bloodline ? '' : '；觉醒血统（Lv.' + D.BLOODLINE_UNLOCK_LV + '）后技能栏将替换为血统技能'}</div>
       ${[P.s1, P.s2, P.ult].map((sk, i) => `
         <div class="skill-row"><div class="sname">${['技能', '技能', '必杀'][i]}·${sk.name} <span class="tag">Lv.${(S.player.skillLv || [1, 1, 1])[i]}/10</span>
           <button class="btn small" data-pskill="${i}" style="float:right" ${(S.player.skillPoints || 0) > 0 && (S.player.skillLv || [1, 1, 1])[i] < 10 ? '' : 'disabled'}>+1</button></div>
         <div class="sdesc">${sk.desc}</div></div>`).join('')}
       <div class="skill-row"><div class="sname">被动·${P.passive.name}</div><div class="sdesc">${P.passive.desc}</div></div>
-      <button class="btn small ghost" data-pskillreset="1" style="margin-top:6px">↺ 重置技能（返还全部技能点）</button>
+      <button class="btn small ghost mt1" data-pskillreset="1">↺ 重置技能（返还全部技能点）</button>
       <div class="section-title">血统</div>
       ${S.player.bloodline ? `
         <div style="font-size:12px;margin-bottom:6px">${S.player.bloodline} Lv.${S.player.bloodlineLv}/${D.BLOODLINE_MAX} <span style="color:var(--dim);font-size:11px">${D.BLOODLINES[S.player.bloodline].desc}</span></div>
         ${blCost ? `<button class="btn small" data-pblup="1">血统升级（❥${blCost.bloodCrystal} + ◈${fmt(blCost.points)}）</button>` : '<div style="color:var(--gold);font-size:12px">已满级</div>'}
       ` : S.player.level < D.BLOODLINE_UNLOCK_LV ? `
-        <div style="font-size:12px;color:var(--dim)">🔒 主角 Lv.${D.BLOODLINE_UNLOCK_LV} 觉醒血统（当前 Lv.${S.player.level}）</div>
+        <div class="note">🔒 主角 Lv.${D.BLOODLINE_UNLOCK_LV} 觉醒血统（当前 Lv.${S.player.level}）</div>
       ` : `
-        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">选择一种血统觉醒（不可更改）</div>
+        <div class="hint mb2">选择一种血统觉醒（不可更改）</div>
         <div class="grid2">${Object.entries(D.BLOODLINES).map(([id, bl]) => `<button class="btn small" data-pbl="${id}">${id}<br><span style="font-size:10px;font-weight:400;color:var(--dim)">${bl.desc.split('。')[0]}</span></button>`).join('')}</div>
       `}
       <div class="section-title">装备（主角专属 6 槽）</div>
@@ -1003,7 +1024,7 @@ window.UI = (function () {
           ${e ? `<button class="btn small ghost" data-punequip="${slot}">卸下</button>` : ''}
         </div>`;
       }).join('')}
-      <div class="btn-row" style="margin-top:12px"><button class="btn small ghost" data-rename="1">✏️ 修改名字</button></div>
+      <div class="btn-row mt4"><button class="btn small ghost" data-rename="1">✏️ 修改名字</button></div>
     `);
     restoreModalScroll(w, scrollTop);
     const reopenSelf = () => { protagonistDetail(0, w); render(); };
@@ -1213,7 +1234,7 @@ window.UI = (function () {
         <div class="sdesc">${ch.skills.passive.desc}</div>
       </div>
       <div class="section-title">${ch.bloodline}血统 Lv.${c.bloodlineLv}/${D.BLOODLINE_MAX}</div>
-      <div style="font-size:11px;color:var(--dim);margin-bottom:8px">${bl.desc}</div>
+      <div class="hint mb2">${bl.desc}</div>
       <div class="btn-row">
         <button class="btn small" data-blup="1" ${!blCost ? 'disabled' : ''}>血统升级${blCost ? `（❥${blCost.bloodCrystal} + ◈${fmt(blCost.points)}）` : ''}</button>
       </div>
@@ -1281,7 +1302,7 @@ window.UI = (function () {
     const S = C().S;
     const items = Object.entries(S.items).filter(([k]) => D.ITEMS[k] && D.ITEMS[k].type === 'exp');
     const w = showPanel(wrap, '使用经验道具', `
-      <div style="font-size:12px;color:var(--dim);margin-bottom:10px">给 <b>${cname(id)}</b> 喂经验模块，可一次喂多个。</div>
+      <div class="note mb3">给 <b>${cname(id)}</b> 喂经验模块，可一次喂多个。</div>
       ${items.map(([k, n]) => `
       <div class="list-row">
         <div class="grow"><div class="t1">${D.ITEMS[k].name}</div><div class="t2">+${fmt(D.ITEMS[k].exp)} EXP · 拥有 ${n}</div></div>
@@ -1289,7 +1310,7 @@ window.UI = (function () {
         <button class="btn small" data-use="${k}" data-n="10" ${n >= 10 ? '' : 'disabled'}>用 10</button>
         <button class="btn small gold" data-use="${k}" data-n="0">全用</button>
       </div>`).join('') || '<div class="empty">没有经验道具</div>'}
-      <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回角色</button>`);
+      <button class="btn ghost block mt4" data-back>‹ 返回角色</button>`);
     w.querySelector('[data-back]').onclick = () => charDetail(id, 0, w);
     w.querySelectorAll('[data-use]').forEach(b => b.onclick = () => {
       const want = +b.dataset.n;
@@ -1328,8 +1349,8 @@ window.UI = (function () {
     const curUid = (S.equipped[charId] || {})[slot];
     const curEq = curUid && S.equips[curUid];
     const w = showPanel(wrap, `选择${D.EQUIP_SLOTS[slot]}（${cname(charId)}）`, `
-      ${curEq ? `<div style="font-size:11px;color:var(--dim);margin-bottom:8px">当前：<span class="rtext-${curEq.rarity}">${curEq.name} +${curEq.enhance}</span> · 下面是换成这件之后的属性变化</div>`
-        : `<div style="font-size:11px;color:var(--dim);margin-bottom:8px">该部位还没有装备，装上即为净收益</div>`}
+      ${curEq ? `<div class="hint mb2">当前：<span class="rtext-${curEq.rarity}">${curEq.name} +${curEq.enhance}</span> · 下面是换成这件之后的属性变化</div>`
+        : `<div class="hint mb2">该部位还没有装备，装上即为净收益</div>`}
       ${list.map(eq => {
       const equippedBy = Object.entries(S.equipped).find(([cid, slots]) => slots[slot] === eq.uid);
       return `<div class="list-row" data-eq="${eq.uid}" style="cursor:pointer">
@@ -1338,7 +1359,7 @@ window.UI = (function () {
         ${eq.uid === curUid ? '<div class="t2" style="color:var(--gold)">当前穿戴中</div>' : (list.length && curEq ? `<div class="t2">对比：${equipDelta(curEq, eq)}</div>` : '')}</div>
       </div>`;
     }).join('') || '<div class="empty">背包中没有该角色可穿戴的此部位装备</div>'}
-      <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回角色</button>`);
+      <button class="btn ghost block mt4" data-back>‹ 返回角色</button>`);
     w.querySelector('[data-back]').onclick = () => backFn(w);
     w.querySelectorAll('[data-eq]').forEach(el => el.onclick = () => {
       if (C().equipItem(charId, el.dataset.eq)) toast('已装备');
@@ -1420,8 +1441,8 @@ window.UI = (function () {
       ${batchMode ? `
         <div style="height:116px"></div>
         <div class="batch-bar">
-          <div class="bb-row" style="margin-bottom:8px">
-            <span style="font-size:12px;color:var(--dim)">快选：</span>
+          <div class="bb-row mb2">
+            <span class="note">快选：</span>
             ${['N', 'R', 'SR'].map(r => `<button class="btn small ghost" data-bsel="${r}">${r}</button>`).join('')}
             <button class="btn small ghost" data-bclear>清空</button>
           </div>
@@ -1448,10 +1469,10 @@ window.UI = (function () {
       : set ? `${set.name}（${set.text}）`
       : '普通装备';
     const w = showPanel(wrap, `${eq.name}`, `
-      <div style="margin-bottom:10px">
+      <div class="mb3">
         <span class="rtext-${eq.rarity}" style="font-size:17px;font-weight:800">${eq.rarity}</span>
         <b style="font-size:17px"> ${eq.name} <span style="color:var(--gold)">+${eq.enhance}</span></b>
-        <div style="font-size:11px;color:var(--dim);margin-top:4px">${D.EQUIP_SLOTS[eq.slot]} · ${catLine}${equippedBy ? ` · ${cname(equippedBy[0])}装备中` : ''}</div>
+        <div class="hint mt1">${D.EQUIP_SLOTS[eq.slot]} · ${catLine}${equippedBy ? ` · ${cname(equippedBy[0])}装备中` : ''}</div>
       </div>
       <div class="skill-row"><div class="sdesc" style="font-size:12px;color:var(--text)">${equipBrief(eq)}</div></div>
       <div class="section-title">强化（+${eq.enhance}/20）</div>
@@ -1464,7 +1485,7 @@ window.UI = (function () {
         <button class="btn small ${eq.lock ? 'primary' : 'ghost'}" data-lock="1">${eq.lock ? '🔒 已锁定' : '🔓 锁定保护'}</button>
         <button class="btn small ghost" data-decomp="1" ${eq.lock ? 'disabled' : ''}>分解（◆${D.DECOMPOSE_GAIN[eq.rarity] + eq.enhance * 3}）</button>
       </div>
-      <div style="font-size:11px;color:var(--dim);margin-top:6px">锁定后这件装备不会被分解（含批量分解），一键最优装备也不会把它换走。</div>
+      <div class="hint mt1">锁定后这件装备不会被分解（含批量分解），一键最优装备也不会把它换走。</div>
     `);
     w.querySelector('[data-lock]').onclick = () => {
       const r = C().toggleEquipLock(uid);
@@ -1493,7 +1514,7 @@ window.UI = (function () {
         .filter(id => C().canEquip(id, eq));
       const w2 = modal('装备给…', candidates.map(id => {
         if (id === '@player') {
-          return `<div class="list-row" data-to="@player" style="cursor:pointer">
+          return `<div class="list-row tap" data-to="@player">
             ${charAvatar('@player', 36)}
             <div class="grow"><div class="t1">${cname('@player')}（主角）</div><div class="t2">Lv.${S.player.level} · 战力${fmt(C().playerPower())}</div></div>
           </div>`;
@@ -1523,9 +1544,9 @@ window.UI = (function () {
     const S = C().S;
     const free = C().freeRecruitAvailable();
     const w = showPanel(wrap, '轮回者招募', `
-      <div class="card" style="margin-bottom:10px">
+      <div class="card mb3">
         <h3>每日免费 <span class="sub">${free ? '今日可领' : '明天再来'}</span></h3>
-        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">一天一次，免费招募同样计入主线与每日任务。</div>
+        <div class="hint mb2">一天一次，免费招募同样计入主线与每日任务。</div>
         <button class="btn primary block" data-free="1" ${free ? '' : 'disabled'}>免费招募 1 次</button>
       </div>
       ${Object.entries(D.RECRUIT_POOLS).map(([pid, p]) => {
@@ -1538,7 +1559,7 @@ window.UI = (function () {
       // 按钮文案如实反映"这次到底扣什么"：够券就写券，不够才写货币
       const oneLabel = tk && tk.n >= 1 ? `抽 1 次（🎫 ${tkName}×1）` : `抽 1 次（${costText}）`;
       const tenLabel = tk && tk.n >= 10 ? `十连（🎫 ${tkName}×10）` : `十连（${tenText}·保底SR）`;
-      return `<div class="card pool-card" style="margin-bottom:10px">
+      return `<div class="card pool-card mb3">
         <h3>${p.name} <span class="tag" style="color:var(--gold);border-color:var(--gold)">${p.tag}</span>
           <span class="sub">用 ${Object.keys(p.cost).map(curName).join(' / ')}</span></h3>
         <div style="font-size:11px;color:var(--dim);line-height:1.75;margin-bottom:8px">${p.desc}</div>
@@ -1559,7 +1580,7 @@ window.UI = (function () {
         </div>
       </div>`;
     }).join('')}
-      <button class="btn ghost block" style="margin-bottom:10px" data-rates="1">📊 招募概率公示（每一档出率与保底规则）</button>
+      <button class="btn ghost block mb3" data-rates="1">📊 招募概率公示（每一档出率与保底规则）</button>
       ${S.ssrTicket > 0 ? `<button class="btn gold block" data-ssrpick="1">🎫 使用SSR自选券（剩 ${S.ssrTicket}）</button>` : ''}
     `);
     const showResults = results => {
@@ -1575,7 +1596,7 @@ window.UI = (function () {
           <div class="cmeta">${r.isNew ? '<span style="color:var(--green)">NEW</span>' : `碎片+${r.shards}`}</div>
         </div>`;
       }).join('')}</div>
-        <button class="btn primary block" style="margin-top:12px" data-back>继续招募</button>`);
+        <button class="btn primary block mt4" data-back>继续招募</button>`);
       w.querySelector('[data-back]').onclick = () => recruitModal(w);
       refresh();
     };
@@ -1624,7 +1645,7 @@ window.UI = (function () {
         <span>UR 还差 <b>${Math.max(0, pv.ur.cap - pv.ur.n)}</b> 抽</span>
         ${pv.up ? `<span style="color:var(--gold)">UP 还差 <b>${Math.max(0, pv.up.cap - pv.up.n)}</b> 抽</span>` : ''}
       </div>` : '';
-      return `<div class="card" style="margin-bottom:10px">
+      return `<div class="card mb3">
         <h3>${p.name} <span class="sub">${p.tag} · 用 ${Object.keys(p.cost).map(curName).join(' / ')}</span></h3>
         <div class="rate-row">${rate}</div>
         <div class="kv"><span class="k">单抽</span><span>${cost}${tk ? ` · 或 🎫${tkName}×1（现有 ${tk.n} 张）` : ''}</span></div>
@@ -1635,7 +1656,7 @@ window.UI = (function () {
     }).join('');
     const w = showPanel(wrap, '概率公示', `
       <div class="card" style="margin-bottom:10px;border-color:#ffd76a55">
-        <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <div class="note">
           下面每一档出率都是<b>抽卡真正使用的数值</b>（和代码里那份配置是同一份，不存在"写着好看"）。
           有招募券时优先扣券，没券才扣货币；十连要么给 10 张券、要么给足货币，不混着扣。
         </div>
@@ -1648,10 +1669,10 @@ window.UI = (function () {
   function ssrPickModal(wrap) {
     const ssrs = D.characters.filter(c => c.rarity === 'SSR' && !c.hidden);
     const w = showPanel(wrap, 'SSR 自选（剩 ' + C().S.ssrTicket + ' 张）', `
-      <div style="font-size:12px;color:var(--dim);margin-bottom:10px">选一名 SSR 轮回者入队；已拥有的角色会转成碎片。</div>
+      <div class="note mb3">选一名 SSR 轮回者入队；已拥有的角色会转成碎片。</div>
       <div class="char-grid">${ssrs.map(ch => `
       <div class="char-card rarity-SSR" data-pickssr="${ch.id}">${charAvatar(ch.id)}<div class="cname">${esc(ch.name)}</div><div class="cmeta">${ch.role} · ${ch.faction}</div></div>`).join('')}</div>
-      <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回招募</button>`);
+      <button class="btn ghost block mt4" data-back>‹ 返回招募</button>`);
     w.querySelector('[data-back]').onclick = () => recruitModal(w);
     w.querySelectorAll('[data-pickssr]').forEach(el => el.onclick = () => {
       const r = C().ssrTicketUse(el.dataset.pickssr);
@@ -1708,12 +1729,12 @@ window.UI = (function () {
   /* ================= 建筑 ================= */
   function buildingsModal(wrap) {
     const S = C().S;
-    const w = showPanel(wrap, '基地建设', `<div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:8px">建筑升级全部消耗 ◈点数（挂机与副本产出），每级效果永久生效。</div>` + D.BUILDINGS.map(b => {
+    const w = showPanel(wrap, '基地建设', `<div class="hint mb2">建筑升级全部消耗 ◈点数（挂机与副本产出），每级效果永久生效。</div>` + D.BUILDINGS.map(b => {
       const lv = S.buildings[b.id];
       const cost = D.buildingCost(b.id, lv);
-      return `<div class="card" style="margin-bottom:10px">
+      return `<div class="card mb3">
         <h3>${b.name} <span class="sub">Lv.${lv}/50</span></h3>
-        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">${b.desc}</div>
+        <div class="hint mb2">${b.desc}</div>
         <button class="btn small" data-bup="${b.id}" ${lv >= 50 ? 'disabled' : ''}>升级（◈${fmt(cost)}）</button>
       </div>`;
     }).join(''));
@@ -1738,7 +1759,7 @@ window.UI = (function () {
     const body = `
       <div class="card" style="border-color:#ffd76a55">
         <h3>主神权限 <span class="sub">Lv.${info.lv} / ${info.max}</span></h3>
-        <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <div class="note">
           用<b>高级货币</b>向主神换取永久授权：投入一次，之后每一分钟都在生效，<b>转生也不清空</b>。<br>
           和"基地建设"分工不同——建筑花的是挂机就能刷的 ◈点数，这里花的是 ✦圣洁晶石 + ◆异界结晶，
           给高级货币一条"抽卡之外的长期出口"。
@@ -1754,10 +1775,10 @@ window.UI = (function () {
         ${info.now.allPct ? `<div class="kv"><span class="k">全队全属性</span><span style="color:var(--gold)">+${Math.round(info.now.allPct * 100)}%</span></div>` : ''}
       </div>
       ${info.maxed
-        ? '<div class="card"><h3>已满级</h3><div style="font-size:12px;color:var(--dim)">主神已把最高权限交给你了。</div></div>'
+        ? '<div class="card"><h3>已满级</h3><div class="note">主神已把最高权限交给你了。</div></div>'
         : `<div class="card" style="border-color:#ffd76a66">
         <h3>下一级 · Lv.${info.lv + 1}</h3>
-        <div style="font-size:12px;color:var(--dim);margin-bottom:8px">${info.nextDesc}</div>
+        <div class="note mb2">${info.nextDesc}</div>
         <div class="kv"><span class="k">✦圣洁晶石</span><span style="color:${hl >= cost.holy ? 'var(--green)' : 'var(--accent)'}">${fmt(hl)} / ${fmt(cost.holy)}</span></div>
         <div class="kv"><span class="k">◆异界结晶</span><span style="color:${ow >= cost.otherworld ? 'var(--green)' : 'var(--accent)'}">${fmt(ow)} / ${fmt(cost.otherworld)}</span></div>
         <button class="btn primary block" style="margin-top:10px" data-auth="1" ${afford ? '' : 'disabled'}>⚡ 提升主神权限</button>
@@ -1794,7 +1815,7 @@ window.UI = (function () {
       const leader = r.leaderId;
       return `<div class="card" style="margin-bottom:8px;${leader ? '' : 'border-style:dashed'}">
         <h3>${r.line.ico} ${r.line.name} <span class="sub">${r.per}</span></h3>
-        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">${r.line.desc}${leader ? ` · 领队【${r.line.attrName}】${r.attrValue} → 加成 +${Math.round(r.bonus * 100)}%` : ''}</div>
+        <div class="hint mb2">${r.line.desc}${leader ? ` · 领队【${r.line.attrName}】${r.attrValue} → 加成 +${Math.round(r.bonus * 100)}%` : ''}</div>
         ${leader
           ? `<div class="list-row" style="border:none;padding:4px 0">
                ${charAvatar(leader, 34)}
@@ -1820,7 +1841,7 @@ window.UI = (function () {
     const line = D.IDLE_LINES.find(l => l.id === lineId);
     const bench = Object.keys(S.chars).filter(id => !S.party.includes(id));
     const body = `
-      <div style="font-size:12px;color:var(--dim);margin-bottom:10px">选一名轮回者派往「${line.name}」，战力越高产出越高。</div>
+      <div class="note mb3">选一名轮回者派往「${line.name}」，战力越高产出越高。</div>
       ${bench.map(id => {
       const used = D.IDLE_LINES.find(l => l.id !== lineId && S.idle.lines[l.id] === id);
       return `<div class="list-row" data-idlelead="${id}" style="cursor:pointer${used ? ';opacity:.5' : ''}">
@@ -1829,7 +1850,7 @@ window.UI = (function () {
         <div class="t2">Lv.${S.chars[id].lv} · ${line.attrName} ${Math.round(((C().effectiveStats(id) || {}).attrs || {})[line.attr] || 0)} · 战力 ${fmt(C().power(id))}${used ? ` · 已在「${used.name}」` : ''}</div></div>
       </div>`;
     }).join('') || '<div class="empty">没有可派的角色</div>'}
-      <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回挂机分工</button>`;
+      <button class="btn ghost block mt4" data-back>‹ 返回挂机分工</button>`;
     const w = showPanel(wrap, '派遣领队', body);
     w.querySelector('[data-back]').onclick = () => idleLinesModal(w);
     w.querySelectorAll('[data-idlelead]').forEach(el => el.onclick = () => {
@@ -1854,7 +1875,7 @@ window.UI = (function () {
       const color = claimed || expired ? 'var(--dim)' : done ? 'var(--green)' : 'var(--gold)';
       return `<div class="card" style="margin-bottom:8px;${done && !claimed && !expired ? 'border-color:var(--green)' : ''}">
         <h3>${b.name} <span class="sub" style="color:${color}">${state}</span></h3>
-        <div style="font-size:12px;color:var(--dim);line-height:1.7">${b.desc}</div>
+        <div class="note">${b.desc}</div>
         <div class="kv"><span class="k">剩余时间</span><span>${expired ? '已结束' : formatDuration(Math.max(0, Math.floor(leftMs / 1000)))}</span></div>
         <div class="kv"><span class="k">奖励</span><span>${rewardText(b.reward)}</span></div>
         ${claimed ? '<button class="btn small block" disabled>已领取</button>'
@@ -1891,7 +1912,7 @@ window.UI = (function () {
           五行：<b style="color:var(--gold)">${st.activeBeast.elem}</b> 克 <b>${ctr}</b> —— 进「${ctr}」属性的世界，全队伤害 +${Math.round(D.ELEMENT_BONUS * 100)}%；
           遇到克你的世界则 -${Math.round(D.ELEMENT_PENALTY * 100)}%。
         </div>
-        <button class="btn small ghost block" style="margin-top:8px" data-beastoff="1">收回伴生体</button>
+        <button class="btn small ghost block mt2" data-beastoff="1">收回伴生体</button>
       </div>`;
     })() : `<div class="card" style="border-style:dashed">
       <h3>🐾 还没有随行伴生体</h3>
@@ -1909,7 +1930,7 @@ window.UI = (function () {
           <button class="btn small ${st.canHatch ? 'primary' : ''}" data-hatch="1" ${st.canHatch ? '' : 'disabled'}>孵 1 只（🥚${st.eggCost}）</button>
           <button class="btn small gold" data-hatch="10" ${st.eggs >= st.eggCost * 10 ? '' : 'disabled'}>孵 10 只（🥚${st.eggCost * 10}）</button>
         </div>
-        <div class="rate-row" style="margin-top:8px">${Object.entries(D.BEAST_RARITY_RATE).map(([r, v]) => `<span class="rtext-${r}">${r} ${(v * 100).toFixed(1)}%</span>`).join('')}</div>
+        <div class="rate-row mt2">${Object.entries(D.BEAST_RARITY_RATE).map(([r, v]) => `<span class="rtext-${r}">${r} ${(v * 100).toFixed(1)}%</span>`).join('')}</div>
       </div>
       <div class="section-title">我的伴生体（${st.count} / ${D.BEASTS.length}）</div>
       ${st.list.map(x => {
@@ -1921,7 +1942,7 @@ window.UI = (function () {
           <div class="grow">
             <div><span class="rtext-${x.b.rarity}">${x.b.rarity}</span> <b>${x.b.name}</b>
               <span class="tag">Lv.${x.lv}/${D.BEAST_MAX_LV}</span>${x.active ? ' <span class="tag" style="color:var(--gold);border-color:var(--gold)">随行中</span>' : ''}</div>
-            <div style="font-size:11px;color:var(--dim);margin-top:4px">${D.beastDesc(x.b)}（全队）</div>
+            <div class="hint mt1">${D.beastDesc(x.b)}（全队）</div>
             <div style="font-size:11px;color:var(--dim);margin-top:2px">克 ${counter} · 兽魂 ${x.soul}${x.maxLv ? ' · 已满级' : ` / 升阶需 ${need}`}</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px">
@@ -1934,7 +1955,7 @@ window.UI = (function () {
       <div class="section-title">五行相克</div>
       <div class="card" style="font-size:11px;line-height:1.9;color:var(--dim)">
         ${D.ELEMENTS.map(e => `${D.ELEMENT_ICON[e]}${e} 克 ${D.ELEMENT_ICON[D.ELEMENT_COUNTER[e]]}${D.ELEMENT_COUNTER[e]}`).join('　')}
-        <div style="margin-top:8px">各世界的属性：${D.WORLDS.map(w => { const e = D.worldElement(w.id); return `${w.name.slice(0, 2)}${D.ELEMENT_ICON[e]}${e}`; }).join(' · ')}</div>
+        <div class="mt2">各世界的属性：${D.WORLDS.map(w => { const e = D.worldElement(w.id); return `${w.name.slice(0, 2)}${D.ELEMENT_ICON[e]}${e}`; }).join(' · ')}</div>
       </div>`;
     const w = showPanel(wrap, '伴生体 · 兽栏', body);
     w.querySelectorAll('[data-hatch]').forEach(b => b.onclick = () => {
@@ -1986,7 +2007,7 @@ window.UI = (function () {
     const body = `
       <div class="card">
         <h3>境界 <span class="sub">第 ${st.realm} / ${D.REALMS.length} 阶${st.realm ? ` · ${D.REALMS[st.realm - 1].full}` : ''}</span></h3>
-        <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <div class="note">
           每突破一小阶，主角全属性永久 <b style="color:var(--gold)">+${(D.REALM_PCT * 100).toFixed(1)}%</b>。
           当前加成：<b style="color:var(--gold)">+${(st.bonusPct * 100).toFixed(1)}%</b>（满 ${D.REALMS.length} 阶合计 +${(D.REALMS.length * D.REALM_PCT * 100).toFixed(1)}%）<br>
           渡劫失败只扣材料与点数，<b>等级不掉</b>，可以反复挑战。
@@ -1998,8 +2019,8 @@ window.UI = (function () {
         <div class="kv"><span class="k">渡劫材料</span><span style="color:${st.haveMat >= st.matN ? 'var(--green)' : 'var(--accent)'}">${D.ITEMS[st.matItem].name} ${st.haveMat} / ${st.matN}</span></div>
         <div class="kv"><span class="k">点数</span><span style="color:${(S.cur.points || 0) >= st.points ? 'var(--green)' : 'var(--accent)'}">◈${fmt(st.points)}</span></div>
         <button class="btn primary block" style="margin-top:10px" data-realm="1" ${st.levelOk && st.haveMat >= st.matN && (S.cur.points || 0) >= st.points ? '' : 'disabled'}>⚡ 渡劫（成功率 ${Math.round(st.rate * 100)}%）</button>
-        <div style="font-size:11px;color:var(--dim);margin-top:6px">失败也会扣掉上面的材料与点数——这就是"渡"字的分量，但等级永远不掉。</div>
-      </div>` : '<div class="card"><h3>已至渡劫大圆满</h3><div style="font-size:12px;color:var(--dim)">当前境界已是终点。</div></div>'}
+        <div class="hint mt1">失败也会扣掉上面的材料与点数——这就是"渡"字的分量，但等级永远不掉。</div>
+      </div>` : '<div class="card"><h3>已至渡劫大圆满</h3><div class="note">当前境界已是终点。</div></div>'}
       <div class="section-title">境界一览 · ${D.REALM_MAJORS.length} 大境 × ${D.REALM_TIERS.length} 小阶</div>
       ${groups}`;
     const w = showPanel(wrap, '境界 · 渡劫', body);
@@ -2112,9 +2133,9 @@ window.UI = (function () {
           : done ? `<button class="btn small primary" data-wclaim="${t.id}">领取</button>`
           : '<button class="btn small ghost" disabled>进行中</button>'}
       </div>`).join('')}
-      <div class="card" style="margin-top:10px">
+      <div class="card mt3">
         <h3>本周全清奖励</h3>
-        <div style="font-size:12px;color:var(--dim);margin-bottom:8px">${rewardText(D.WEEKLY_ALL_REWARD)}</div>
+        <div class="note mb2">${rewardText(D.WEEKLY_ALL_REWARD)}</div>
         <button class="btn gold block" data-wclaimall="1" ${allDone && !claimedAll ? '' : 'disabled'}>${claimedAll ? '已领取' : '一键领取'}</button>
       </div>`;
   }
@@ -2123,7 +2144,7 @@ window.UI = (function () {
     const st = C().achievementSummary();
     const cats = ['战斗', '养成', '收集', '挑战'];
     return `
-      <div class="kv" style="margin-bottom:8px"><span class="k">成就进度</span><span>已达成 ${st.claimed}/${st.total} · 可领取 ${st.list.filter(x => x.done && !x.claimed).length}</span></div>
+      <div class="kv mb2"><span class="k">成就进度</span><span>已达成 ${st.claimed}/${st.total} · 可领取 ${st.list.filter(x => x.done && !x.claimed).length}</span></div>
       ${cats.map(cat => {
         const list = st.list.filter(x => x.a.cat === cat);
         if (!list.length) return '';
@@ -2172,9 +2193,9 @@ window.UI = (function () {
               : `<button class="btn small ghost" data-godaily="${t.id}">前往 ›</button>`}
         </div>`;
       }).join('')}
-      <div class="card" style="margin-top:10px">
+      <div class="card mt3">
         <h3>全部完成奖励</h3>
-        <div style="font-size:12px;color:var(--dim);margin-bottom:8px">${Object.entries(D.DAILY_ALL_REWARD).map(([k, v]) => `${curIcon(k)}${v}`).join(' · ')}</div>
+        <div class="note mb2">${Object.entries(D.DAILY_ALL_REWARD).map(([k, v]) => `${curIcon(k)}${v}`).join(' · ')}</div>
         <button class="btn gold block" data-claimall="1" ${allDone && !S.tasks.allClaimed ? '' : 'disabled'}>${S.tasks.allClaimed ? '已领取' : '一键领取'}</button>
       </div>`;
     const w = showPanel(wrap, '任务', `
@@ -2233,13 +2254,13 @@ window.UI = (function () {
     const S = C().S;
     const info = C().geneLockInfo();
     const w = showPanel(wrap, '基因锁', `
-      <div style="font-size:12px;color:var(--dim);margin-bottom:10px">在生死之间突破人类极限。当前：<b style="color:var(--accent)">${S.player.geneLock > 0 ? D.GENE_LOCKS[S.player.geneLock - 1].name : '未解锁'}</b></div>
+      <div class="note mb3">在生死之间突破人类极限。当前：<b style="color:var(--accent)">${S.player.geneLock > 0 ? D.GENE_LOCKS[S.player.geneLock - 1].name : '未解锁'}</b></div>
       ${D.GENE_LOCKS.map((g, i) => {
         const unlocked = S.player.geneLock > i;
         const isNext = S.player.geneLock === i;
         return `<div class="card" style="margin-bottom:8px;${isNext ? 'border-color:var(--accent)' : ''}">
           <h3>${i + 1}阶 · ${g.name} ${unlocked ? '<span class="sub" style="color:var(--green)">已解锁</span>' : ''}</h3>
-          <div style="font-size:12px;color:var(--dim)">${g.desc}</div>
+          <div class="note">${g.desc}</div>
           ${isNext && !info.max ? `
             <div style="font-size:11px;color:var(--gold);margin-top:6px">条件：${g.req} · ❥${g.cost.bloodCrystal}</div>
             ${info.reqs.length ? `<div style="font-size:11px;color:var(--accent);margin-top:4px">未满足：${info.reqs.join('；')}</div>` : ''}
@@ -2264,7 +2285,7 @@ window.UI = (function () {
     const w = showPanel(wrap, '转生', `
       <div class="card">
         <h3>轮回转生 <span class="sub">已转生 ${S.player.reincarnations} 次</span></h3>
-        <div style="font-size:12px;color:var(--dim);line-height:1.7">
+        <div class="note">
           重置玩家等级与世界进度，保留角色/装备/血统/基因锁/天赋。<br>
           下次转生获得 <b style="color:var(--gold)">♾${rpGain}</b> 转生点。
         </div>
@@ -2281,7 +2302,7 @@ window.UI = (function () {
         const lv = S.player.talents[k];
         const cost = D.TALENT_COSTS[lv];
         const texts = D.talentTexts(k);
-        return `<div class="card" style="margin-bottom:8px">
+        return `<div class="card mb2">
           <h3>${t.name} <span class="sub">Lv.${lv}/10 · ${t.desc}</span></h3>
           ${lv > 0 ? `<div style="font-size:11px;color:var(--green);margin-bottom:6px">已激活：${texts.slice(0, lv).join('、')}</div>` : ''}
           ${lv < 10 ? `<button class="btn small" data-talent="${k}">下一级：${texts[lv]}（♾${cost}）</button>` : '<div style="color:var(--gold);font-size:12px">已满级</div>'}
@@ -2332,7 +2353,7 @@ window.UI = (function () {
     const expandCost = D.bagExpandCost(S.bag.expands);
     return `
       <div class="kv" style="margin-bottom:4px"><span class="k">容量</span><span>${usage.used} / ${usage.cap}</span></div>
-      <div class="bar exp" style="margin-bottom:10px"><i style="width:${Math.min(100, usage.used / usage.cap * 100)}%;${usage.used / usage.cap > 0.9 ? 'background:var(--accent)' : ''}"></i></div>
+      <div class="bar exp mb3"><i style="width:${Math.min(100, usage.used / usage.cap * 100)}%;${usage.used / usage.cap > 0.9 ? 'background:var(--accent)' : ''}"></i></div>
       <div class="btn-row" style="margin-bottom:12px">
         <button class="btn small" data-expand="1">🎒 扩容 +${D.BAG_EXPAND_SIZE} 格（◈${fmt(expandCost)}）</button>
         <button class="btn small" data-refine-open="1">⚗️ 炼化台</button>
@@ -2436,7 +2457,7 @@ window.UI = (function () {
         <button class="btn small" data-exp="10" ${n >= 10 ? '' : 'disabled'}>用 10 个</button>
         <button class="btn small gold" data-exp="0" ${n >= 1 ? '' : 'disabled'}>全部用（${n}）</button>
       </div>
-      <div style="font-size:11px;color:var(--dim);margin-top:6px">先选角色，再确认数量。</div>`;
+      <div class="hint mt1">先选角色，再确认数量。</div>`;
     } else if (it.type === 'serum') {
       const sd = it.serum || {};
       actions = `<div class="btn-row">
@@ -2451,9 +2472,9 @@ window.UI = (function () {
       actions = run
         ? `<div class="btn-row"><button class="btn small gold" data-runuse="1">在本次探索中使用</button></div>`
         : `<div class="btn-row"><button class="btn small" data-gotoexplore="1">进副本后使用 ›</button></div>
-           <div style="font-size:11px;color:var(--dim);margin-top:6px">探索中的队伍血量会继承，进场前也可以先备好。</div>`;
+           <div class="hint mt1">探索中的队伍血量会继承，进场前也可以先备好。</div>`;
     } else if (it.type === 'material') {
-      actions = `<div style="font-size:12px;color:var(--dim);line-height:1.8">强化装备时自动优先消耗，不需要手动使用。</div>`;
+      actions = `<div class="note">强化装备时自动优先消耗，不需要手动使用。</div>`;
     } else if (it.type === 'ticket') {
       const pool = D.RECRUIT_POOLS[it.pool] || {};
       const tk = C().ticketOf(it.pool);
@@ -2470,21 +2491,21 @@ window.UI = (function () {
           <div style="font-size:12px;color:var(--dim);margin-top:3px">持有 ×${n}</div>
         </div>
       </div>
-      <div class="card" style="margin-bottom:10px">
+      <div class="card mb3">
         <h3>说明</h3>
-        <div style="font-size:12px;line-height:1.8">${esc(it.desc || '')}</div>
+        <div class="note">${esc(it.desc || '')}</div>
       </div>
-      <div class="card" style="margin-bottom:10px">
+      <div class="card mb3">
         <h3>在哪用</h3>
         <div class="kv"><span class="k">使用场景</span><span>${where}</span></div>
         <div style="font-size:12px;color:var(--dim);line-height:1.8;margin-top:6px">${esc(it.use || '')}</div>
       </div>
-      <div class="card" style="margin-bottom:10px">
+      <div class="card mb3">
         <h3>去哪弄</h3>
-        <div style="font-size:12px;line-height:1.8">${esc(it.src || '副本掉落 / 商店兑换')}</div>
+        <div class="note">${esc(it.src || '副本掉落 / 商店兑换')}</div>
       </div>
       ${actions}
-      <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回背包</button>`;
+      <button class="btn ghost block mt4" data-back>‹ 返回背包</button>`;
     const w = showPanel(wrap, '道具详情', body);
     w.querySelector('[data-back]').onclick = () => goBack(w);
     const gr = w.querySelector('[data-gorecruit]');
@@ -2544,7 +2565,7 @@ window.UI = (function () {
       return;
     }
     const body = `
-      <div style="font-size:12px;color:var(--dim);margin-bottom:10px">选择要吃「${D.ITEMS[itemId].name} ×${count}」的角色</div>
+      <div class="note mb3">选择要吃「${D.ITEMS[itemId].name} ×${count}」的角色</div>
       ${owned.map(id => {
         const ch = D.charById[id], c = S.chars[id];
         return `<div class="list-row" data-target="${id}" style="cursor:pointer">
@@ -2553,7 +2574,7 @@ window.UI = (function () {
           <div class="t2">Lv.${c.lv} · ${ch.role} · EXP ${fmt(c.exp)}</div></div>
         </div>`;
       }).join('')}
-      <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回</button>`;
+      <button class="btn ghost block mt4" data-back>‹ 返回</button>`;
     const w = showPanel(wrap, '使用经验道具', body);
     w.querySelector('[data-back]').onclick = () => goBack(w);
     w.querySelectorAll('[data-target]').forEach(el => el.onclick = () => {
@@ -2585,7 +2606,7 @@ window.UI = (function () {
     });
     const usable = rows.filter(r => !sd.bloodline || r.bl === sd.bloodline);
     const body = `
-      <div style="font-size:12px;color:var(--dim);margin-bottom:10px">
+      <div class="note mb3">
         选择要吃「${it.name} ×${count}」的轮回者 —— <b>永久生效</b>
       </div>
       ${usable.length ? usable.map(r => {
@@ -2596,7 +2617,7 @@ window.UI = (function () {
           <div class="t2">${r.sub} · 已服 ${taken}/${sd.max}${full ? ' · 已满' : ''}</div></div>
         </div>`;
       }).join('') : `<div class="empty">没有可用对象：这支血清只有「${sd.bloodline}」血统能用（先去角色页觉醒血统）</div>`}
-      <button class="btn ghost block" style="margin-top:12px" data-back>‹ 返回</button>`;
+      <button class="btn ghost block mt4" data-back>‹ 返回</button>`;
     const w = showPanel(wrap, '使用血清', body);
     w.querySelector('[data-back]').onclick = () => goBack(w);
     w.querySelectorAll('[data-serumtarget]').forEach(el => el.onclick = () => {
@@ -2623,12 +2644,12 @@ window.UI = (function () {
         const matName = D.ITEMS[s.mat].name;
         const haveMat = S.items[s.mat] || 0;
         const can = Math.min(Math.floor(haveMat / s.matN), Math.floor(S.cur.points / s.points));
-        return `<div class="card" style="margin-bottom:8px">
+        return `<div class="card mb2">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
             <div class="grow">
               <div style="font-size:13px">💊 <b>${s.name}</b>${s.bloodline ? ` <span style="color:var(--gold);font-size:11px">${s.bloodline}专属</span>` : ''}</div>
-              <div style="font-size:11px;color:var(--dim);margin-top:4px">${D.ITEMS[itemId].desc.replace(/^【[^】]*】/, '')}</div>
-              <div style="font-size:11px;color:var(--dim);margin-top:4px">配方：${matName} ×${s.matN} + ◈${s.points}　（现有 ${matName} ${haveMat} · ◈${fmt(S.cur.points)}）</div>
+              <div class="hint mt1">${D.ITEMS[itemId].desc.replace(/^【[^】]*】/, '')}</div>
+              <div class="hint mt1">配方：${matName} ×${s.matN} + ◈${s.points}　（现有 ${matName} ${haveMat} · ◈${fmt(S.cur.points)}）</div>
               <div style="font-size:11px;color:${own ? 'var(--green)' : 'var(--dim)'};margin-top:4px">已有血清 ×${own}</div>
             </div>
             <div style="display:flex;flex-direction:column;gap:6px">
@@ -2638,7 +2659,7 @@ window.UI = (function () {
           </div>
         </div>`;
       }).join('')}
-      <button class="btn ghost block" style="margin-top:6px" data-back>‹ 返回背包</button>`;
+      <button class="btn ghost block mt1" data-back>‹ 返回背包</button>`;
     const w = showPanel(wrap, '⚗️ 炼化台', body);
     w.querySelector('[data-back]').onclick = () => goBack(w);
     w.querySelectorAll('[data-refine]').forEach(el => el.onclick = () => {
@@ -2656,7 +2677,7 @@ window.UI = (function () {
     const body = `
       <div class="card">
         <h3>玩法说明</h3>
-        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">不知道点哪个、不知道货币怎么花，先看这两处。</div>
+        <div class="hint mb2">不知道点哪个、不知道货币怎么花，先看这两处。</div>
         <div class="btn-row">
           <button class="btn small" data-act="open-guide">❓ 玩法指南</button>
           <button class="btn small" data-act="open-curdoc">▤ 货币图鉴</button>
@@ -2707,7 +2728,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V7.0</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V7.1</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -2750,7 +2771,7 @@ window.UI = (function () {
     w.querySelector('[data-newprotag]').onclick = () => {
       closeModal(w);
       const nw = modal('新建角色', `
-        <div style="font-size:12px;color:var(--dim);margin-bottom:10px">当前角色会被保留，可随时切回。新角色从 Lv.1 开始，用于体验不同的血统路线。</div>
+        <div class="note mb3">当前角色会被保留，可随时切回。新角色从 Lv.1 开始，用于体验不同的血统路线。</div>
         <input id="np-input" maxlength="12" placeholder="输入新角色名字（12字内）" style="width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:15px;outline:none;margin-bottom:12px" />
         <button class="btn primary block" data-ok>创建并开始轮回</button>`, { center: true });
       nw.querySelector('[data-ok]').onclick = () => {
@@ -3061,8 +3082,8 @@ window.UI = (function () {
       };
       const wr = modal('事件结果', `
         <div class="event-desc">${esc(ch.result)}</div>
-        ${gains.length ? `<div class="reward-chips" style="margin-top:10px">${gains.map(g => `<span class="reward-chip">${g}</span>`).join('')}</div>` : ''}
-        <button class="btn primary block" style="margin-top:12px" data-go>继续</button>
+        ${gains.length ? `<div class="reward-chips mt3">${gains.map(g => `<span class="reward-chip">${g}</span>`).join('')}</div>` : ''}
+        <button class="btn primary block mt4" data-go>继续</button>
       `, { sticky: true, center: true });
       wr.querySelector('[data-go]').onclick = () => { closeModal(wr); proceed(); };
       refresh();
@@ -3237,8 +3258,8 @@ window.UI = (function () {
           sfx('coin');
           modal('挂机收益', `
             <div style="text-align:center;padding:6px 0 12px">
-              <div style="font-size:12px;color:var(--dim)">本次挂机 ${formatDuration(g.seconds)}</div>
-              <div class="reward-chips" style="margin-top:12px">
+              <div class="note">本次挂机 ${formatDuration(g.seconds)}</div>
+              <div class="reward-chips mt4">
                 <span class="reward-chip">◈+${fmt(g.points)}</span>
                 <span class="reward-chip">EXP+${fmt(g.exp)}</span>
                 ${g.otherworld ? `<span class="reward-chip">◆+${g.otherworld}</span>` : ''}
@@ -3578,7 +3599,7 @@ window.UI = (function () {
       <div style="text-align:center;padding:10px 0">
         <div style="font-size:34px;margin-bottom:8px">${['🌑','🌒','🌓','🌔','🌕','🌖','🌗'][r.day - 1]}</div>
         <div style="font-size:14px">今日奖励</div>
-        <div class="reward-chips" style="margin-top:10px"><span class="reward-chip" style="font-size:14px">${rw}</span></div>
+        <div class="reward-chips mt3"><span class="reward-chip" style="font-size:14px">${rw}</span></div>
       </div>`, { center: true });
   }
   function showTutorial() {
@@ -3599,7 +3620,7 @@ window.UI = (function () {
         随时可以在主神空间点「❓ 玩法指南」看完整说明（货币、套装、挂机分工、限时悬赏、渡劫、回廊、周常都在里面）。<br><br>
         <b>如果下一场轮回真的会死，你会带谁进去？</b>
       </div>
-      <button class="btn primary block" style="margin-top:12px" data-start>签订轮回契约</button>
+      <button class="btn primary block mt4" data-start>签订轮回契约</button>
     `, { sticky: true, center: true });
     w.querySelector('[data-start]').onclick = () => { closeModal(w); showCharCreate(); };
   }
