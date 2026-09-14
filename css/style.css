@@ -36,7 +36,21 @@
   --nav-h: 62px;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; height: 100%; }
+/* 手机优先的几个全局兜底：
+   ① 按钮/输入框一律去掉系统默认外观（iOS 会给 <button> 加圆角与内阴影，还会让它自己的行高生效，
+      这就是"同一个图标在手机上偏、在电脑上正"的常见来源）；
+   ② touch-action: manipulation 去掉移动端的 300ms 双击缩放等待，点起来跟手；
+   ③ 长按不选中文字、不弹系统菜单。 */
+button, input, select, textarea {
+  -webkit-appearance: none; appearance: none;
+  touch-action: manipulation;
+  -webkit-user-select: none; user-select: none;
+}
+input, textarea { -webkit-user-select: text; user-select: text; }
+html, body { margin: 0; padding: 0; height: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* iOS 上字号 <16px 的输入框，一聚焦就会被系统把整页放大一下（点搜索框整页"跳"一下）——
+   输入框统一按 16px 渲染来绕开这个系统行为；桌面上视觉几乎没有差别。 */
+input, textarea { font-size: 16px !important; }
 body {
   background: var(--bg);
   color: var(--text);
@@ -67,11 +81,15 @@ body {
   color: var(--text2); font-size: var(--fs-md); cursor: pointer; position: relative; font-family: inherit;
 }
 .tb-icon:active { background: var(--panel3); }
+/* 顶栏两个按钮只有 34px 高，用伪元素把热区补到 44px（视觉不变） */
+.tb-icon::after { content: ''; position: absolute; inset: -5px 0; }
 #curbar { display: flex; gap: 6px; overflow-x: auto; padding: 2px var(--sp3) var(--sp2); scrollbar-width: none; }
 #curbar::-webkit-scrollbar { display: none; }
 .cur-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 5px 11px; font-size: var(--fs-md); color: var(--text); font-family: inherit; cursor: pointer; position: relative; }
 .cur-chip.more { color: var(--dim); border-style: dashed; }
 .cur-chip b { font-weight: 600; }
+/* 货币小胶囊只有 26px 高：同样用伪元素把上下热区补到 44px（左右不动，免得和邻居重叠） */
+.cur-chip::after { content: ''; position: absolute; inset: -9px 0; }
 
 /* ---------- 主区域 ---------- */
 #view { padding: calc(92px + env(safe-area-inset-top)) 12px calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px); }
@@ -192,7 +210,7 @@ body {
   padding: 8px 10px; border-radius: 10px; font-size: 12px;
   background: #e6b64c1a; border: 1px solid #e6b64c66; color: var(--gold);
 }
-.drag-bar .btn { margin-left: auto; min-height: 26px; padding: 2px 10px; }
+.drag-bar .btn { margin-left: auto; min-height: 34px; padding: 4px 12px; }
 .pslot { background: var(--panel2); border: 1px dashed var(--line); border-radius: 12px; min-height: 96px; padding: 10px; cursor: pointer; position: relative; }
 .pslot .pos-tag { position: absolute; top: 6px; left: 8px; font-size: 10px; color: var(--dim); }
 .pslot.filled { border-style: solid; }
@@ -236,6 +254,23 @@ body {
 .sheet .sheet-body { overflow-y: auto; padding: var(--sp3) var(--sp4) var(--sp4); -webkit-overflow-scrolling: touch; }
 .sheet .close-x { width: 34px; height: 34px; flex: 0 0 auto; border-radius: var(--radius-sm); border: 1px solid var(--line2); background: var(--panel); color: var(--dim); font-size: 15px; cursor: pointer; }
 .sheet .close-x:active { background: var(--panel3); }
+/* 图标按钮（关闭 × / 返回 ‹）里的图形一律用 CSS 画，**不要用字符**：
+   ✕ 和 ‹ 在不同手机上会落到不同字体，行高与字面框都不一样，所以只有手机看着是偏的。
+   CSS 画的图形靠 translate(-50%,-50%) 落在正中心，任何机型都一样；
+   另外用伪元素把点击热区撑到 ≥44px（本项目"热区 ≥44px"的规则，原来只有 34/40px）。 */
+.sheet .close-x, .back-x {
+  display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1;
+  -webkit-appearance: none; appearance: none; font-family: inherit;
+  touch-action: manipulation; -webkit-user-select: none; user-select: none; position: relative;
+}
+.sheet .close-x::after { content: ''; position: absolute; inset: -5px; border-radius: inherit; }
+.sheet .close-x i { display: block; position: relative; width: 13px; height: 13px; }
+.sheet .close-x i::before, .sheet .close-x i::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 13px; height: 1.6px;
+  border-radius: 2px; background: currentColor;
+}
+.sheet .close-x i::before { transform: translate(-50%, -50%) rotate(45deg); }
+.sheet .close-x i::after { transform: translate(-50%, -50%) rotate(-45deg); }
 .sheet.center { top: 50%; bottom: auto; transform: translate(-50%, -50%); border-radius: 18px; border: 1px solid var(--line); max-height: 80%; animation: pop .18s ease; width: 92%; }
 @keyframes pop { from { transform: translate(-50%, -50%) scale(.92); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
 
@@ -270,6 +305,13 @@ body {
   color: var(--text2); font-size: 20px; line-height: 1; cursor: pointer; font-family: inherit; padding: 0;
 }
 .back-x:active { background: var(--panel3); }
+.back-x::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; }
+/* 返回箭头也画出来：正方形只留左、下两条边，再转 45° 就是一个 ‹ */
+.back-x i {
+  display: block; width: 10px; height: 10px;
+  border-left: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor;
+  transform: translateX(2px) rotate(45deg);
+}
 .page-pad { width: 40px; flex: 0 0 auto; }
 .page .sheet-body {
   flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -360,7 +402,7 @@ body {
 .run-bar { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 8px); left: 50%; transform: translateX(-50%); width: calc(100% - 16px); max-width: 504px; z-index: 45; background: rgba(18,22,34,.97); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; backdrop-filter: blur(10px); box-shadow: 0 -4px 20px rgba(0,0,0,.45); }
 .pill-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
 .pill-tabs::-webkit-scrollbar { display: none; }
-.pill { flex: 0 0 auto; display: flex; align-items: center; padding: 8px 14px; min-height: 40px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 12px; color: var(--dim); cursor: pointer; }
+.pill { flex: 0 0 auto; display: flex; align-items: center; padding: 8px 14px; min-height: 44px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 12px; color: var(--dim); cursor: pointer; }
 .pill.active { color: #fff; border-color: var(--accent); background: #d43a4f22; }
 .empty { text-align: center; color: var(--dim); padding: 30px 0; font-size: 13px; }
 

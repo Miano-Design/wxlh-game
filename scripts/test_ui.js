@@ -609,5 +609,34 @@ t('站位：Esc / 取消按钮能把手里的格子放回去', () => {
   } finally { h.restore(); UI._panels.clickPosition('9'); }
 });
 
+// ---- V8.3.1：手机端图标与热区（关闭 × / 返回 ‹ 都是 CSS 画的，不用字符） ----
+t('图标按钮里的图形是 CSS 画的，不是 ✕ / ‹ 字符', () => {
+  const css = fs.readFileSync('css/style.css', 'utf8');
+  if (!css.includes('.close-x i::before')) throw new Error('关闭按钮没有 CSS 画的 X');
+  if (!css.includes('.back-x i')) throw new Error('返回按钮没有 CSS 画的箭头');
+  if (!/\.close-x[^{]*\{[^}]*appearance:\s*none/.test(css)) throw new Error('关闭按钮没有清掉系统默认外观');
+  const w = UI.modal('测试', '<div>x</div>', { center: true });
+  const page = UI.modal('测试页', '<div>x</div>');
+  if (!w.innerHTML.includes('<button class="close-x"') || !w.innerHTML.includes('<i></i>')) throw new Error('居中弹窗的关闭按钮结构不对');
+  if (w.innerHTML.includes('✕')) throw new Error('关闭按钮还在用 ✕ 字符');
+  if (page.innerHTML.includes('‹')) throw new Error('返回按钮还在用 ‹ 字符');
+  UI.closeModal(w); UI.closeModal(page);
+});
+t('移动端热区：图标按钮都补到 ≥44px', () => {
+  const css = fs.readFileSync('css/style.css', 'utf8');
+  // 视觉尺寸可以小，但必须用伪元素把点击区域补到 44px，否则手机上很难点
+  const pairs = [['.sheet .close-x::after', '-5px'], ['.back-x::after', '-2px'], ['.tb-icon::after', '-5px'], ['.cur-chip::after', '-9px']];
+  pairs.forEach(([sel, inset]) => {
+    if (!css.includes(sel)) throw new Error('缺热区补齐规则：' + sel);
+    const block = css.slice(css.indexOf(sel));
+    if (!block.slice(0, 120).includes(inset)) throw new Error(sel + ' 的 inset 不对');
+  });
+});
+t('移动端全局兜底：按钮去系统外观 + 去掉 300ms 点击延迟', () => {
+  const css = fs.readFileSync('css/style.css', 'utf8');
+  if (!css.includes('touch-action: manipulation')) throw new Error('缺 touch-action: manipulation');
+  if (!/button,\s*input,\s*select,\s*textarea\s*\{[^}]*appearance:\s*none/.test(css)) throw new Error('缺按钮外观重置');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

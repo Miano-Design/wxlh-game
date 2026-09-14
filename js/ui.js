@@ -207,12 +207,12 @@ window.UI = (function () {
     const isPage = !opts.center;
     wrap.innerHTML = isPage
       ? `<div class="page">
-          <div class="page-head"><button class="back-x">‹</button><h3>${title}</h3><span class="page-pad"></span></div>
+          <div class="page-head"><button class="back-x" aria-label="返回"><i></i></button><h3>${title}</h3><span class="page-pad"></span></div>
           <div class="sheet-body">${bodyHtml}</div>
         </div>`
       : `<div class="modal-mask"></div>
         <div class="sheet center ${opts.sticky ? 'sticky' : ''}">
-          <div class="sheet-head"><h3>${title}</h3><button class="close-x">✕</button></div>
+          <div class="sheet-head"><h3>${title}</h3><button class="close-x" aria-label="关闭"><i></i></button></div>
           <div class="sheet-body">${bodyHtml}</div>
         </div>`;
     root.appendChild(wrap);
