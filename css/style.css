@@ -449,6 +449,39 @@ body {
 .stat-grid .srow { display: flex; align-items: baseline; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--line-soft); min-width: 0; }
 .stat-grid .srow .rk { color: var(--dim); font-size: var(--fs-md); flex: 0 0 auto; }
 .stat-grid .srow b { margin-left: auto; font-size: var(--fs-lg); font-weight: 600; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* 装备方块（主角 / 伙伴共用）：两行三格，一眼看全"哪件穿了、哪件空着"。
+   点方块＝换装，右上角「卸下」＝脱掉。手机上按"点得准"来做：
+   卸下按钮本体 30×30，用 ::after 把热区撑到 44×44（全站统一的热区做法）。 */
+.eq-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp2); }
+.eq-tile {
+  display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto 1fr;
+  grid-template-areas: "slot un" "name name" "brief brief";
+  gap: 2px 4px; min-height: 88px; min-width: 0; padding: 8px;
+  background: var(--panel); border: 1px solid var(--line2); border-radius: 6px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.eq-tile:active { background: var(--panel3); }
+.eq-tile.off { border-style: dashed; border-color: var(--line); }
+.eq-slot { grid-area: slot; align-self: center; font-size: var(--fs-xs); color: var(--dim); }
+.eq-un {
+  grid-area: un; align-self: start; justify-self: end; margin: -5px -5px 0 0;
+  position: relative; width: 30px; height: 30px; display: grid; place-items: center;
+  padding: 0; background: none; border: none; color: var(--dim); font-family: inherit;
+  font-size: var(--fs-xs); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  white-space: nowrap; line-height: 1;
+}
+.eq-un::after { content: ''; position: absolute; inset: -7px; border-radius: 8px; }
+.eq-un:active { color: var(--text); }
+.eq-name { grid-area: name; font-size: var(--fs-md); font-weight: 600; line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+.eq-brief {
+  grid-area: brief; font-size: var(--fs-xs); color: var(--dim); line-height: 1.35; min-width: 0; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.eq-none { grid-column: 1 / -1; grid-row: 2 / -1; display: grid; place-items: center; font-size: var(--fs-sm); color: var(--dim); opacity: .6; }
+/* 卡片标题右侧的小动作按钮（六维 / 技能里的「↺ 重置」）：
+   视觉只有 34px 高，热区靠 ::after 补到 44px */
+.card h3 .hbtn { min-height: 34px; min-width: 44px; padding: 0 10px; font-size: var(--fs-sm); position: relative; flex: 0 0 auto; }
+.card h3 .hbtn::after { content: ''; position: absolute; inset: -5px 0; }
 .skill-row { background: var(--panel); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
 .skill-row .sname { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .skill-row .sdesc { font-size: 11px; color: var(--dim); margin-top: 3px; }

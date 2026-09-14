@@ -222,9 +222,23 @@ t('首页入口是纯文字方块菜单', () => {
 });
 t('首页功能入口一屏摊开（今天/养成都能直接找到）', () => {
   const html = UI._panels._screens.homeScreen();
-  ['主神评级', '秘术阁', '血统', '境界渡劫', '基地建设', '伴生体', '转生天赋', '游历奇遇'].forEach(k => {
+  ['主神评级', '秘术阁', '基地建设', '伴生体', '转生天赋', '游历奇遇'].forEach(k => {
     if (html.indexOf(k) < 0) throw new Error('首页缺入口：' + k);
   });
+});
+t('血统 / 境界不在首页放入口（属于角色卡，避免功能重复）', () => {
+  const html = UI._panels._screens.homeScreen();
+  ['open-bloodline', 'open-realm', '境界渡劫'].forEach(k => {
+    if (html.indexOf(k) >= 0) throw new Error('首页还留着重复入口：' + k);
+  });
+  if (html.indexOf('血统') < 0) throw new Error('首页应有一句话指引玩家去角色卡里找血统');
+  // 角色卡里必须真的能设置（否则就是"入口没了、功能也没了"）
+  const pd = UI._panels.protagonistDetail().innerHTML;
+  if (pd.indexOf('data-realm-open') < 0) throw new Error('主角卡里缺境界入口');
+  // 未选血统 → 选择按钮；已选 → 升级按钮。两者有一个就算有入口
+  if (pd.indexOf('🩸') < 0 || (pd.indexOf('data-pbl') < 0 && pd.indexOf('data-pblup') < 0)) {
+    throw new Error('主角卡里缺血统设置入口');
+  }
 });
 t('首页主线是一条横条（不再是"主线 + 今日"两枚匾额）', () => {
   const html = UI._panels._screens.homeScreen();
@@ -673,7 +687,7 @@ t('首页同一个功能只出现一次（挂机分工不再两处重复）', ()
 });
 t('角色卡 / 主角卡：每个系统都是独立卡片（不再挤成一长列小标题）', () => {
   const ch = UI._panels.charDetail('C021').innerHTML;
-  ['📊 属性面板', '🎯 六维属性', '📈 等级', '⭐ 星级', '⚡ 技能', '🩸', '🗡 装备'].forEach(k => {
+  ['📊 属性面板', '🎯 六维属性', '⭐ 星级', '⚡ 技能', '🩸', '🗡 装备'].forEach(k => {
     if (ch.indexOf(k) < 0) throw new Error('角色卡缺独立卡片：' + k);
   });
   if (ch.indexOf('section-title') >= 0) throw new Error('角色卡还在用 section-title 分节（应该一卡一段）');
@@ -682,7 +696,7 @@ t('角色卡 / 主角卡：每个系统都是独立卡片（不再挤成一长�
     throw new Error('拆卡片时把按钮丢了');
   }
   const pd = UI._panels.protagonistDetail().innerHTML;
-  ['📊 属性面板', '📈 等级', '🌌 境界', '🎯 六维属性', '⚡', '↺ 洗点', '🩸', '🗡 装备'].forEach(k => {
+  ['📊 属性面板', '🌌 境界', '🎯 六维属性', '⚡', '🩸', '🗡 装备'].forEach(k => {
     if (pd.indexOf(k) < 0) throw new Error('主角卡缺独立卡片：' + k);
   });
   if (pd.indexOf('section-title') >= 0) throw new Error('主角卡还在用 section-title 分节');
@@ -692,6 +706,75 @@ t('角色卡 / 主角卡：每个系统都是独立卡片（不再挤成一长�
   });
   const cards = (pd.match(/class="card"/g) || []).length;
   if (cards < 8) throw new Error('主角卡的独立卡片数量不对：' + cards);
+});
+t('角色卡顺序：基础信息+等级 → 六维 → 技能 → 装备 → 血统 → 境界 → 属性面板', () => {
+  const pd = UI._panels.protagonistDetail().innerHTML;
+  // 「等级」不再是独立卡片，并入头像那张基础信息卡（进度条 + 说明都在这张里）
+  if (pd.indexOf('📈 等级') >= 0) throw new Error('主角卡还留着独立的「等级」卡片');
+  if (pd.indexOf('EXP ') < 0) throw new Error('基础信息卡里没有等级/经验');
+  const order = ['🎯 六维属性', '⚡', '🗡 装备', '🩸 血统', '🌌 境界', '📊 属性面板'];
+  let prev = -1;
+  order.forEach(k => {
+    const i = pd.indexOf(k);
+    if (i < 0) throw new Error('主角卡缺卡片：' + k);
+    if (i < prev) throw new Error('主角卡顺序不对：' + k + ' 应该排在更后面');
+    prev = i;
+  });
+  const ch = UI._panels.charDetail('C021').innerHTML;
+  if (ch.indexOf('📈 等级') >= 0) throw new Error('角色卡还留着独立的「等级」卡片');
+  let prevC = -1;
+  ['⭐ 星级', '🎯 六维属性', '⚡ 技能', '🗡 装备', '🩸', '📊 属性面板'].forEach(k => {
+    const i = ch.indexOf(k);
+    if (i < 0) throw new Error('角色卡缺卡片：' + k);
+    if (i < prevC) throw new Error('角色卡顺序不对：' + k);
+    prevC = i;
+  });
+});
+t('洗点并进六维 / 技能两张卡（不再单开一张「洗点」卡）', () => {
+  const pd = UI._panels.protagonistDetail().innerHTML;
+  if (pd.indexOf('↺ 洗点') >= 0) throw new Error('「洗点」还单开着一张卡');
+  const iAttrCard = pd.indexOf('🎯 六维属性');
+  const iSkillCard = pd.indexOf('可用技能点');
+  const iResetA = pd.indexOf('data-attrreset');
+  const iResetS = pd.indexOf('data-pskillreset');
+  const iEquip = pd.indexOf('🗡 装备');
+  if (!(iAttrCard < iResetA && iResetA < iSkillCard)) throw new Error('六维重置按钮不在六维卡里');
+  if (!(iSkillCard < iResetS && iResetS < iEquip)) throw new Error('技能重置按钮不在技能卡里');
+  if ((pd.match(/data-attrreset/g) || []).length !== 1) throw new Error('六维重置按钮应该只有 1 个');
+  if ((pd.match(/data-pskillreset/g) || []).length !== 1) throw new Error('技能重置按钮应该只有 1 个');
+});
+t('装备改成 6 个方块：主角与伙伴同一套，不再一行一件', () => {
+  // 临时给两边各穿一件武器（直接写状态，避开随机掉落 / 背包上限），验完原样还原
+  const owners = ['C021', '@player'];
+  const backup = owners.map(o => ({ o, weapon: (Core.S.equipped[o] || {}).weapon || null, uids: [] }));
+  backup.forEach(b => {
+    const uid = 'eqTest_' + (b.o === '@player' ? 'p' : b.o) + '_weapon';
+    Core.S.equips[uid] = D.makeEquip('W01', 'weapon', 'SR', uid, { setType: 'plain' });
+    if (!Core.S.equipped[b.o]) Core.S.equipped[b.o] = {};
+    Core.S.equipped[b.o].weapon = uid;
+    b.uids.push(uid);
+  });
+  let cases;
+  try {
+    cases = [['伙伴', UI._panels.charDetail('C021').innerHTML], ['主角', UI._panels.protagonistDetail().innerHTML]];
+  } finally {
+    backup.forEach(b => { b.uids.forEach(u => { Core.S.equipped[b.o].weapon = b.weapon; delete Core.S.equips[u]; }); });
+    UI.render();
+  }
+  cases.forEach(([who, html]) => {
+    if (html.indexOf('eq-grid') < 0) throw new Error(who + '的装备还是老的行列表（缺 eq-grid）');
+    const tiles = (html.match(/class="eq-tile/g) || []).length;
+    if (tiles !== 6) throw new Error(who + '的装备方块数量不对：' + tiles + '（应为 6）');
+    // 装备卡片内部（标题 → 底部说明之间）不许再出现 list-row
+    const iEq = html.indexOf('🗡 装备');
+    const iHint = html.indexOf('一件装备只能一个人穿');
+    if (iEq < 0 || iHint < iEq) throw new Error(who + '的装备卡片结构不对');
+    if (html.slice(iEq, iHint).indexOf('list-row') >= 0) throw new Error(who + '的装备区里还混着 list-row');
+    if (html.indexOf('点一行换装') >= 0) throw new Error(who + '的文案还写着"点一行换装"');
+  });
+  const ch = cases[0][1], pd = cases[1][1];
+  if (ch.indexOf('data-eqslot') < 0 || pd.indexOf('data-peqslot') < 0) throw new Error('换装热区丢了');
+  if (ch.indexOf('data-unequip') < 0 || pd.indexOf('data-punequip') < 0) throw new Error('卸下按钮丢了');
 });
 t('游历段只放游历奇遇；悬赏 / 每日 / 成就 / 求签 / 招募 / 兑换 都在「养成」段', () => {
   const html = UI._panels._screens.homeScreen();
@@ -720,7 +803,11 @@ t('主角能洗点：六维 + 技能都能退回点数', () => {
   const html = UI._panels.protagonistDetail().innerHTML;
   if (html.indexOf('data-attrreset') < 0) throw new Error('缺六维洗点按钮');
   if (html.indexOf('data-pskillreset') < 0) throw new Error('缺技能重置按钮');
-  if (html.indexOf('洗点') < 0) throw new Error('面板里没写"洗点"');
+  // 按钮还在原位（六维 / 技能卡里），但文案改成"重置"了，而且两张卡里各要写清"能退回"
+  if (html.indexOf('↺ 重置') < 0) throw new Error('面板里没有重置按钮');
+  if (html.indexOf('随时点右上角重置') < 0 || html.indexOf('退回全部技能点') < 0) {
+    throw new Error('重置按钮旁边没写清可以退回点数');
+  }
 });
 t('长按抓起不弹提示框，也不再提 Esc（手机没有键盘）', () => {
   const ui = fs.readFileSync('js/ui.js', 'utf8');

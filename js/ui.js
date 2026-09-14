@@ -67,25 +67,30 @@ window.UI = (function () {
       return `<div class="srow"><span class="rk">${a.name}</span><b>${v}</b></div>`;
     }).join('')}</div>`;
   }
-  /* 装备卡：主角与招募角色共用（只有数据属性名不一样），6 个槽一行一个。
-     一件装备只能一个人穿——换装时自动从原来那个人身上卸下（写在后端，这里只做提示）。 */
+  /* 装备卡：主角与招募角色共用（只有数据属性名不一样），6 个槽用方块呈现。
+     一件装备只能一个人穿——换装时自动从原来那个人身上卸下（写在后端，这里只做提示）。
+     点方块＝换装；方块右上角「卸下」＝脱掉（stopPropagation 写在外面的事件绑定里）。 */
   function equipCard(ownerId, slots, kind) {
     const S = C().S;
     const eq = S.equipped[ownerId] || {};
     const slotAttr = kind === 'player' ? 'data-peqslot' : 'data-eqslot';
     const unAttr = kind === 'player' ? 'data-punequip' : 'data-unequip';
-    const rows = slots.map(slot => {
+    const tiles = slots.map(slot => {
       const e = eq[slot] && S.equips[eq[slot]];
-      return `<div class="list-row" ${slotAttr}="${slot}" style="cursor:pointer">
-        <span class="tag">${D.EQUIP_SLOTS[slot]}</span>
-        <div class="grow">${e ? `<div class="t1 rtext-${e.rarity}">${e.name} +${e.enhance}</div><div class="t2">${equipBrief(e)}</div>` : '<div class="t2">未装备</div>'}</div>
-        ${e ? `<button class="btn small ghost" ${unAttr}="${slot}">卸下</button>` : ''}
+      const brief = e ? equipBrief(e) : '';
+      return `<div class="eq-tile${e ? '' : ' off'}" ${slotAttr}="${slot}">
+        <div class="eq-slot">${D.EQUIP_SLOTS[slot]}</div>
+        ${e
+          ? `<button class="eq-un" ${unAttr}="${slot}">卸下</button>
+             <div class="eq-name rtext-${e.rarity}">${e.name}</div>
+             <div class="eq-brief">+${e.enhance}${brief ? ' · ' + brief : ''}</div>`
+          : `<div class="eq-none">未装备</div>`}
       </div>`;
     }).join('');
     const filled = slots.filter(s => eq[s]).length;
     return `<div class="card">
-      <h3>🗡 装备 <span class="sub">${filled}/${slots.length} 件 · 点一行换装</span></h3>
-      ${rows}
+      <h3>🗡 装备 <span class="sub">${filled}/${slots.length} 件 · 点方块换装</span></h3>
+      <div class="eq-grid">${tiles}</div>
       <div class="hint mt2">一件装备只能一个人穿：换给别人时会自动从原来那个人身上卸下。</div>
     </div>`;
   }
@@ -640,7 +645,7 @@ window.UI = (function () {
       <div class="row static">
         <span class="rk">【境界】</span>
         <span class="rv" style="color:${st.hasBloodline ? 'var(--gold)' : 'var(--accent)'}">${st.curName || '未定血统'}</span>
-        <span class="rs">${st.hasBloodline ? `第 ${Math.min(st.realm + 1, D.REALM_STAGE_COUNT)} / ${D.REALM_STAGE_COUNT} 阶` : '去「养成」里选血统'}</span>
+        <span class="rs">${st.hasBloodline ? `第 ${Math.min(st.realm + 1, D.REALM_STAGE_COUNT)} / ${D.REALM_STAGE_COUNT} 阶` : '点【主角】卡里选血统'}</span>
       </div>
       <div class="row static">
         <span class="rk">【等级】</span>
@@ -650,7 +655,7 @@ window.UI = (function () {
       <div class="row" data-protag="1">
         <span class="rk">【主角】</span>
         <span class="rv" style="${(S.player.attrPoints || S.player.skillPoints) ? 'color:var(--gold)' : ''}">六维待分 ${S.player.attrPoints || 0} · 技能待加 ${S.player.skillPoints || 0}</span>
-        <span class="rs">点开可加点 / 洗点 ›</span>
+        <span class="rs">点开：加点 / 洗点 / 血统 / 境界 ›</span>
       </div>
       <div class="row static">
         <span class="rk">【轮回】</span>
@@ -716,7 +721,6 @@ window.UI = (function () {
     const au = C().authorityInfo();
     const gl = S.player.geneLock > 0 ? `${S.player.geneLock} 阶` : '未解锁';
     const beasts = Object.keys(S.beast.owned || {}).length;
-    const st = C().realmState();
     const fbOwn = C().fabaoState().own.length;
     const gardenBusy = C().gardenState().filter(p => p.plot).length;
     const arena = C().arenaState();
@@ -726,8 +730,6 @@ window.UI = (function () {
     const signToday = signSt.canDraw ? null : signSt;
     // 一条入口 = [动作, 名字, 状态文字, 解锁条件(可空), 是否亮红点]
     const lines = [
-      ['open-bloodline', '血统', S.player.bloodline || '未定（点这里选）'],
-      ['open-realm', '境界渡劫', st.hasBloodline ? st.curName : '先选血统'],
       ['open-sect', '主神评级', `Lv.${sect.lv}`],
       ['open-keji', '秘术阁', `${kejiTotal} 级`],
       ['open-fabao', '法宝', fbOwn ? `${fbOwn}/${D.FABAO.length} 件` : '去挑一件'],
@@ -753,7 +755,7 @@ window.UI = (function () {
       ${tileGrid(lines)}
       <div class="grid-title">日常</div>
       ${tileGrid(daily)}`
-      + '<div class="hint mt2">「轮回者 → 成长」里是同一批养成线的总览，两处点进去是同一个面板。</div>';
+      + '<div class="hint mt2">血统与境界属于角色自身：点上面【主角】那张卡，在里面选血统 / 渡劫。这里与「轮回者 → 成长」是同一批养成线的总览。</div>';
   }
   /* 游历：只放「游历奇遇」本身——挂机路上随机冒出来的奇遇，进度条就是它的唯一入口。 */
   function travelBlock() {
@@ -1284,6 +1286,7 @@ window.UI = (function () {
     const spentSkill = (S.player.skillLv || [1, 1, 1]).reduce((s, x) => s + x - 1, 0);
     const gl = S.player.geneLock;
     const blCost = S.player.bloodline && S.player.bloodlineLv < D.BLOODLINE_MAX ? D.bloodlineCost(S.player.bloodlineLv) : null;
+    const lvlPct = Math.min(100, S.player.exp / (D.EXP_TABLE[S.player.level] || 1) * 100);
     const w = showPanel(wrap, `${cname('@player')}（主角）`, `
       <div class="card">
         <div style="display:flex;gap:12px;align-items:center">
@@ -1298,26 +1301,13 @@ window.UI = (function () {
             <div class="hint">战力</div>
           </div>
         </div>
+        <div class="bar exp mt3"><i style="width:${lvlPct}%"></i></div>
+        <div class="hint mt1">EXP ${Math.floor(lvlPct)}% · 靠挂机与通关自动累积（当前 ${C().idleRates().expPerMin.toFixed(1)} EXP / 分），每升 1 级自动 +${D.ATTR_POINTS_PER_LV} 属性点与 1 技能点。</div>
       </div>
       <div class="card">
-        <h3>📊 属性面板 <span class="sub">装备 / 血统 / 境界 / 基因锁都已算进来</span></h3>
-        ${statGrid(st)}
-        <div class="hint mt2">主角与招募角色成长体系独立：随玩家等级成长、无星级碎片、6 装备槽、血统自选、基因锁每阶全属性额外 +3%。</div>
-      </div>
-      <div class="card">
-        <h3>📈 等级 <span class="sub">Lv.${S.player.level} · EXP ${Math.floor(S.player.exp / (D.EXP_TABLE[S.player.level] || 1) * 100)}%</span></h3>
-        <div class="bar exp mb2"><i style="width:${Math.min(100, S.player.exp / (D.EXP_TABLE[S.player.level] || 1) * 100)}%"></i></div>
-        <div class="hint">主角经验靠挂机与通关自动累积（当前 ${C().idleRates().expPerMin.toFixed(1)} EXP / 分），不用手动喂；每升 1 级自动 +${D.ATTR_POINTS_PER_LV} 属性点与 1 技能点。</div>
-      </div>
-      <div class="card">
-        <h3>🌌 境界 <span class="sub">第 ${Math.min(C().realmState().realm + 1, D.REALM_STAGE_COUNT)} / ${D.REALM_STAGE_COUNT} 阶</span></h3>
-        <div class="kv"><span class="k">当前境界</span><span>${S.player.realm ? C().realmState().curName : '未突破'}</span></div>
-        <div class="kv"><span class="k">境界加成</span><span class="green">全属性 +${Math.round(C().realmBonusPct() * 100)}%</span></div>
-        <button class="btn small block mt3" data-realm-open="1">查看境界 · 渡劫 ›</button>
-      </div>
-      <div class="card">
-        <h3>🎯 六维属性 <span class="sub">可用点数 ${S.player.attrPoints || 0}</span></h3>
-        <div class="hint mb2">每升 1 级获得 ${D.ATTR_POINTS_PER_LV} 点，每点 +${D.ATTR_POINT_VALUE} 维值</div>
+        <h3>🎯 六维属性 <span class="sub">可用点数 ${S.player.attrPoints || 0}</span>
+          <button class="btn small ghost hbtn" data-attrreset="1" ${spentAttr > 0 ? '' : 'disabled'}>↺ 重置</button></h3>
+        <div class="hint mb2">每升 1 级获得 ${D.ATTR_POINTS_PER_LV} 点，每点 +${D.ATTR_POINT_VALUE} 维值；加错随时点右上角重置，不花任何东西。</div>
         ${D.ATTR_META.map(a => `
           <div class="list-row">
             <div class="grow"><div class="t1">${a.name} <span style="color:var(--dim);font-size:11px">${a.desc}</span></div>
@@ -1327,22 +1317,16 @@ window.UI = (function () {
           </div>`).join('')}
       </div>
       <div class="card">
-        <h3>⚡ ${S.player.bloodline ? S.player.bloodline + '血统技能' : '技能'} <span class="sub">可用技能点 ${S.player.skillPoints || 0}</span></h3>
-        <div class="hint mb2">每升 1 级获得 1 点技能点${S.player.bloodline ? '' : '；选定血统后，技能栏会换成那条血统的技能'}</div>
+        <h3>⚡ ${S.player.bloodline ? S.player.bloodline + '血统技能' : '技能'} <span class="sub">可用技能点 ${S.player.skillPoints || 0}</span>
+          <button class="btn small ghost hbtn" data-pskillreset="1" ${spentSkill > 0 ? '' : 'disabled'}>↺ 重置</button></h3>
+        <div class="hint mb2">每升 1 级获得 1 点技能点${S.player.bloodline ? '' : '；选定血统后，技能栏会换成那条血统的技能'}；点错了点右上角重置退回全部技能点。</div>
         ${[P.s1, P.s2, P.ult].map((sk, i) => `
           <div class="skill-row"><div class="sname">${['技能', '技能', '必杀'][i]}·${sk.name} <span class="tag">Lv.${(S.player.skillLv || [1, 1, 1])[i]}/10</span>
             <button class="btn small" data-pskill="${i}" style="margin-left:auto" ${(S.player.skillPoints || 0) > 0 && (S.player.skillLv || [1, 1, 1])[i] < 10 ? '' : 'disabled'}>+1</button></div>
           <div class="sdesc">${sk.desc}</div></div>`).join('')}
         <div class="skill-row"><div class="sname">被动·${P.passive.name}</div><div class="sdesc">${P.passive.desc}</div></div>
       </div>
-      <div class="card">
-        <h3>↺ 洗点 <span class="sub">随时可洗 · 不花任何东西</span></h3>
-        <div class="hint mb2">加错了不用重开：六维和技能都能把点数退回来重新分配，等级与战力不会掉。</div>
-        <div class="btn-row">
-          <button class="btn small ghost" data-attrreset="1" ${spentAttr > 0 ? '' : 'disabled'}>↺ 六维洗点（退 ${spentAttr} 点）</button>
-          <button class="btn small ghost" data-pskillreset="1" ${spentSkill > 0 ? '' : 'disabled'}>↺ 技能重置（退 ${spentSkill} 点）</button>
-        </div>
-      </div>
+      ${equipCard('@player', D.PLAYER_SLOTS, 'player')}
       <div class="card">
         <h3>🩸 血统 <span class="sub">${S.player.bloodline ? 'Lv.' + S.player.bloodlineLv + ' / ' + D.BLOODLINE_MAX : '未觉醒'}</span></h3>
         ${S.player.bloodline ? `
@@ -1355,7 +1339,17 @@ window.UI = (function () {
           <div class="grid2">${Object.entries(D.BLOODLINES).map(([id, bl]) => `<button class="btn small" data-pbl="${id}">${id}<br><span style="font-size:10px;font-weight:400;color:var(--dim)">${bl.desc.split('。')[0]}</span></button>`).join('')}</div>
         `}
       </div>
-      ${equipCard('@player', D.PLAYER_SLOTS, 'player')}
+      <div class="card">
+        <h3>🌌 境界 <span class="sub">第 ${Math.min(C().realmState().realm + 1, D.REALM_STAGE_COUNT)} / ${D.REALM_STAGE_COUNT} 阶</span></h3>
+        <div class="kv"><span class="k">当前境界</span><span>${S.player.realm ? C().realmState().curName : '未突破'}</span></div>
+        <div class="kv"><span class="k">境界加成</span><span class="green">全属性 +${Math.round(C().realmBonusPct() * 100)}%</span></div>
+        <button class="btn small block mt3" data-realm-open="1">查看境界 · 渡劫 ›</button>
+      </div>
+      <div class="card">
+        <h3>📊 属性面板 <span class="sub">装备 / 血统 / 境界 / 基因锁都已算进来</span></h3>
+        ${statGrid(st)}
+        <div class="hint mt2">主角与招募角色成长体系独立：随玩家等级成长、无星级碎片、6 装备槽、血统自选、基因锁每阶全属性额外 +3%。</div>
+      </div>
       <div class="card"><button class="btn small ghost block" data-rename="1">✏️ 修改名字</button></div>
     `);
     restoreModalScroll(w, scrollTop);
@@ -1552,19 +1546,7 @@ window.UI = (function () {
             <div class="hint">战力</div>
           </div>
         </div>
-      </div>
-      <div class="card">
-        <h3>📊 属性面板 <span class="sub">装备 / 血统 / 星级都已算进来</span></h3>
-        ${statGrid(st)}
-      </div>
-      <div class="card">
-        <h3>🎯 六维属性 <span class="sub">固定成长 · 不用加点</span></h3>
-        ${attrGrid(st.attrs)}
-        <div class="hint mt2">招募角色的六维由稀有度、等级、星级决定；越往上练，六维越高。</div>
-      </div>
-      <div class="card">
-        <h3>📈 等级 <span class="sub">Lv.${c.lv} · EXP ${fmt(c.exp)}</span></h3>
-        <div class="btn-row">
+        <div class="btn-row mt3">
           <button class="btn small" data-lvup="1" ${!cost ? 'disabled' : ''}>升 1 级</button>
           <button class="btn small" data-lvup="10" ${!cost ? 'disabled' : ''}>升 10 级</button>
           <button class="btn small ghost" data-expitem="1" ${expItems.length ? '' : 'disabled'}>用经验道具</button>
@@ -1579,6 +1561,11 @@ window.UI = (function () {
         <div class="hint mt2">重复招募到同一名角色会转成她的碎片；星级决定成长上限与技能强度。</div>
       </div>
       <div class="card">
+        <h3>🎯 六维属性 <span class="sub">固定成长 · 不用加点</span></h3>
+        ${attrGrid(st.attrs)}
+        <div class="hint mt2">招募角色的六维由稀有度、等级、星级决定；越往上练，六维越高。</div>
+      </div>
+      <div class="card">
         <h3>⚡ 技能 <span class="sub">芯片 ▣${fmt(S.cur.skillChip)}</span></h3>
         ${skills.map((sk, i) => `
           <div class="skill-row">
@@ -1591,6 +1578,7 @@ window.UI = (function () {
           <div class="sdesc">${ch.skills.passive.desc}</div>
         </div>
       </div>
+      ${equipCard(id, D.RECRUIT_SLOTS, 'char')}
       <div class="card">
         <h3>🩸 ${ch.bloodline}血统 <span class="sub">Lv.${c.bloodlineLv} / ${D.BLOODLINE_MAX}</span></h3>
         <div class="hint mb2">${bl.desc}</div>
@@ -1598,7 +1586,10 @@ window.UI = (function () {
           <button class="btn small" data-blup="1" ${!blCost ? 'disabled' : ''}>血统升级${blCost ? `（❥${blCost.bloodCrystal} + ◈${fmt(blCost.points)}）` : ''}</button>
         </div>
       </div>
-      ${equipCard(id, D.RECRUIT_SLOTS, 'char')}
+      <div class="card">
+        <h3>📊 属性面板 <span class="sub">装备 / 血统 / 星级都已算进来</span></h3>
+        ${statGrid(st)}
+      </div>
     `);
     restoreModalScroll(w, scrollTop);
     const reopenSelf = () => { charDetail(id, 0, w); };
@@ -3523,7 +3514,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.8</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.9</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
