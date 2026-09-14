@@ -671,6 +671,28 @@ t('首页同一个功能只出现一次（挂机分工不再两处重复）', ()
   if (acts.indexOf('open-idlelines') < 0) throw new Error('缺"派人分工"入口');
   if ((html.match(/data-act="open-idlelines"/g) || []).length !== 1) throw new Error('"派人分工"出现了不止一次');
 });
+t('角色卡 / 主角卡：每个系统都是独立卡片（不再挤成一长列小标题）', () => {
+  const ch = UI._panels.charDetail('C021').innerHTML;
+  ['📊 属性面板', '🎯 六维属性', '📈 等级', '⭐ 星级', '⚡ 技能', '🩸', '🗡 装备'].forEach(k => {
+    if (ch.indexOf(k) < 0) throw new Error('角色卡缺独立卡片：' + k);
+  });
+  if (ch.indexOf('section-title') >= 0) throw new Error('角色卡还在用 section-title 分节（应该一卡一段）');
+  if (ch.indexOf('stat-grid') < 0) throw new Error('角色卡缺属性数值面板');
+  if (ch.indexOf('data-lvup') < 0 || ch.indexOf('data-starup') < 0 || ch.indexOf('data-skillup') < 0 || ch.indexOf('data-blup') < 0 || ch.indexOf('data-eqslot') < 0) {
+    throw new Error('拆卡片时把按钮丢了');
+  }
+  const pd = UI._panels.protagonistDetail().innerHTML;
+  ['📊 属性面板', '📈 等级', '🌌 境界', '🎯 六维属性', '⚡', '↺ 洗点', '🩸', '🗡 装备'].forEach(k => {
+    if (pd.indexOf(k) < 0) throw new Error('主角卡缺独立卡片：' + k);
+  });
+  if (pd.indexOf('section-title') >= 0) throw new Error('主角卡还在用 section-title 分节');
+  if (pd.indexOf('stat-grid') < 0) throw new Error('主角卡缺属性数值面板');
+  ['data-attr', 'data-pskill', 'data-attrreset', 'data-pskillreset', 'data-peqslot', 'data-realm-open'].forEach(a => {
+    if (pd.indexOf(a) < 0) throw new Error('拆卡片时把按钮丢了：' + a);
+  });
+  const cards = (pd.match(/class="card"/g) || []).length;
+  if (cards < 8) throw new Error('主角卡的独立卡片数量不对：' + cards);
+});
 t('游历段只放游历奇遇；悬赏 / 每日 / 成就 / 求签 / 招募 / 兑换 都在「养成」段', () => {
   const html = UI._panels._screens.homeScreen();
   const iGrow = html.indexOf('data-sec="grow"');

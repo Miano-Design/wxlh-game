@@ -444,6 +444,11 @@ body {
 .stat-6 .cell { background: var(--panel); border-radius: 8px; padding: 8px 4px; text-align: center; }
 .stat-6 .cell .v { font-weight: 700; font-size: 14px; }
 .stat-6 .cell .k { font-size: 10px; color: var(--dim); }
+/* 属性数值面板（角色卡 / 主角卡共用）：两列一屏列全，比一行一项省一半高度 */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px var(--sp3); }
+.stat-grid .srow { display: flex; align-items: baseline; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--line-soft); min-width: 0; }
+.stat-grid .srow .rk { color: var(--dim); font-size: var(--fs-md); flex: 0 0 auto; }
+.stat-grid .srow b { margin-left: auto; font-size: var(--fs-lg); font-weight: 600; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .skill-row { background: var(--panel); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
 .skill-row .sname { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .skill-row .sdesc { font-size: 11px; color: var(--dim); margin-top: 3px; }
