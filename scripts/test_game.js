@@ -123,7 +123,7 @@ const sc = Core.stageComplete('W01', 'normal', 0, 3);
 t('首关记录', Core.S.worlds.W01.stages.normal[0] === 3);
 t('第二关解锁', Core.stageUnlocked('W01', 'normal', 1));
 t('第三关未解锁', !Core.stageUnlocked('W01', 'normal', 2));
-t('通关1关后解锁招募', sc.newUnlocks.includes('记名者招募') && Core.isUnlocked('recruit'));
+t('通关1关后解锁招募', sc.newUnlocks.includes('执灯者招募') && Core.isUnlocked('recruit'));
 
 // 9b. 主线任务
 Core.S.stats.profileViews = 1;

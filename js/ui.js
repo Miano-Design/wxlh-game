@@ -399,11 +399,11 @@ window.UI = (function () {
 
   /* ================= 顶栏 / 导航 ================= */
   // 底部只留 4 格：「队伍 / 角色 / 装备」本质是同一个东西（我的人 + 我的装备），
-  // 合并成一个「记名者」页签用胶囊切子页；腾出来的位置给背包（原来的弹窗是二级入口）。
+  // 合并成一个「执灯者」页签用胶囊切子页；腾出来的位置给背包（原来的弹窗是二级入口）。
   const TABS = [
     { id: 'home', name: '灯阁' },
     { id: 'dungeon', name: '残域' },
-    { id: 'roster', name: '记名者' },
+    { id: 'roster', name: '执灯者' },
     { id: 'bag', name: '背包' },
   ];
   const ROSTER_TABS = [
@@ -412,7 +412,7 @@ window.UI = (function () {
     { id: 'equip', name: '装备' },
     { id: 'grow', name: '成长' },
   ];
-  // 旧的三个页签名一律当作「记名者」的子页，这样任务"前往"、每日跳转、引导高亮都不用改
+  // 旧的三个页签名一律当作「执灯者」的子页，这样任务"前往"、每日跳转、引导高亮都不用改
   const TAB_ALIAS = { party: 'roster', chars: 'roster', equip: 'roster' };
   let curTab = 'home';
   let rosterView = 'party';
@@ -484,7 +484,7 @@ window.UI = (function () {
   }
   function refresh() { renderTopbar(); renderNavbar(); }
   function setTab(id) {
-    // 旧页签名（party / chars / equip）都落到「记名者」，并顺手把子页切过去
+    // 旧页签名（party / chars / equip）都落到「执灯者」，并顺手把子页切过去
     const sub = (id === 'party' || id === 'chars' || id === 'equip') ? id : null;
     curTab = TAB_ALIAS[id] || id;
     if (sub) rosterView = sub;
@@ -514,7 +514,7 @@ window.UI = (function () {
       if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, y);
     } else if (keepScroll && scrollY > 0 && typeof window.scrollTo === 'function') window.scrollTo(0, scrollY);
   }
-  // 「记名者」= 队伍编成 / 角色图鉴 / 装备仓库，三个子页共用一条顶部胶囊
+  // 「执灯者」= 队伍编成 / 角色图鉴 / 装备仓库，三个子页共用一条顶部胶囊
   function rosterScreen() {
     const sub = { party: partyScreen, chars: charsScreen, equip: equipScreen, grow: growScreen }[rosterView] || partyScreen;
     return `<div class="pill-tabs mb3">
@@ -716,7 +716,7 @@ window.UI = (function () {
     if (!grid) return '';
     return `<div class="section-title" data-sec="${sec}">${title}</div>${before || ''}${grid}`;
   }
-  /* 养成：一条线一个入口（「记名者 → 成长」子页里是同一批线的总览）。
+  /* 养成：一条线一个入口（「执灯者 → 成长」子页里是同一批线的总览）。
      日常类的入口（悬赏 / 每日 / 成就 / 求签 / 招募 / 兑换）也收在这一段里，
      用一行小字「日常」隔开——首页的「游历」只放游历奇遇本身。 */
   function growBlock() {
@@ -747,21 +747,21 @@ window.UI = (function () {
       ['open-genelock', '铭刻', gl, 'geneLock'],
       ['open-beast', '伴生体', beasts ? `${beasts} 只` : '未孵化', 'beast'],
       ['open-reincarn', '转生天赋', `${S.player.reincarnations} 世`, 'reincarn'],
-      ['open-codex', '记名录', `${C().codexState().owned}/${C().codexState().total} 名`, 'recruit'],
+      ['open-codex', '灯录', `${C().codexState().owned}/${C().codexState().total} 名`, 'recruit'],
     ];
     const daily = [
       ['open-bounty', '限时悬赏', '按时重置', null, C().bountyState().list.some(x => x.done && !x.claimed)],
       ['open-tasks', '每日任务', '主线 / 日常 / 周常', 'tasks'],
       ['open-ach', '成就', '长线目标', null, achDot],
       ['open-sign', '求签', signToday ? `今日【${signToday.tier}】` : '今日还没求'],
-      ['open-recruit', '记名者招募', C().freeRecruitAvailable() ? '今日免费 1 抽' : '攒碎片升星', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable()],
+      ['open-recruit', '执灯者招募', C().freeRecruitAvailable() ? '今日免费 1 抽' : '攒碎片升星', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable()],
       ['open-shop', '兑换大厅', '三档商店', 'shop'],
     ];
     return `<div class="section-title" data-sec="grow">养成</div>
       ${tileGrid(lines)}
       <div class="grid-title">日常</div>
       ${tileGrid(daily)}`
-      + '<div class="hint mt2">血统与境界属于角色自身：点上面【主角】那张卡，在里面选血统 / 渡劫。这里与「记名者 → 成长」是同一批养成线的总览。</div>';
+      + '<div class="hint mt2">血统与境界属于角色自身：点上面【主角】那张卡，在里面选血统 / 渡劫。这里与「执灯者 → 成长」是同一批养成线的总览。</div>';
   }
   /* 游历：只放「游历奇遇」本身——挂机路上随机冒出来的奇遇，进度条就是它的唯一入口。 */
   function travelBlock() {
@@ -1337,7 +1337,7 @@ window.UI = (function () {
         <div style="display:flex;gap:12px;align-items:center">
           ${charAvatar('@player', 56)}
           <div class="grow" style="min-width:0">
-            <div><b>${cname('@player')}</b> <span class="tag" style="color:var(--gold);border-color:var(--gold)">记名者本人</span></div>
+            <div><b>${cname('@player')}</b> <span class="tag" style="color:var(--gold);border-color:var(--gold)">执灯者本人</span></div>
             <div class="hint mt1">Lv.${S.player.level}（玩家等级）· ${S.player.bloodline ? S.player.bloodline + '血统 Lv.' + S.player.bloodlineLv : '未选血统'}</div>
             <div class="hint">铭刻 ${gl > 0 ? D.GENE_LOCKS[gl - 1].name : '未解锁'} · 六维待分 ${S.player.attrPoints || 0} 点</div>
           </div>
@@ -1934,7 +1934,7 @@ window.UI = (function () {
   function recruitModal(wrap) {
     const S = C().S;
     const free = C().freeRecruitAvailable();
-    const w = showPanel(wrap, '记名者招募', `
+    const w = showPanel(wrap, '执灯者招募', `
       <div class="card mb3">
         <h3>每日免费 <span class="sub">${free ? '今日可领' : '明天再来'}</span></h3>
         <div class="hint mb2">一天一次，免费招募同样计入主线与每日任务。</div>
@@ -2060,7 +2060,7 @@ window.UI = (function () {
   function ssrPickModal(wrap) {
     const ssrs = D.characters.filter(c => c.rarity === 'SSR' && !c.hidden);
     const w = showPanel(wrap, 'SSR 自选（剩 ' + C().S.ssrTicket + ' 张）', `
-      <div class="note mb3">选一名 SSR 记名者入队；已拥有的角色会转成碎片。</div>
+      <div class="note mb3">选一名 SSR 执灯者入队；已拥有的角色会转成碎片。</div>
       <div class="char-grid">${ssrs.map(ch => `
       <div class="char-card rarity-SSR" data-pickssr="${ch.id}">${charAvatar(ch.id)}<div class="cname">${esc(ch.name)}</div><div class="cmeta">${ch.role} · ${ch.faction}</div></div>`).join('')}</div>
       <button class="btn ghost block mt4" data-back>‹ 返回招募</button>`);
@@ -2623,7 +2623,7 @@ window.UI = (function () {
     const body = `
       <div style="font-size:12px;color:var(--dim);line-height:1.75;margin-bottom:10px">
         4 条产线各派 <b>1 名领队</b>：领队战力越高，这条线产出越高（最高 +150%）。
-        上阵主力不能派去挂机，「板凳上的记名者」在这里发挥作用；没派领队的产线不产出。
+        上阵主力不能派去挂机，「板凳上的执灯者」在这里发挥作用；没派领队的产线不产出。
       </div>
       ${rows.map(r => {
       const leader = r.leaderId;
@@ -2639,7 +2639,7 @@ window.UI = (function () {
           : `<button class="btn small block" data-idlepick="${r.line.id}" ${bench.length ? '' : 'disabled'}>${bench.length ? '＋ 派一名领队' : '没有可派的角色（先去招募）'}</button>`}
       </div>`;
     }).join('')}
-      <div style="font-size:11px;color:var(--dim);line-height:1.7">可派角色：${bench.length} 名（未上阵的记名者）。产出的收益和挂机收益一起，在首页「一键收取」里结算。</div>`;
+      <div style="font-size:11px;color:var(--dim);line-height:1.7">可派角色：${bench.length} 名（未上阵的执灯者）。产出的收益和挂机收益一起，在首页「一键收取」里结算。</div>`;
     const w = showPanel(wrap, '挂机分工', body);
     w.querySelectorAll('[data-idlepick]').forEach(b => b.onclick = () => pickIdleLeader(b.dataset.idlepick, w));
     w.querySelectorAll('[data-idleclear]').forEach(b => b.onclick = () => {
@@ -2655,7 +2655,7 @@ window.UI = (function () {
     const line = D.IDLE_LINES.find(l => l.id === lineId);
     const bench = Object.keys(S.chars).filter(id => !S.party.includes(id));
     const body = `
-      <div class="note mb3">选一名记名者派往「${line.name}」，战力越高产出越高。</div>
+      <div class="note mb3">选一名执灯者派往「${line.name}」，战力越高产出越高。</div>
       ${bench.map(id => {
       const used = D.IDLE_LINES.find(l => l.id !== lineId && S.idle.lines[l.id] === id);
       return `<div class="list-row" data-idlelead="${id}" style="cursor:pointer${used ? ';opacity:.5' : ''}">
@@ -3314,7 +3314,7 @@ window.UI = (function () {
         <button class="btn small gold" data-serum="0" ${n >= 1 ? '' : 'disabled'}>全部用（${n}）</button>
       </div>
       <div style="font-size:11px;color:var(--dim);margin-top:6px;line-height:1.7">
-        永久生效，不是临时增益。${sd.bloodline ? `只有「${sd.bloodline}」血统能用；` : '任何记名者（含主角）都能用；'}每人每种上限 ${sd.max} 支。
+        永久生效，不是临时增益。${sd.bloodline ? `只有「${sd.bloodline}」血统能用；` : '任何执灯者（含主角）都能用；'}每人每种上限 ${sd.max} 支。
       </div>`;
     } else if (it.type === 'consumable') {
       actions = run
@@ -3435,7 +3435,7 @@ window.UI = (function () {
     });
     return w;
   }
-  // 血清：先选记名者（血统血清只列对应血统的人）
+  // 血清：先选执灯者（血统血清只列对应血统的人）
   function pickSerumTarget(itemId, count, wrap, backFn) {
     const S = C().S;
     const it = D.ITEMS[itemId];
@@ -3455,7 +3455,7 @@ window.UI = (function () {
     const usable = rows.filter(r => !sd.bloodline || r.bl === sd.bloodline);
     const body = `
       <div class="note mb3">
-        选择要吃「${it.name} ×${count}」的记名者 —— <b>永久生效</b>
+        选择要吃「${it.name} ×${count}」的执灯者 —— <b>永久生效</b>
       </div>
       ${usable.length ? usable.map(r => {
         const taken = C().serumTaken(r.id, serumId);
@@ -3483,7 +3483,7 @@ window.UI = (function () {
     const goBack = onBack || (w2 => bagModal(w2));
     const body = `
       <div style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:10px">
-        血清是<b>永久强化剂</b>：喂给某名记名者后永久加属性，每人每种有上限。
+        血清是<b>永久强化剂</b>：喂给某名执灯者后永久加属性，每人每种有上限。
         血统血清只有对应血统能用——先觉醒血统，再决定喂给谁。
       </div>
       ${D.SERUMS.map(s => {
@@ -3580,7 +3580,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V9.0</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V9.1</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -4170,7 +4170,7 @@ window.UI = (function () {
     const root = $view();
     // 背包页签的按钮与弹窗共用一套绑定
     if (curTab === 'bag') bindBag(root, false);
-    // 记名者的三个子页：切换时各自保留滚动位置
+    // 执灯者的三个子页：切换时各自保留滚动位置
     root.querySelectorAll('[data-roster]').forEach(el => el.onclick = () => {
       const next = el.dataset.roster;
       if (next === rosterView) return;
@@ -4463,7 +4463,7 @@ window.UI = (function () {
     C().addPlayerExp(g.gains.exp);
     const mat = C().grantIdleMat(g.gains.mat || 0);
     C().save();
-    modal('欢迎回来，记名者', `
+    modal('欢迎回来，执灯者', `
       <div style="text-align:center;padding:6px 0 12px">
         <div style="font-size:13px;color:var(--dim)">离线 ${formatDuration(g.seconds)}（效率 ${Math.round(g.efficiency * 100)}%）</div>
         <div class="reward-chips" style="margin-top:14px">
@@ -4490,10 +4490,10 @@ window.UI = (function () {
   function showTutorial() {
     const w = modal('欢迎来到灯阁', `
       <div class="event-desc">
-        你被神秘存在选中，成为了<b style="color:var(--accent)">记名者</b>。<br><br>
+        你被神秘存在选中，成为了<b style="color:var(--accent)">执灯者</b>。<br><br>
         在这里，你将：<br>
         🌀 进入残域执行轮回任务<br>
-        👥 招募记名者，组建五人小队（主角必上阵）<br>
+        👥 招募执灯者，组建五人小队（主角必上阵）<br>
         🧬 解锁血统与铭刻，突破极限<br>
         ♾ 挑战深井，寻找离开的方法<br><br>
         新手补给已发放：◈50,000 · ✦1,000 · 经验模块×20 · 治疗剂×10<br><br>
@@ -4511,7 +4511,7 @@ window.UI = (function () {
   }
   const RANDOM_NAMES = ['夜行者', '渡鸦', '白泽', '北辰', '惊蛰', '拾荒者', '阿岚', '无常', '青槐', '孤鸿', '墨白', '临渊'];
   function showCharCreate() {
-    const w = modal('创建你的记名者', `
+    const w = modal('创建你的执灯者', `
       <div class="event-desc" style="margin-bottom:12px">灯阁需要一个名字来记录你的轮回。这个名字将伴随你进入每一个世界。</div>
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <input id="cc-name" maxlength="12" placeholder="输入你的名字（12字内）" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:15px;outline:none" />

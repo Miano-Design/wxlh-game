@@ -256,8 +256,8 @@ panel('派遣领队-有人可选', () => UI._panels.pickIdleLeader('gather'));
 panel('伴生体兽栏-空', () => UI._panels.beastModal());
 Core.addItem('beast_egg', 30);
 panel('伴生体兽栏-有兽魂石', () => UI._panels.beastModal());
-// V7.2 起养成线（含伴生体）整体搬到「记名者 → 成长」子页，首页不再摊平所有系统
-t('伴生体入口在「记名者 → 成长」子页', () => {
+// V7.2 起养成线（含伴生体）整体搬到「执灯者 → 成长」子页，首页不再摊平所有系统
+t('伴生体入口在「执灯者 → 成长」子页', () => {
   const html = UI._panels._screens.growScreen();
   if (html.indexOf('伴生体') < 0) throw new Error('成长页没有伴生体入口');
 });
@@ -285,13 +285,13 @@ for (const tab of ['bag', 'roster', 'party', 'chars', 'equip', 'home', 'dungeon'
     if (!html || !html.length) throw new Error('空页面');
   });
 }
-t('旧页签名映射到「记名者」子页', () => {
+t('旧页签名映射到「执灯者」子页', () => {
   UI._setTab('chars');
   if (UI.tab !== 'roster') throw new Error('chars 没有落到 roster，实际是 ' + UI.tab);
 });
 t('V8.6：今日卡已撤，每天要做的事都摊在首页上', () => {
   const html = UI._panels._screens.homeScreen();
-  ['一键收取', '限时悬赏', '每日任务', '记名者招募'].forEach(k => {
+  ['一键收取', '限时悬赏', '每日任务', '执灯者招募'].forEach(k => {
     if (html.indexOf(k) < 0) throw new Error('首页缺少：' + k);
   });
   if (html.indexOf('open-today') >= 0) throw new Error('「今日」入口还留着');
@@ -368,14 +368,14 @@ t('首页顶部是【标签】值 文字行（境界/等级/轮回）', () => {
   if (!/境界/.test(html) || !/等级/.test(html) || !/轮回/.test(html)) throw new Error('缺状态行');
   if (!html.includes('text-rows')) throw new Error('缺文字行容器');
 });
-t('灯阁权限入口在「记名者 → 成长」子页', () => {
+t('灯阁权限入口在「执灯者 → 成长」子页', () => {
   const html = UI._panels._screens.growScreen();
   if (!html.includes('灯阁权限')) throw new Error('缺入口');
 });
 t('招募页显示券数量与"有券先用券"', () => {
   Core.addItem('ticket_normal', 3);
   const html = UI._panels.recruitModal().innerHTML;
-  if (!html.includes('轮回招募券')) throw new Error('没显示券名');
+  if (!html.includes('引灯招募券')) throw new Error('没显示券名');
   if (!html.includes('有券先用券')) throw new Error('没说明扣券规则');
 });
 t('招募页有概率公示入口', () => {
@@ -870,7 +870,7 @@ t('游历段只放游历奇遇；悬赏 / 每日 / 成就 / 求签 / 招募 / �
   const iTravel = html.indexOf('data-sec="travel"');
   if (iGrow < 0 || iTravel < 0) throw new Error('缺养成段或游历段');
   if (iGrow > iTravel) throw new Error('养成段排在游历段后面了');
-  ['限时悬赏', '每日任务', '成就', '求签', '记名者招募', '兑换大厅'].forEach(k => {
+  ['限时悬赏', '每日任务', '成就', '求签', '执灯者招募', '兑换大厅'].forEach(k => {
     const i = html.indexOf(k);
     if (i < 0) throw new Error('首页缺入口：' + k);
     if (i > iTravel) throw new Error(k + ' 被放进「游历」段了（应该收在「养成」段的日常里）');

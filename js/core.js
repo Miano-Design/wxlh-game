@@ -24,7 +24,7 @@ window.Core = (function () {
     return {
       v: 5,
       createdAt: Date.now(),
-      player: Object.assign(freshProtagonist('记名者'), { geneLock: 0, reincarnations: 0, talents: { body: 0, energy: 0, nerve: 0, grace: 0 } }),
+      player: Object.assign(freshProtagonist('执灯者'), { geneLock: 0, reincarnations: 0, talents: { body: 0, energy: 0, nerve: 0, grace: 0 } }),
       altPlayers: [],         // 新建的主角（体验不同血统），与当前主角可切换
       bag: { cap: 100, expands: 0 },
       cur: { points: 0, story: 0, otherworld: 0, holy: 0, skillChip: 0, bloodCrystal: 0, corridor: 0, rp: 0 },
@@ -1425,7 +1425,7 @@ window.Core = (function () {
   function setIdleLeader(lineId, charId) {
     if (!D.IDLE_LINES.some(l => l.id === lineId)) return { ok: false, msg: '没有这条产线' };
     if (!charId) { S.idle.lines[lineId] = null; save(); return { ok: true, msg: '已撤下领队' }; }
-    if (!S.chars[charId]) return { ok: false, msg: '没有这名记名者' };
+    if (!S.chars[charId]) return { ok: false, msg: '没有这名执灯者' };
     if (S.party.includes(charId)) return { ok: false, msg: '上阵主力不能派去挂机，先把他换下来' };
     const other = D.IDLE_LINES.find(l => l.id !== lineId && S.idle.lines[l.id] === charId);
     if (other) return { ok: false, msg: `他已经在「${other.name}」了` };

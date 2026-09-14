@@ -494,9 +494,9 @@ window.DATA = (function () {
        它的招募不是直接花货币，而是花"券"；券可以从商店买、也能从玩法里掉。
        好处是"打副本 → 掉券 → 去抽"自己成了一条循环，不用先攒够一大笔货币才敢点招募。
        我们三个池子各配一张券，抽的时候「有券先用券，没券才花货币」，规则只有这一条。 */
-    ticket_normal: { name: '轮回招募券', type: 'ticket', where: 'recruit', pool: 'normal', use: '在「记名者招募」点普通池抽卡时自动先用它', desc: '普通招募 1 次（没券时会自动改花 ◈点数）', src: '副本战斗、扫荡、挂机、每日任务' },
-    ticket_adv:    { name: '圣契招募令', type: 'ticket', where: 'recruit', pool: 'advanced', use: '在「记名者招募」点高级池抽卡时自动先用它', desc: '高级招募 1 次（没券时会自动改花 ✦圣洁晶石）', src: '精英/Boss 掉落、限时悬赏、每周任务、兑换大厅' },
-    ticket_lim:    { name: '异界征召令', type: 'ticket', where: 'recruit', pool: 'limited', use: '在「记名者招募」点限定池抽卡时自动先用它', desc: '限定招募 1 次（没券时会自动改花 ◆异界结晶）', src: '深井、地狱难度、周常全清、异界商店' },
+    ticket_normal: { name: '引灯招募券', type: 'ticket', where: 'recruit', pool: 'normal', use: '在「执灯者招募」点普通池抽卡时自动先用它', desc: '普通招募 1 次（没券时会自动改花 ◈点数）', src: '副本战斗、扫荡、挂机、每日任务' },
+    ticket_adv:    { name: '圣契招募令', type: 'ticket', where: 'recruit', pool: 'advanced', use: '在「执灯者招募」点高级池抽卡时自动先用它', desc: '高级招募 1 次（没券时会自动改花 ✦圣洁晶石）', src: '精英/Boss 掉落、限时悬赏、每周任务、兑换大厅' },
+    ticket_lim:    { name: '异界征召令', type: 'ticket', where: 'recruit', pool: 'limited', use: '在「执灯者招募」点限定池抽卡时自动先用它', desc: '限定招募 1 次（没券时会自动改花 ◆异界结晶）', src: '深井、地狱难度、周常全清、异界商店' },
     heal_s: { name: '小型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.2 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 20% 生命', src: '灯阁市集、副本战斗掉落' },
     heal_m: { name: '中型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.4 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 40% 生命', src: '灯阁市集、副本战斗掉落' },
     heal_l: { name: '大型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.7 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 70% 生命', src: '副本战斗掉落（第 5 关起）、周常奖励' },
@@ -560,7 +560,7 @@ window.DATA = (function () {
       type: 'serum',
       serum: { key: s.key, per: s.per, max: s.max, bloodline: s.bloodline },
       where: 'character',
-      use: `背包里点这张卡，选一名${s.bloodline ? `「${s.bloodline}」血统的` : ''}记名者喂下；支持 1 / 10 / 全部`,
+      use: `背包里点这张卡，选一名${s.bloodline ? `「${s.bloodline}」血统的` : ''}执灯者喂下；支持 1 / 10 / 全部`,
       desc: `${tag}${SERUM_KEYS[s.key] || s.key} 永久 +${(s.per * 100).toFixed(1)}%（每人最多 ${s.max} 支）`,
       src: '炼化台：用装备强化材料 + 点数炼化',
     };
@@ -647,7 +647,7 @@ window.DATA = (function () {
       '高级招募（✦圣洁晶石）：主力池，SR 起抽，50 抽内必出 SSR、100 抽内必出 UR，而且优先给「你还没有的角色」——缺图鉴就抽它。',
       '限定招募（◆异界结晶）：定向池，本期只出「当期 UP」所属阵营的角色，SSR 里一半是当期 UP，50 抽内必出当期 UP。想要某个特定的人，就盯着它抽。',
       '保底三个池分开关账：高级池和限定池各自数自己的 SSR / UR / UP 次数，换池不会清零，也不会串。',
-      '**招募券**：每个池配一张券（轮回招募券 / 圣契招募令 / 异界征召令），从副本掉落、悬赏、每日与每周任务、登录、商店都能拿。抽的时候**有券先用券，券不够才扣货币**；十连要么给 10 张券、要么给足货币，不混着扣。',
+      '**招募券**：每个池配一张券（引灯招募券 / 圣契招募令 / 异界征召令），从副本掉落、悬赏、每日与每周任务、登录、商店都能拿。抽的时候**有券先用券，券不够才扣货币**；十连要么给 10 张券、要么给足货币，不混着扣。',
       '想知道每一档到底多少概率？招募页最下面有「📊 招募概率公示」，逐池列清每一档出率、保底抽数、还差几抽触发保底。',
       '每天有一次免费招募（走普通池出率），同样计入主线与每日任务，别忘了领。',
     ] },
@@ -669,7 +669,7 @@ window.DATA = (function () {
       '对标别人的"洞府"：花 ✦圣洁晶石 + ◆异界结晶向灯阁换**永久授权**，10 级，投入一次永久生效，转生也不清空。',
       '和「基地建设」分工不同——建筑花的是挂机就能刷的 ◈点数，逐级堆到 50 级；灯阁权限花的是稀缺的高级货币，所以给的多是"倍率"：挂机产出、挂机经验、离线上限、离线效率、每日扫荡次数。',
       '满 10 级额外给全队全属性 +5%，是这条线的收尾奖励。',
-      '入口：首页「养成」那一组里的「灯阁权限」（「👥 记名者 → 🌱 成长」子页里也有同一项）。',
+      '入口：首页「养成」那一组里的「灯阁权限」（「👥 执灯者 → 🌱 成长」子页里也有同一项）。',
     ] },
     { id: 'sect', title: '⑭ 灯阁评级 · 秘术阁 · 游历奇遇', body: [
       '这三条是照着别人的「宗门等级 / 秘术 / 游历」做的，作用各不相同：',
@@ -723,7 +723,7 @@ window.DATA = (function () {
       { text: '撬开样品箱', result: '箱子里是完好的补给品。', effect: { points: 300, item: 'heal_m' } },
       { text: '搜索实验记录', result: '记录里夹着一张灯阁兑换券碎片。', effect: { story: 30 } },
       { text: '谨慎离开', result: '安全离开，但一无所获。', effect: {} } ] },
-    { id: 'E02', title: '垂死的记名者', desc: '一名其他小队的记名者倒在血泊中，他抓住你的脚踝。', choices: [
+    { id: 'E02', title: '垂死的执灯者', desc: '一名其他小队的执灯者倒在血泊中，他抓住你的脚踝。', choices: [
       { text: '救治他', result: '他将全部积蓄托付给你。', effect: { points: 500, holy: 20 } },
       { text: '搜刮他的装备', result: '你拿走了他的物资，但负罪感让队伍士气下降。', effect: { points: 800, hurtPct: 0.1 } },
       { text: '离开', result: '你装作没看见。', effect: {} } ] },
@@ -765,7 +765,7 @@ window.DATA = (function () {
     { id: 'E12', title: '共振水晶', desc: '一块悬浮的异界水晶，与队伍的装备产生共振。', choices: [
       { text: '吸收能量', result: '装备被强化之力浸润。', effect: { otherworld: 60 } },
       { text: '敲碎带走', result: '碎裂的水晶割伤了手。', effect: { otherworld: 90, hurtPct: 0.08 } } ] },
-    { id: 'E13', title: '同类的尸体', desc: '一具记名者的尸体，手里紧紧攥着什么。', choices: [
+    { id: 'E13', title: '同类的尸体', desc: '一具执灯者的尸体，手里紧紧攥着什么。', choices: [
       { text: '掰开他的手', result: '是一颗圣洁晶石。', effect: { holy: 30 } },
       { text: '安葬他', result: '你花了点时间，但灯阁似乎记录了你的善举。', effect: { story: 50 } } ] },
     { id: 'E14', title: '失控的防御系统', desc: '自动炮塔突然转向你们！', choices: [
@@ -784,7 +784,7 @@ window.DATA = (function () {
       { text: '护送他离开', result: '他给了你一份完整的区域地图和补给。', effect: { story: 60, item: 'heal_m' } },
       { text: '逼问情报', result: '他惊恐地说出了Boss的弱点位置。', effect: { buff: { atkPct: 0.12 }, story: 20 } },
       { text: '不管他', result: '身后传来惨叫，你没有回头。', effect: {} } ] },
-    { id: 'E18', title: '灯阁广播', desc: '广播里响起灯阁的声音，冷得像铁："检测到记名者，投放补给。"', choices: [
+    { id: 'E18', title: '灯阁广播', desc: '广播里响起灯阁的声音，冷得像铁："检测到执灯者，投放补给。"', choices: [
       { text: '前往投放点', result: '补给箱里有好东西！', effect: { holy: 25, item: 'exp_m' } },
       { text: '原地待命', result: '补给被别的队伍抢走了，但你保存了体力。', effect: { healPct: 0.1 } } ] },
     { id: 'E19', title: '地下黑市摊位', desc: '废墟中的黑市摊位，老板是个独眼老人。', choices: [
@@ -809,7 +809,7 @@ window.DATA = (function () {
       s1: { name: '求生突刺', desc: '对单体造成 180% 伤害', cd: 3, type: 'dmg', mult: 1.8, target: 'enemy' },
       s2: { name: '潜能爆发', desc: '自身攻击+30%、暴击+15%，持续 3 回合', cd: 5, type: 'buff', buff: { atkPct: 0.3, critPct: 0.15, turns: 3 }, target: 'self' },
       ult: { name: '基因解放', desc: '对单体造成 400% 伤害并回复伤害 30% 的生命', type: 'dmg', mult: 4.0, lifesteal: 0.3, target: 'enemy' },
-      passive: { name: '记名者直觉', desc: '闪避 +5%，铭刻每阶全属性额外 +3%' },
+      passive: { name: '执灯者直觉', desc: '闪避 +5%，铭刻每阶全属性额外 +3%' },
     },
   };
 
@@ -1179,7 +1179,7 @@ window.DATA = (function () {
       rates: { N: 0.46, R: 0.36, SR: 0.18 },
       cost: { points: 5000 }, ten: { points: 45000 },
       ticket: 'ticket_normal',
-      desc: '日常池：只出 N / R / SR，重复角色转碎片。花的是挂机能刷的点数，用来攒碎片升星。有「轮回招募券」时先扣券。',
+      desc: '日常池：只出 N / R / SR，重复角色转碎片。花的是挂机能刷的点数，用来攒碎片升星。有「引灯招募券」时先扣券。',
       tag: '攒碎片',
     },
     advanced: {
@@ -1277,7 +1277,7 @@ window.DATA = (function () {
       push('corridor', { n: 10 }, '深井初探', '深井到达第 10 层', 168,
         { holy: 1200, bloodCrystal: 30 });
     } else if (ssrN < 3) {
-      push('ssr', { n: 3 }, '强者如林', '拥有 3 名 SSR 及以上记名者', 168,
+      push('ssr', { n: 3 }, '强者如林', '拥有 3 名 SSR 及以上执灯者', 168,
         { holy: 1500, bloodCrystal: 40 });
     } else if (beasts < 3) {
       push('beast', { n: 3 }, '兽栏初成', '孵化 3 只伴生体', 168,
@@ -1287,7 +1287,7 @@ window.DATA = (function () {
         { holy: 1200, bloodCrystal: 30 });
     } else {
       const next = Math.min(60, owned + 3);
-      push('chars', { n: next }, '广纳英才', `拥有 ${next} 名记名者`, 168,
+      push('chars', { n: next }, '广纳英才', `拥有 ${next} 名执灯者`, 168,
         { holy: 1500, points: 80000, item: 'ticket_lim' });
     }
     return out;
@@ -1418,7 +1418,7 @@ window.DATA = (function () {
       { currencyGain: { skillChip: 10 }, name: '技能芯片×10', price: 2000, stock: -1 },
       { item: 'box_r', name: '随机R装备', price: 5000, stock: -1 },
       { item: 'box_sr', name: '随机SR装备', price: 30000, stock: -1 },
-      { item: 'ticket_normal', name: '轮回招募券', price: 6000, stock: 3 },
+      { item: 'ticket_normal', name: '引灯招募券', price: 6000, stock: 3 },
     ] },
     otherworld: { name: '异界商店', currency: 'otherworld', items: [
       { item: 'box_sr', name: 'SR装备箱', price: 100, stock: -1 },
@@ -1442,7 +1442,7 @@ window.DATA = (function () {
       { item: 'exp_m', name: '中级经验模块×2', price: 150, count: 2, stock: -1 },
       { currencyGain: { skillChip: 100 }, name: '技能芯片×100', price: 200, stock: -1 },
       { currencyGain: { holy: 10 }, name: '圣洁晶石×10', price: 500, stock: 1 },
-      { item: 'ticket_normal', name: '轮回招募券', price: 250, stock: 3 },
+      { item: 'ticket_normal', name: '引灯招募券', price: 250, stock: 3 },
     ] },
     corridor: { name: '深井商店', currency: 'corridor', items: [
       { shardRandom: 'SR', shardCount: 10, name: 'SR角色碎片×10', price: 100, stock: -1 },
@@ -1491,10 +1491,10 @@ window.DATA = (function () {
     { id: 'a_gene5', cat: '养成', name: '完全解锁', desc: '铭刻解锁到 5 阶', check: S => S.player.geneLock >= 5, reward: { holy: 500, bloodCrystal: 500 } },
     { id: 'a_enh50', cat: '养成', name: '铁匠', desc: '累计强化 50 次装备', check: S => S.stats.enhances >= 50, reward: { points: 20000, otherworld: 200 } },
     { id: 'a_enh20', cat: '养成', name: '完美强化', desc: '拥有一件 +20 装备', check: S => Object.values(S.equips).some(e => e.enhance >= 20), reward: { holy: 300, otherworld: 500 } },
-    { id: 'a_char10', cat: '收集', name: '小队成形', desc: '拥有 10 名记名者', check: S => Object.keys(S.chars).length >= 10, reward: { points: 15000 } },
-    { id: 'a_char30', cat: '收集', name: '大型队伍', desc: '拥有 30 名记名者', check: S => Object.keys(S.chars).length >= 30, reward: { holy: 400, points: 40000 } },
-    { id: 'a_ssr1', cat: '收集', name: '命运相遇', desc: '获得第 1 名 SSR 记名者', check: S => Object.keys(S.chars).some(id => (charById[id] || {}).rarity === 'SSR'), reward: { holy: 200 } },
-    { id: 'a_ur1', cat: '收集', name: '超越者', desc: '获得第 1 名 UR 记名者', check: S => Object.keys(S.chars).some(id => (charById[id] || {}).rarity === 'UR'), reward: { holy: 500, bloodCrystal: 300 } },
+    { id: 'a_char10', cat: '收集', name: '小队成形', desc: '拥有 10 名执灯者', check: S => Object.keys(S.chars).length >= 10, reward: { points: 15000 } },
+    { id: 'a_char30', cat: '收集', name: '大型队伍', desc: '拥有 30 名执灯者', check: S => Object.keys(S.chars).length >= 30, reward: { holy: 400, points: 40000 } },
+    { id: 'a_ssr1', cat: '收集', name: '命运相遇', desc: '获得第 1 名 SSR 执灯者', check: S => Object.keys(S.chars).some(id => (charById[id] || {}).rarity === 'SSR'), reward: { holy: 200 } },
+    { id: 'a_ur1', cat: '收集', name: '超越者', desc: '获得第 1 名 UR 执灯者', check: S => Object.keys(S.chars).some(id => (charById[id] || {}).rarity === 'UR'), reward: { holy: 500, bloodCrystal: 300 } },
     { id: 'a_world3', cat: '挑战', name: '走出巢穴', desc: '通关 3 个世界的普通难度', check: S => WORLDS.filter(w => S.worlds[w.id] && S.worlds[w.id].stages.normal.every(s => s > 0)).length >= 3, reward: { holy: 300 } },
     { id: 'a_floor50', cat: '挑战', name: '深井 50 层', desc: '深井历史最高 50 层', check: S => S.corridor.best >= 50, reward: { corridor: 100, points: 20000 } },
     { id: 'a_floor100', cat: '挑战', name: '深井 100 层', desc: '深井历史最高 100 层', check: S => S.corridor.best >= 100, reward: { corridor: 300, holy: 400 } },
@@ -1516,7 +1516,7 @@ window.DATA = (function () {
 
   /* ================= 功能解锁（随关卡进度） ================= */
   const UNLOCKS = [
-    { id: 'recruit',   name: '记名者招募', world: 'W01', stage: 1,  tip: '通关 菌毯巢穴·第1关 解锁' },
+    { id: 'recruit',   name: '执灯者招募', world: 'W01', stage: 1,  tip: '通关 菌毯巢穴·第1关 解锁' },
     { id: 'shop',      name: '兑换大厅',   world: 'W01', stage: 2,  tip: '通关 菌毯巢穴·第2关 解锁' },
     { id: 'enhance',   name: '装备强化',   world: 'W01', stage: 3,  tip: '通关 菌毯巢穴·第3关 解锁' },
     { id: 'buildings', name: '基地建设',   world: 'W01', stage: 4,  tip: '通关 菌毯巢穴·第4关 解锁' },
@@ -1561,7 +1561,7 @@ window.DATA = (function () {
       check: S => S.player.bloodlineLv >= 1 || Object.values(S.chars).some(c => c.bloodlineLv >= 1) },
     { id: 'q14', name: '潜影之后', desc: '通关 潜影窟·第12关', reward: { holy: 300, otherworld: 200 },
       check: S => S.worlds.W02 && S.worlds.W02.stages.normal[11] > 0 },
-    { id: 'q15', name: '记名者之路', desc: '通关 怨声旧宅·第12关', reward: { holy: 500, rp: 0 }, unlock: 'reincarn',
+    { id: 'q15', name: '执灯者之路', desc: '通关 怨声旧宅·第12关', reward: { holy: 500, rp: 0 }, unlock: 'reincarn',
       check: S => S.worlds.W03 && S.worlds.W03.stages.normal[11] > 0 },
   ];
 
