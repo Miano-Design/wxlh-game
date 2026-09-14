@@ -1556,6 +1556,16 @@ window.Core = (function () {
     save();
     return { ok: true, msg: `${D.ATTR_META.find(a => a.id === attrId).name} +${n * D.ATTR_POINT_VALUE}` };
   }
+  // 六维洗点：把已经分出去的属性点全部退回"可用点数"，免费、可反复洗。
+  // 和 resetSkills 对称：加错了不该逼人重开档。
+  function resetAttrs() {
+    const spent = D.ATTR_META.reduce((s, a) => s + ((S.player.attrs && S.player.attrs[a.id]) || 0), 0);
+    if (spent <= 0) return { ok: false, msg: '还没分配过属性点' };
+    S.player.attrs = ATTR_ZERO();
+    S.player.attrPoints = (S.player.attrPoints || 0) + spent;
+    save();
+    return { ok: true, msg: `已洗点，退回 ${spent} 点属性点` };
+  }
 
   /* ================= 多主角（新建角色体验不同血统） ================= */
   const PROTAGONIST_KEYS = ['name', 'level', 'exp', 'bloodline', 'bloodlineLv', 'attrPoints', 'attrs', 'skillPoints', 'skillLv'];
@@ -2610,7 +2620,7 @@ window.Core = (function () {
     bloodlineUpgrade, geneLockInfo, geneLockUnlock,
     equipStats, effectiveStats, power, teamPower, factionBuffs, formationState,
     effectivePlayerStats, playerPower, choosePlayerBloodline, upgradePlayerBloodline,
-    allocateAttr, allocateSkill, resetSkills, protagonistSkills, protagonistList, createProtagonist, switchProtagonist,
+    allocateAttr, resetAttrs, allocateSkill, resetSkills, protagonistSkills, protagonistList, createProtagonist, switchProtagonist,
     grantEquip, grantSignatureEquip, equipItem, canEquip, unequipItem, enhanceCost, enhance, decompose, decomposeMany, inventoryEquips,
     toggleEquipLock, autoEquipBest, equipScore, savePreset, applyPreset,
     unequipEverywhere, equipWearer, dedupeEquips,

@@ -218,6 +218,14 @@ setParty(['C021']);
   t('分配属性点', r.ok && Core.S.player.attrPoints === 0);
   t('肌肉加点提升攻击', Core.effectivePlayerStats().atk > atk0);
   t('点数不足不能分配', !Core.allocateAttr('nerve', 1).ok);
+  // V8.6：六维也要能洗点（和技能重置对称，加错了不用重开档）
+  const atkBeforeReset = Core.effectivePlayerStats().atk;
+  const rr = Core.resetAttrs();
+  t('六维洗点：返还全部已分配点数', rr.ok && Core.S.player.attrPoints === 3 && Core.S.player.attrs.muscle === 0);
+  t('六维洗点后战力掉回原点（点数没丢）', Core.effectivePlayerStats().atk < atkBeforeReset);
+  t('六维洗点可反复点：没分配过就拒绝', !Core.resetAttrs().ok);
+  t('洗完还能重新分配', Core.allocateAttr('spirit', 2).ok && Core.S.player.attrs.spirit === 2);
+  Core.resetAttrs();
 }
 
 // 19. 血统：开局可觉醒（境界线跟着血统走），觉醒后不可更改

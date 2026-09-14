@@ -201,11 +201,12 @@ t('旧页签名映射到「轮回者」子页', () => {
   UI._setTab('chars');
   if (UI.tab !== 'roster') throw new Error('chars 没有落到 roster，实际是 ' + UI.tab);
 });
-t('今日卡含一键收取 / 悬赏 / 免费招募', () => {
+t('V8.6：今日卡已撤，每天要做的事都摊在首页上', () => {
   const html = UI._panels._screens.homeScreen();
-  ['一键收取', '限时悬赏', '免费招募', '每日任务'].forEach(k => {
-    if (html.indexOf(k) < 0) throw new Error('今日卡缺少：' + k);
+  ['一键收取', '限时悬赏', '每日任务', '轮回者招募'].forEach(k => {
+    if (html.indexOf(k) < 0) throw new Error('首页缺少：' + k);
   });
+  if (html.indexOf('open-today') >= 0) throw new Error('「今日」入口还留着');
 });
 // ---- V8.x：首页改「纯文字」（参考图风格）＋ 新增评级 / 秘术 / 游历 / 血统面板 ----
 t('首页不再用大图标卡片（纯文字）', () => {
@@ -225,10 +226,11 @@ t('首页功能入口一屏摊开（今天/养成都能直接找到）', () => {
     if (html.indexOf(k) < 0) throw new Error('首页缺入口：' + k);
   });
 });
-t('首页两枚匾额：主线 + 今日', () => {
+t('首页主线是一条横条（不再是"主线 + 今日"两枚匾额）', () => {
   const html = UI._panels._screens.homeScreen();
-  if (html.indexOf('plaque-row') < 0) throw new Error('缺匾额排');
+  if (html.indexOf('data-sec="quest"') < 0) throw new Error('缺主线条');
   if (html.indexOf('主线') < 0) throw new Error('缺主线');
+  if (html.indexOf('plaque') >= 0) throw new Error('旧匾额样式还在用');
 });
 t('首页有游历奇遇条', () => {
   const html = UI._panels._screens.homeScreen();
@@ -634,7 +636,9 @@ t('图标坐标是对称的（X 与箭头都以 12,12 为中心）', () => {
 t('移动端热区：图标按钮都补到 ≥44px', () => {
   const css = fs.readFileSync('css/style.css', 'utf8');
   // 视觉尺寸可以小，但必须用伪元素把点击区域补到 44px，否则手机上很难点
-  const pairs = [['.sheet .close-x::after', '-5px'], ['.back-x::after', '-2px'], ['.tb-icon::after', '-5px'], ['.cur-chip::after', '-9px']];
+  // V8.6：.tb-icon 已随顶栏图标一起去掉；.cur-chip 的热区从 -9px 收到 -2px
+  //（补 9px 会盖到上一行名字和下面正文，手机上会点错）
+  const pairs = [['.sheet .close-x::after', '-5px'], ['.back-x::after', '-2px'], ['.cur-chip::after', '-2px'], ['.drag-bar .btn::after', '-2px'], ['.bag-card .qbtn::after', '-2px']];
   pairs.forEach(([sel, inset]) => {
     if (!css.includes(sel)) throw new Error('缺热区补齐规则：' + sel);
     const block = css.slice(css.indexOf(sel));
@@ -645,6 +649,73 @@ t('移动端全局兜底：按钮去系统外观 + 去掉 300ms 点击延迟', (
   const css = fs.readFileSync('css/style.css', 'utf8');
   if (!css.includes('touch-action: manipulation')) throw new Error('缺 touch-action: manipulation');
   if (!/button,\s*input,\s*select,\s*textarea\s*\{[^}]*appearance:\s*none/.test(css)) throw new Error('缺按钮外观重置');
+});
+
+// ---- V8.6：首页重排（主角 → 养成 → 游历 → 挂机 → 设置）· 去重 · 手机优先 ----
+t('首页五段顺序：主角 → 主线 → 养成 → 游历 → 挂机 → 设置', () => {
+  const html = UI._panels._screens.homeScreen();
+  const order = ['data-sec="hero"', 'data-sec="quest"', 'data-sec="grow"', 'data-sec="travel"', 'data-sec="idle"', 'data-sec="settings"'];
+  let last = -1;
+  order.forEach(sec => {
+    const i = html.indexOf(sec);
+    if (i < 0) throw new Error('首页缺这一段：' + sec);
+    if (i < last) throw new Error('这一段的位置不对（顺序错了）：' + sec);
+    last = i;
+  });
+});
+t('首页同一个功能只出现一次（挂机分工不再两处重复）', () => {
+  const html = UI._panels._screens.homeScreen();
+  const acts = [...html.matchAll(/data-act="([a-z-]+)"/g)].map(m => m[1]);
+  const dup = acts.filter((a, i) => acts.indexOf(a) !== i);
+  if (dup.length) throw new Error('首页有重复入口：' + [...new Set(dup)].join(', '));
+  if (acts.indexOf('open-idlelines') < 0) throw new Error('缺"派人分工"入口');
+  if ((html.match(/data-act="open-idlelines"/g) || []).length !== 1) throw new Error('"派人分工"出现了不止一次');
+});
+t('顶栏不再重复放"设置 / 指南"图标（首页最后一段是唯一入口）', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  if (html.includes('tb-guide') || html.includes('tb-settings')) throw new Error('顶栏还有设置 / 指南按钮');
+  const home = UI._panels._screens.homeScreen();
+  ['open-guide', 'open-curdoc', 'open-settings'].forEach(a => {
+    if ((home.match(new RegExp('data-act="' + a + '"', 'g')) || []).length !== 1) throw new Error('首页缺唯一入口：' + a);
+  });
+});
+t('主角能洗点：六维 + 技能都能退回点数', () => {
+  const html = UI._panels.protagonistDetail().innerHTML;
+  if (html.indexOf('data-attrreset') < 0) throw new Error('缺六维洗点按钮');
+  if (html.indexOf('data-pskillreset') < 0) throw new Error('缺技能重置按钮');
+  if (html.indexOf('洗点') < 0) throw new Error('面板里没写"洗点"');
+});
+t('长按抓起不弹提示框，也不再提 Esc（手机没有键盘）', () => {
+  const ui = fs.readFileSync('js/ui.js', 'utf8');
+  const data = fs.readFileSync('js/data.js', 'utf8');
+  if (ui.includes('已抓起，拖到别的站位')) throw new Error('长按抓起还在弹 toast');
+  // 只查"给玩家看的文案"：toast 里、以及指南正文里都不许出现 Esc 这类电脑说法
+  if (/toast\([^)]*Esc/.test(ui)) throw new Error('还有 toast 在提示 Esc');
+  if (data.includes('按 Esc') || data.includes('Esc 取消')) throw new Error('指南里还在说"按 Esc 取消"');
+  if (ui.includes('用鼠标不方便')) throw new Error('还在写"鼠标"');
+});
+t('手机适配：有窄屏 / 超窄屏 / 横屏矮屏三档断点', () => {
+  const css = fs.readFileSync('css/style.css', 'utf8');
+  if (!css.includes('@media (max-width: 375px)')) throw new Error('缺窄屏断点');
+  if (!css.includes('@media (max-width: 340px)')) throw new Error('缺超窄屏断点（宫格改两列）');
+  if (!css.includes('@media (max-height: 460px)')) throw new Error('缺横屏矮屏断点');
+});
+t('文字不出格：卡片与关键文字行都有断行 / 省略兜底', () => {
+  const css = fs.readFileSync('css/style.css', 'utf8');
+  if (!/\.card,\s*\.panel\s*\{[^}]*overflow-wrap:\s*anywhere/.test(css)) throw new Error('卡片没有断词兜底');
+  ['.text-rows .row .rv', '.kv > span:last-child', '.pslot .pname', '.idle-line .il-r'].forEach(sel => {
+    const i = css.indexOf(sel);
+    if (i < 0) throw new Error('缺规则：' + sel);
+    if (!css.slice(i, i + 220).includes('text-overflow: ellipsis')) throw new Error(sel + ' 没有省略号兜底');
+  });
+  if (!css.includes('flex-wrap: wrap')) throw new Error('按钮行没有换行兜底');
+});
+t('正文上边距跟着顶栏实际高度走（系统字号调大也不顶进顶栏）', () => {
+  const css = fs.readFileSync('css/style.css', 'utf8');
+  if (!css.includes('calc(var(--topbar-h, 92px)')) throw new Error('#view 上边距还是写死的');
+  const ui = fs.readFileSync('js/ui.js', 'utf8');
+  if (!ui.includes('--topbar-h')) throw new Error('没有量顶栏高度写进 --topbar-h');
+  if (!ui.includes('visualViewport')) throw new Error('没有处理键盘遮住弹窗的问题');
 });
 
 // ---- 装机（PWA）：手机能加到主屏、断网能玩，且资源都带版本号 ----

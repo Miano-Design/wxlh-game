@@ -26,8 +26,8 @@
   --gold: #e6b64c;
   --green: #56c894;
   --blue: #6ec6ff;
-  /* 间距台阶 */
-  --sp1: 4px; --sp2: 8px; --sp3: 12px; --sp4: 16px; --sp5: 22px;
+  /* 间距台阶（V8.6 起整体放宽一档：原来 8px 的卡片缝在手机上像"贴在一起"） */
+  --sp1: 4px; --sp2: 10px; --sp3: 14px; --sp4: 18px; --sp5: 24px;
   /* 圆角（统一收敛，不再到处 12/14/18） */
   --radius: 10px;
   --radius-sm: 7px;
@@ -58,11 +58,15 @@ body {
   font-size: 15px;
   overscroll-behavior: none;
   user-select: none;
+  /* 窄屏上任何一处没兜住的长文本都不该把整页顶出横向滚动条 */
+  overflow-x: hidden;
 }
 #app { max-width: 520px; margin: 0 auto; min-height: 100%; position: relative; background: linear-gradient(180deg, var(--bg2), var(--bg)); }
 
 /* ---------- 顶栏 ---------- */
-/* 三行结构：名字行（含设置/指南）→ 货币行。不再把系统入口塞进正文。 */
+/* 两行结构：名字行 → 货币行。
+   V8.6 起顶栏不再放"设置 / 指南"图标按钮——那两个入口已经在首页最后一段，
+   同一个功能不出现两次。 */
 #topbar {
   position: fixed; top: 0; left: 50%; transform: translateX(-50%);
   width: 100%; max-width: 520px; z-index: 40;
@@ -75,24 +79,19 @@ body {
 #topbar .plv { font-size: var(--fs-sm); color: var(--gold); border: 1px solid #e6b64c66; border-radius: var(--radius-sm); padding: 0 6px; }
 #topbar .genelock { font-size: var(--fs-sm); color: var(--accent); }
 #topbar .tb-spacer { flex: 1; }
-.tb-icon {
-  min-width: 44px; height: 34px; padding: 0 10px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel);
-  color: var(--text2); font-size: var(--fs-md); cursor: pointer; position: relative; font-family: inherit;
-}
-.tb-icon:active { background: var(--panel3); }
-/* 顶栏两个按钮只有 34px 高，用伪元素把热区补到 44px（视觉不变） */
-.tb-icon::after { content: ''; position: absolute; inset: -5px 0; }
 #curbar { display: flex; gap: 6px; overflow-x: auto; padding: 2px var(--sp3) var(--sp2); scrollbar-width: none; }
 #curbar::-webkit-scrollbar { display: none; }
-.cur-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 5px 11px; font-size: var(--fs-md); color: var(--text); font-family: inherit; cursor: pointer; position: relative; }
+.cur-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 5px 11px; min-height: 40px; font-size: var(--fs-md); color: var(--text); font-family: inherit; cursor: pointer; position: relative; }
 .cur-chip.more { color: var(--dim); border-style: dashed; }
 .cur-chip b { font-weight: 600; }
-/* 货币小胶囊只有 26px 高：同样用伪元素把上下热区补到 44px（左右不动，免得和邻居重叠） */
-.cur-chip::after { content: ''; position: absolute; inset: -9px 0; }
+/* 货币胶囊本体 40px 高，只用伪元素补 2px 上下热区到 44px——
+   以前补 9px，热区会盖到上面"名字行"和下面正文上，手机上容易点错（电脑上鼠标看不出）。 */
+.cur-chip::after { content: ''; position: absolute; inset: -2px 0; }
 
 /* ---------- 主区域 ---------- */
-#view { padding: calc(92px + env(safe-area-inset-top)) 12px calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px); }
+/* 正文上边距 = 顶栏实际高度（JS 量出来写进 --topbar-h，含刘海安全区）。
+   原来写死 92px，遇到系统字号调大的机 / 更高的刘海，正文会钻到顶栏底下。 */
+#view { padding: calc(var(--topbar-h, 92px) + 6px) 12px calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px); }
 .screen.enter { animation: fadein .18s ease; }
 @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
@@ -101,18 +100,22 @@ body {
    这是全站一致性的根：改这里，首页 / 副本 / 角色 / 背包 / 所有弹窗同时生效。 */
 .card, .panel {
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: var(--sp3) var(--sp3) var(--sp3); margin-bottom: var(--sp2);
+  padding: var(--sp3) var(--sp3) var(--sp3); margin-bottom: var(--sp3);
   box-shadow: inset 0 1px 0 #ffffff08;
+  /* 卡片内一律允许断词换行：长名字/长数字不再顶着边框跑出去 */
+  overflow-wrap: anywhere;
 }
+.card:last-child, .panel:last-child { margin-bottom: 0; }
 .card h3, .panel h3 {
   margin: 0 0 10px; font-size: var(--fs-1); font-weight: 700;
   display: flex; align-items: center; gap: 7px; letter-spacing: .2px;
+  flex-wrap: wrap; min-width: 0;
 }
 .card h3::before, .panel h3::before {
   content: ''; flex: 0 0 auto; width: 3px; height: 13px; border-radius: 2px;
   background: linear-gradient(180deg, var(--gold), #8a6a1e);
 }
-.card h3 .sub, .panel h3 .sub { font-size: var(--fs-sm); color: var(--dim); font-weight: 400; margin-left: auto; letter-spacing: 0; }
+.card h3 .sub, .panel h3 .sub { font-size: var(--fs-sm); color: var(--dim); font-weight: 400; margin-left: auto; letter-spacing: 0; min-width: 0; text-align: right; }
 .card.plain h3::before, .panel.plain h3::before { display: none; }
 .section-title {
   display: flex; align-items: center; gap: var(--sp2);
@@ -152,7 +155,12 @@ body {
 .btn.block { display: flex; width: 100%; }
 .btn[disabled] { opacity: .34; pointer-events: none; }
 .btn-row { display: flex; gap: var(--sp2); flex-wrap: wrap; }
-.btn-row .btn { flex: 1; white-space: nowrap; }
+/* 一行里的按钮：字短就并排，字长就自动换行，绝不把文字挤出按钮外
+   （原来 white-space: nowrap + flex:1 会在窄屏上把"⚡ 一键最优装备"这类长标签顶出去） */
+.btn-row .btn { flex: 1 1 auto; min-width: 86px; padding: 0 12px; white-space: normal; line-height: 1.25; text-align: center; }
+.btn { overflow-wrap: anywhere; }
+/* 一排正好三个小按钮：用网格钉死三列，不会被长标签挤成"2 + 1"两行 */
+.btn-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp2); }
 .btn .dot { position: absolute; top: 5px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--panel2), 0 0 8px rgba(212,58,79,.85); }
 
 /* ---------- 底部导航 ---------- */
@@ -172,7 +180,7 @@ body {
 .nav-item .dot { position: absolute; top: 8px; right: calc(50% - 18px); width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 
 /* ---------- 角色卡片 ---------- */
-.char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .char-card { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; text-align: center; cursor: pointer; position: relative; }
 .char-card .avatar { width: 46px; height: 46px; margin: 0 auto 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; background: #232c42; border: 2px solid var(--line); }
 .char-card .cname { font-size: 13px; font-weight: 600; }
@@ -210,13 +218,15 @@ body {
   padding: 8px 10px; border-radius: 10px; font-size: 12px;
   background: #e6b64c1a; border: 1px solid #e6b64c66; color: var(--gold);
 }
-.drag-bar .btn { margin-left: auto; min-height: 34px; padding: 4px 12px; }
+.drag-bar .btn { margin-left: auto; min-height: 40px; padding: 4px 12px; }
+/* "取消"按钮本体 40px，用伪元素把热区补到 44px（手机上按得准） */
+.drag-bar .btn::after { content: ''; position: absolute; inset: -2px 0; }
 .pslot { background: var(--panel2); border: 1px dashed var(--line); border-radius: 12px; min-height: 96px; padding: 10px; cursor: pointer; position: relative; }
 .pslot .pos-tag { position: absolute; top: 6px; left: 8px; font-size: 10px; color: var(--dim); }
 .pslot.filled { border-style: solid; }
 .pslot .avatar { width: 40px; height: 40px; border-radius: 50%; background: #232c42; display: flex; align-items: center; justify-content: center; font-weight: 700; margin: 8px auto 4px; }
-.pslot .pname { text-align: center; font-size: 13px; font-weight: 600; }
-.pslot .pmeta { text-align: center; font-size: 10px; color: var(--dim); }
+.pslot .pname { text-align: center; font-size: 13px; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pslot .pmeta { text-align: center; font-size: 10px; color: var(--dim); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- 进度条 ---------- */
 .bar { height: 8px; background: #0d1120; border-radius: 6px; overflow: hidden; position: relative; }
@@ -270,7 +280,8 @@ body {
 .sheet .close-x svg path, .back-x svg path {
   fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
 }
-.sheet.center { top: 50%; bottom: auto; transform: translate(-50%, -50%); border-radius: 18px; border: 1px solid var(--line); max-height: 80%; animation: pop .18s ease; width: 92%; }
+/* 居中弹窗：手机键盘弹出时（--kb = 被键盘占掉的高度）整体上移，否则会被键盘盖住看不见 */
+.sheet.center { top: calc(50% - var(--kb, 0px) / 2); bottom: auto; transform: translate(-50%, -50%); border-radius: 18px; border: 1px solid var(--line); max-height: min(80%, calc(100vh - var(--kb, 0px) - 24px)); animation: pop .18s ease; width: 92%; }
 @keyframes pop { from { transform: translate(-50%, -50%) scale(.92); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
 
 /* ---------- 整页面板（二级内容各占一页，左上角返回） ---------- */
@@ -312,7 +323,7 @@ body {
 }
 
 /* ---------- Toast ---------- */
-#toast-root { position: fixed; top: calc(env(safe-area-inset-top) + 60px); left: 0; right: 0; z-index: 120; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+#toast-root { position: fixed; top: calc(var(--topbar-h, 92px) + 8px); left: 0; right: 0; z-index: 120; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 .toast { background: #000000d9; border: 1px solid var(--line); border-radius: 999px; padding: 8px 18px; font-size: 13px; animation: toastin .2s ease; max-width: 86%; }
 @keyframes toastin { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
 
@@ -388,7 +399,7 @@ body {
 .kv { display: flex; align-items: baseline; gap: var(--sp2); justify-content: space-between; font-size: var(--fs-lg); padding: 5px 0; border-bottom: 1px dashed #ffffff0d; }
 .kv:last-child { border-bottom: none; }
 .kv .k { color: var(--dim); flex: 0 1 auto; min-width: 0; }
-.kv > span:last-child { margin-left: auto; text-align: right; white-space: nowrap; }
+.kv > span:last-child { margin-left: auto; text-align: right; white-space: nowrap; min-width: 0; max-width: 64%; overflow: hidden; text-overflow: ellipsis; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
 
 /* ---------- 副本探索中底栏（替代导航，防误触） ---------- */
@@ -400,7 +411,7 @@ body {
 .empty { text-align: center; color: var(--dim); padding: 30px 0; font-size: 13px; }
 
 /* 背包卡片 */
-.bag-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.bag-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .bag-card { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; text-align: center; }
 .bag-card .bico { font-size: 20px; margin-bottom: 4px; }
 .bag-card .bname { font-size: 11px; line-height: 1.3; min-height: 28px; display: flex; align-items: center; justify-content: center; }
@@ -422,7 +433,8 @@ body {
 .list-row.no-sel { opacity: .45; }
 .list-row.no-sel .sel-box { opacity: .4; }
 .coach-box { position: absolute; border: 2px solid var(--gold); border-radius: 12px; box-shadow: 0 0 18px rgba(255,215,106,.55); animation: coachPulse 1.2s ease-in-out infinite; pointer-events: none; }
-.coach-tip { position: absolute; width: 280px; background: var(--panel); border: 1px solid var(--gold); border-radius: 12px; padding: 12px 14px; color: var(--text); box-shadow: 0 8px 30px rgba(0,0,0,.6); }
+/* 引导气泡：固定 280px 在 320px 的小屏上会顶出右边，改成"最多 280，窄屏自动让位" */
+.coach-tip { position: absolute; width: min(280px, calc(100vw - 24px)); background: var(--panel); border: 1px solid var(--gold); border-radius: 12px; padding: 12px 14px; color: var(--text); box-shadow: 0 8px 30px rgba(0,0,0,.6); }
 @keyframes coachPulse { 0%, 100% { box-shadow: 0 0 8px rgba(255,215,106,.35); } 50% { box-shadow: 0 0 22px rgba(255,215,106,.8); } }
 .recruit-card { text-align: center; padding: 8px 4px; }
 .recruit-card .avatar { width: 52px; height: 52px; margin: 0 auto 6px; }
@@ -448,71 +460,42 @@ body {
 }
 .text-rows .row:last-child { border-bottom: none; }
 .text-rows .row .rk { color: var(--dim); font-size: var(--fs-md); flex: 0 0 auto; }
-.text-rows .row .rv { margin-left: auto; text-align: right; font-size: var(--fs-lg); font-weight: 600; white-space: nowrap; }
-.text-rows .row .rs { color: var(--dim); font-size: var(--fs-sm); }
+.text-rows .row .rv { margin-left: auto; text-align: right; font-size: var(--fs-lg); font-weight: 600; white-space: nowrap; min-width: 0; max-width: 62%; overflow: hidden; text-overflow: ellipsis; }
+.text-rows .row .rs { color: var(--dim); font-size: var(--fs-sm); min-width: 0; }
+.text-rows .row { flex-wrap: wrap; }
 .text-rows .row.static { cursor: default; }
 
 /* ---------- 挂机区：压成三行文字，不再是一块大画面 ---------- */
 .idle-card { padding: 4px var(--sp3) var(--sp3); }
-.idle-line { display: flex; align-items: baseline; gap: var(--sp2); padding: 6px 0; border-bottom: 1px dashed var(--line-soft); }
+.idle-line { display: flex; align-items: baseline; gap: var(--sp2); padding: 6px 0; border-bottom: 1px dashed var(--line-soft); flex-wrap: wrap; }
 .idle-line:last-of-type { border-bottom: none; }
 .idle-line .il-k { color: var(--dim); font-size: var(--fs-md); flex: 0 0 auto; }
 .idle-line .il-v { color: var(--gold); font-weight: 700; font-size: var(--fs-1); }
 .idle-line .il-s { color: var(--dim); font-size: var(--fs-sm); min-width: 0; }
-.idle-line .il-r { margin-left: auto; text-align: right; white-space: nowrap; font-size: var(--fs-md); }
-
-/* ---------- 两枚匾额（主线 / 今日） ---------- */
-/* 这一排替代了原来"一整张主线卡 + 一条今日条"的竖排，首页因此少掉近半屏。 */
-.plaque-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp2); margin-bottom: var(--sp2); }
-.plaque {
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 10px 11px 11px; display: flex; flex-direction: column; min-height: 104px;
-}
-.plaque.hot { border-color: #e6b64c66; box-shadow: inset 0 1px 0 #ffffff0f; }
-.plaque .pq-k { font-size: var(--fs-sm); color: var(--dim); letter-spacing: .5px; }
-.plaque .pq-n { font-size: var(--fs-1); font-weight: 700; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.plaque .pq-s { font-size: var(--fs-sm); color: var(--dim); line-height: 1.6; }
-.plaque .pq-btn { margin-top: auto; padding-top: var(--sp2); }
-.plaque .pq-btn .btn { width: 100%; }
+.idle-line .il-r { margin-left: auto; text-align: right; white-space: nowrap; font-size: var(--fs-md); min-width: 0; max-width: 78%; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- 首页入口：纯文字方块（对标参考图的功能按钮） ---------- */
 /* 参考产品的按钮就是一个描边方块里写两个字：挂机 / 挑战 / 收取 / 排序 / 图鉴。
    没有图标，靠文字认路。三级字号：名字 13px > 状态 10px。 */
-.text-menu { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.text-menu { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp2); }
 .tile {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   min-height: 54px; padding: 8px 6px; cursor: pointer; font-family: inherit;
   background: var(--panel); border: 1px solid var(--line2); border-radius: 6px; color: var(--text);
 }
 .tile:active { background: var(--panel3); }
-.tile .tt-name { font-size: var(--fs-lg); font-weight: 600; }
-.tile .tt-sub { font-size: var(--fs-xs); color: var(--dim); min-height: 12px; }
+.tile .tt-name { font-size: var(--fs-lg); font-weight: 600; max-width: 100%; line-height: 1.25; }
+.tile .tt-sub { font-size: var(--fs-xs); color: var(--dim); min-height: 12px; max-width: 100%; line-height: 1.35; }
+.tile { min-width: 0; }
 .tile.locked { opacity: .45; }
 .tt-dot {
   display: inline-block; width: 6px; height: 6px; margin-left: 4px; vertical-align: 1px;
   border-radius: 50%; background: var(--accent);
 }
-.hero-num { font-size: 32px; font-weight: 800; color: var(--gold); line-height: 1.1; letter-spacing: -.5px; }
-.hero-num .hero-unit { font-size: var(--fs-md); font-weight: 600; color: var(--dim); margin-left: 3px; }
-.hero-bank { display: flex; gap: var(--sp2); margin-top: var(--sp3); }
-.hero-bank .hb-item { flex: 1; min-width: 0; background: #0a0e16; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--sp2) 10px; }
-.hero-bank .hb-k { display: block; font-size: var(--fs-xs); color: var(--dim); margin-bottom: 3px; letter-spacing: 1px; }
-.hero-bank b { font-size: var(--fs-lg); font-weight: 700; }
-
-/* 宫格分组标题：比 section-title 更轻，紧贴宫格 */
-.grid-title { font-size: var(--fs-sm); color: var(--dim); letter-spacing: 2px; margin: var(--sp3) 2px var(--sp2); }
-.grid-title:first-child { margin-top: 0; }
-
-.today-card { border-color: #e6b64c33; }
-.today-row { display: flex; align-items: center; gap: var(--sp3); padding: 9px 0; border-bottom: 1px dashed var(--line-soft); }
-.today-row:last-child { border-bottom: none; padding-bottom: 0; }
-.today-row .tico { font-size: 19px; flex: 0 0 auto; opacity: .9; }
-.today-row .tgrow { flex: 1; min-width: 0; }
-.today-row .tt1 { font-size: var(--fs-lg); font-weight: 600; }
-.today-row .tt2 { font-size: var(--fs-sm); color: var(--dim); margin-top: 3px; }
-
-/* 首页「更多」小字行已取消（V7.1）：系统入口一律走三列宫格，低频入口收到顶栏图标里。
-   对应样式一并删掉，避免留下没人用的类把后来的改动带偏。 */
+/* V8.6 删掉了没人再用的类：.plaque*（两枚匾额，改成一条主线条）、
+   .hero-num / .hero-bank（大数字主视觉）、.grid-title、.today-card / .today-row（今日卡）、
+   .status-strip（三格状态）——留着会误导后来的改动，一并清掉。
+   （"改了没人用的类"这件事在 LESSONS 里记过：删掉比留着安全。） */
 
 /* ---------- 「成长」子页：一行一条养成线 ---------- */
 .grow-row { display: flex; align-items: center; gap: var(--sp3); padding: 11px var(--sp3); }
@@ -531,7 +514,8 @@ body {
 
 /* ---------- 背包卡片上的快捷键 ---------- */
 .bag-card .bquick { display: flex; gap: 4px; margin-top: 6px; }
-.bag-card .qbtn { flex: 1; min-height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 11px; font-family: inherit; cursor: pointer; }
+.bag-card .qbtn { flex: 1; min-height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 11px; font-family: inherit; cursor: pointer; position: relative; }
+.bag-card .qbtn::after { content: ''; position: absolute; inset: -2px 0; }
 .bag-card .qbtn:active { transform: scale(.95); }
 .bag-card .qbtn[disabled] { opacity: .35; }
 
@@ -567,17 +551,6 @@ body {
 .ticket-row.has { border-style: solid; border-color: #ffd76a66; background: linear-gradient(90deg, #ffd76a18, transparent); color: var(--text); }
 .ticket-row b { color: var(--gold); }
 .ticket-row .ticket-hint { margin-left: auto; color: var(--dim); }
-
-/* ---------- 顶部状态区（境界 / 修为 / 轮回） ---------- */
-.status-strip { display: flex; gap: 8px; margin-bottom: 10px; }
-.status-strip .ss-cell {
-  flex: 1; min-width: 0; min-height: 56px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 8px 10px; cursor: pointer;
-}
-.status-strip .ss-k { font-size: 10px; color: var(--dim); letter-spacing: 1px; }
-.status-strip .ss-v { font-size: 14px; font-weight: 700; margin: 2px 0 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.status-strip .ss-s { font-size: 10px; color: var(--dim); }
 
 /* ---------- 境界小阶（大境 × 初/中/后/大圆满） ---------- */
 .step-row { display: flex; gap: 6px; margin-top: 6px; }
@@ -615,3 +588,36 @@ body {
 .b-result .reward-chip:nth-child(5) { animation-delay: .2s; }
 .b-result .reward-chip:nth-child(n+6) { animation-delay: .25s; }
 @keyframes chipIn { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ============================================================
+   自适应（V8.6 新增）
+   ------------------------------------------------------------
+   手机是主设备：这一节专门处理"电脑上看着正常、真机才出问题"的情况
+   （窄屏 / 超窄屏 / 横屏矮屏 / 大屏两侧留白）。
+   ============================================================ */
+/* ① 窄屏（iPhone SE / 小屏安卓 ≤375px）：间距与字号各降半档，
+      三列宫格与按钮行都在这一档里保证"放得下、不出格" */
+@media (max-width: 375px) {
+  :root { --sp2: 9px; --sp3: 12px; --sp4: 15px; --sp5: 20px; --fs-1: 14px; --fs-2: 16px; }
+  #view { padding-left: 10px; padding-right: 10px; }
+  .text-menu { gap: 6px; }
+  .tile { padding: 7px 4px; min-height: 50px; }
+  .btn-row .btn { min-width: 74px; padding: 0 9px; }
+  .sheet .sheet-body, .page .sheet-body { padding-left: var(--sp3); padding-right: var(--sp3); }
+}
+/* ② 超窄（≤340px：老机型 / 分屏）：宫格改两列，宁可多一行也不挤成一条 */
+@media (max-width: 340px) {
+  .text-menu { grid-template-columns: repeat(2, 1fr); }
+  .char-grid, .bag-grid { grid-template-columns: repeat(2, 1fr); }
+  .stage-grid { grid-template-columns: repeat(3, 1fr); }
+  .btn-grid3 { grid-template-columns: repeat(2, 1fr); }
+}
+/* ③ 横屏矮屏（高度 <460px）：弹窗与战斗日志别被压扁到看不见内容 */
+@media (max-height: 460px) {
+  .sheet { max-height: 94%; }
+  #battle-log { height: 62px; }
+}
+/* ④ 大屏 / 桌面：520 宽居中，两侧各一条描边，内容不"飘"在背景上 */
+@media (min-width: 521px) {
+  #app { border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+}

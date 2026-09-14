@@ -383,15 +383,22 @@ window.UI = (function () {
     const bar = document.getElementById('curbar');
     const main = D.CURRENCIES.filter(c => ['points', 'holy', 'otherworld'].includes(c.id));
     // 只保留三种主力货币 + 一个入口；其余货币在图鉴里看（顶栏放太多会盖过正文）
-    bar.innerHTML = main.map(c => `<button class="cur-chip" data-cur="${c.id}" title="${c.name}·查看用途"><span class="dim" style="color:${c.color}">${c.icon}</span><b>${fmt(S.cur[c.id])}</b></button>`).join('')
-      + `<button class="cur-chip more" data-cur="__all">▤ 全部货币</button>`;
+    // 注意：**不写 title**——手机上没法悬停，写了等于没有；点一下直接开货币图鉴看用途。
+    bar.innerHTML = main.map(c => `<button class="cur-chip" data-cur="${c.id}" aria-label="${c.name}：查看用途与来源"><span style="color:${c.color}">${c.icon}</span><b>${fmt(S.cur[c.id])}</b></button>`).join('')
+      + `<button class="cur-chip more" data-cur="__all" aria-label="全部货币">▤ 全部货币</button>`;
     bar.querySelectorAll('[data-cur]').forEach(el => {
       el.onclick = () => currencyModal(el.dataset.cur === '__all' ? null : el.dataset.cur);
     });
-    // 系统级入口收到顶栏：正文里就不再堆"设置 / 指南"这类小字按钮
-    const g = document.getElementById('tb-guide'), st = document.getElementById('tb-settings');
-    if (g && !g._bound) { g._bound = true; g.onclick = () => guideModal(); }
-    if (st && !st._bound) { st._bound = true; st.onclick = () => settingsModal(); }
+    syncTopbarHeight();
+  }
+  /* 顶栏高度用 JS 量出来交给 CSS：不同机型的系统字号 / 刘海高度不一样，
+     原来正文上边距写死 92px，遇到"系统字号调大"的机就会钻到顶栏底下。 */
+  function syncTopbarHeight() {
+    const root = (typeof document !== 'undefined' && document.documentElement) || null;
+    const tb = document.getElementById ? document.getElementById('topbar') : null;
+    if (!tb || !tb.getBoundingClientRect || !root || !root.style || !root.style.setProperty) return;
+    const h = tb.getBoundingClientRect().height;
+    if (h > 0) root.style.setProperty('--topbar-h', Math.round(h) + 'px');
   }
   function renderNavbar() {
     const nav = document.getElementById('navbar');
@@ -533,136 +540,101 @@ window.UI = (function () {
   }
 
   /* ================= 主神空间 ================= */
-  // 今日：首页上是一条横条（点开才是四行详情），不再占整块正文
-  // 今日：从"一整张卡四行"收成**一条可点的横条**。
-  // 对标产品的主界面只把"每日"做成一个很小的入口，不占正文；四行详情点开再看。
-  /* 挂机游历条：挂满一段时间会亮起来（对标《道友修仙》的游历事件）。
-     没有待领的奇遇时它显示进度，有的时候就变成一条"点一下领走"的金条。 */
+  /* 游历奇遇条（对标参考产品的游历事件）：挂满一段时间会亮起来，
+     没有待领的奇遇时显示进度，有的时候就变成一条"点一下领走"的金条。
+     它就是「游历奇遇」这一项**唯一**的入口——宫格里不再重复放第二个。 */
   function travelStrip() {
     const prog = C().travelProgress();
     const pend = C().pendingTravel();
     const left = Math.max(0, Math.round(prog.every - prog.sec));
-    return `<div class="card text-rows" style="padding:4px var(--sp3)">
+    return `<div class="card text-rows" style="padding:2px var(--sp3)">
       <div class="row" data-act="open-travel">
-        <span class="rk" style="${pend ? 'color:var(--gold)' : ''}">【游历】</span>
+        <span class="rk" style="${pend ? 'color:var(--gold)' : ''}">【游历奇遇】</span>
         <span class="rv">${pend ? pend.name + '（待领）' : `距下一次 ${formatDuration(left)}`}</span>
         <span class="rs">${pend ? C().rewardTextOf(pend.effect) : '挂机每 10 分钟出一次'}</span>
       </div>
     </div>`;
   }
-  /* 首页两枚匾额：主线 + 今日。对标产品把这类"今天该干什么"的信息贴在主视觉旁边，
-     我们原来是一整张主线卡 + 一条今日条竖着排，占了小半屏；现在并成一排两块。 */
-  function plaqueRow() {
+  /* 首页「主线」条（V8.6）：只有这一条，原来的"今日"匾额已撤，
+     每天要做的事分到下面「游历」那一段里，不再两处重复。 */
+  function questStrip() {
     const list = C().mainQuestState();
     const idx = list.findIndex(x => !x.claimed);
-    const t = C().todayState();
-    const bt = C().bountyState();
-    const btLive = bt.list.filter(x => !x.claimed && !x.expired);
-    const btSoon = btLive.length ? Math.min.apply(null, btLive.map(x => x.leftMs)) : 0;
-    const recruitUnlocked = C().isUnlocked('recruit');
-    const bits = [
-      `每日任务 ${t.dailyDone}/${t.dailyTotal}`,
-      recruitUnlocked ? `免费招募 ${t.freeRecruit ? '可领' : '已领'}` : '免费招募 未解锁',
-      `求签 ${t.signReady ? '还没求' : '已求'}`,
-      btLive.length ? `悬赏 ${formatDuration(Math.floor(btSoon / 1000))}` : '悬赏 已结束',
-    ];
     const q = idx < 0 ? null : list[idx];
-    return `<div class="plaque-row">
-      <div class="plaque${q && q.done ? ' hot' : ''}">
-        <div class="pq-k">主线 ${idx < 0 ? '已走完' : `第 ${idx + 1}/${list.length} 步`}</div>
-        ${q ? `<div class="pq-n">${q.q.name}</div>
-          <div class="pq-s">${rewardText(q.q.reward)}</div>
-          <div class="pq-btn">${q.done
-            ? '<button class="btn small primary" data-act="claim-quest">领取奖励</button>'
-            : '<button class="btn small ghost" data-act="goto-quest">去完成 ›</button>'}</div>`
-          : '<div class="pq-n">全部完成</div><div class="pq-s">挑战更高难度与无限回廊</div>'}
+    if (!q) return `<div class="card" data-sec="quest">
+      <div class="list-row" style="border:none;padding:0">
+        <div class="grow"><div class="t1">主线 · 已走完</div><div class="t2">挑战更高难度与无限回廊</div></div>
       </div>
-      <div class="plaque">
-        <div class="pq-k">今日${t.claimable ? ` · ${t.claimable} 项可收` : ''}</div>
-        ${bits.map(b => `<div class="pq-s">${b}</div>`).join('')}
-        <div class="pq-btn">
-          <button class="btn small ${t.claimable || bt.claimable ? 'gold' : 'ghost'}" data-act="open-today">${t.claimable || bt.claimable ? '去收取 ›' : '看看 ›'}</button>
+    </div>`;
+    return `<div class="card" data-sec="quest">
+      <div class="list-row" style="border:none;padding:0">
+        <div class="grow">
+          <div class="t1">主线 · ${esc(q.q.name)} <span class="tag">第 ${idx + 1}/${list.length} 步</span></div>
+          <div class="t2">完成奖励：${rewardText(q.q.reward)}</div>
         </div>
+        ${q.done
+          ? '<button class="btn small primary" data-act="claim-quest">领取奖励</button>'
+          : '<button class="btn small ghost" data-act="goto-quest">去完成 ›</button>'}
       </div>
     </div>`;
   }
-  // 点"今日"才展开的四行详情（原来的今日卡内容原样保留，只是不再占首页）
-  function todayModal(wrap) {
-    const t = C().todayState();
-    const bt = C().bountyState();
-    const btLive = bt.list.filter(x => !x.claimed && !x.expired);
-    const btSoon = btLive.length ? Math.min.apply(null, btLive.map(x => x.leftMs)) : 0;
-    const extra = [];
-    if (t.weeklyClaimable) extra.push(`周常 ${t.weeklyClaimable}`);
-    if (t.achClaimable) extra.push(`成就 ${t.achClaimable}`);
-    if (t.codexClaimable) extra.push(`图鉴 ${t.codexClaimable}`);
-    const recruitUnlocked = C().isUnlocked('recruit');
-    const w = showPanel(wrap, '今日', `
-      <div class="card plain">
-        <div class="today-row">
-          <span class="tico">⚡</span>
-          <div class="tgrow"><div class="tt1">一键收取</div>
-            <div class="tt2">${t.claimable ? `${t.claimable} 项已达成、躺着等点的奖励` : '暂时没有可收的'}</div></div>
-          <button class="btn small primary" data-act="claim-all" ${t.claimable ? '' : 'disabled'}>一键收取</button>
-        </div>
-        <div class="today-row">
-          <span class="tico">📋</span>
-          <div class="tgrow"><div class="tt1">每日任务</div>
-            <div class="tt2">${t.dailyDone}/${t.dailyTotal} 完成${t.dailyClaimable ? ` · ${t.dailyClaimable} 项待领` : ''}${extra.length ? ` · ${extra.join(' / ')}待领` : ''}</div></div>
-          <button class="btn small ghost" data-act="open-tasks">去完成 ›</button>
-        </div>
-        <div class="today-row">
-          <span class="tico">✦</span>
-          <div class="tgrow"><div class="tt1">免费招募</div>
-            <div class="tt2">${!recruitUnlocked ? '通关第 1 关后解锁' : t.freeRecruit ? '今天还没领，免费 1 抽' : '今天已领 · 明天再来'}</div></div>
-          <button class="btn small ${t.freeRecruitReady ? 'gold' : 'ghost'}" data-act="open-recruit">${t.freeRecruitReady ? '去招募 ›' : '看看 ›'}</button>
-        </div>
-        <div class="today-row">
-          <span class="tico">🔥</span>
-          <div class="tgrow"><div class="tt1">限时悬赏</div>
-            <div class="tt2">${btLive.length ? `最快一条还剩 ${formatDuration(Math.floor(btSoon / 1000))}${bt.claimable ? ` · ${bt.claimable} 条可领` : ''}` : bt.allOver ? '本期已结束，可开新一期' : '本期目标已全部处理'}</div></div>
-          <button class="btn small ${bt.claimable ? 'primary' : 'ghost'}" data-act="open-bounty">${bt.claimable ? '去领取 ›' : '去看看 ›'}</button>
-        </div>
-      </div>
-      <div class="hint mt2">周常 / 成就 / 图鉴的奖励也在「一键收取」的范围里，不用逐个点。</div>`);
-    return w;
-  }
+  /* 首页五段固定顺序（V8.6，父亲大人定的）：主角 → 主线 → 养成 → 游历 → 挂机 → 设置。
+     两条规矩：
+     ① **同一个功能在首页只出现一次**——挂机分工只留在挂机卡里，顶栏也不再重复放"设置 / 指南"图标；
+     ② **手机是主设备**：所有提示都写在界面上，不靠鼠标悬停、不靠 Esc 这类只有电脑才有的操作。 */
   function homeScreen() {
-  // 顶部状态区：对标参考产品主界面最上面那排文字行【境界】【等级】【修龄】——
-  // 玩家一进游戏先看到"我是什么境界、几级了、第几世"，再看到挂机数字。
-  function statusStrip() {
+    return `
+    ${heroBlock()}
+    ${questStrip()}
+    ${growBlock()}
+    ${travelBlock()}
+    ${idleBlock()}
+    ${settingsBlock()}
+    `;
+  }
+  /* 主角：对标参考产品主界面最上面那排文字行，一行一件事、不做卡片格子。
+     整段只有【主角】那一行可点（进主角详情：加点 / 洗点 / 装备），
+     别的入口统一收到下面的「养成」里，避免同一个功能出现两次。 */
+  function heroBlock() {
     const S = C().S;
     const st = C().realmState();
     const expNeed = D.EXP_TABLE[S.player.level] || 1;
     const au = C().authorityInfo();
+    const spentAttr = D.ATTR_META.reduce((s, a) => s + ((S.player.attrs && S.player.attrs[a.id]) || 0), 0);
+    const spentSkill = (S.player.skillLv || [1, 1, 1]).reduce((s, x) => s + x - 1, 0);
+    const sect = C().sectInfo();
     // 参考产品的主界面最上面就是这种【标签】值 的文字行，一行一件事，不做卡片格子
-    return `<div class="card text-rows">
-      <div class="row" data-act="${st.hasBloodline ? 'open-realm' : 'open-bloodline'}">
+    return `<div class="card text-rows" data-sec="hero">
+      <div class="row static">
         <span class="rk">【境界】</span>
         <span class="rv" style="color:${st.hasBloodline ? 'var(--gold)' : 'var(--accent)'}">${st.curName || '未定血统'}</span>
-        <span class="rs">${st.hasBloodline ? `第 ${Math.min(st.realm + 1, D.REALM_STAGE_COUNT)} / ${D.REALM_STAGE_COUNT} 阶` : '点这里选血统'}</span>
+        <span class="rs">${st.hasBloodline ? `第 ${Math.min(st.realm + 1, D.REALM_STAGE_COUNT)} / ${D.REALM_STAGE_COUNT} 阶` : '去「养成」里选血统'}</span>
       </div>
-      <div class="row" data-protag="1">
+      <div class="row static">
         <span class="rk">【等级】</span>
         <span class="rv">Lv.${S.player.level}</span>
         <span class="rs">EXP ${Math.floor(S.player.exp / expNeed * 100)}%</span>
       </div>
-      <div class="row" data-act="open-authority">
+      <div class="row" data-protag="1">
+        <span class="rk">【主角】</span>
+        <span class="rv" style="${(S.player.attrPoints || S.player.skillPoints) ? 'color:var(--gold)' : ''}">六维待分 ${S.player.attrPoints || 0} · 技能待加 ${S.player.skillPoints || 0}</span>
+        <span class="rs">点开可加点 / 洗点 ›</span>
+      </div>
+      <div class="row static">
         <span class="rk">【轮回】</span>
         <span class="rv">${S.player.reincarnations} 世</span>
-        <span class="rs">权限 Lv.${au.lv}</span>
+        <span class="rs">权限 Lv.${au.lv} · 评级 Lv.${sect.lv}</span>
       </div>
     </div>`;
   }
-    const S = C().S;
+  /* 挂机：产出 / 已挂 / 待领 / 分工 + 两个动作。
+     「派人分工」只在这一张卡里出现一次，首页别处不再重复放入口。 */
+  function idleBlock() {
     const r = C().idleRates();
     const bank = C().idleBankGains();
-    const expNeed = D.EXP_TABLE[S.player.level] || 1;
-    const gl = D.GENE_LOCKS[S.player.geneLock - 1];
     const lines = C().idleLines();
     const t0 = C().todayState();
-    return `
-    ${statusStrip()}
+    return `<div class="section-title" data-sec="idle">挂机</div>
     <div class="card idle-card">
       <div class="idle-line">
         <span class="il-k">【挂机】</span>
@@ -683,22 +655,26 @@ window.UI = (function () {
         <button class="btn small ghost" data-act="open-idlelines">派人分工</button>
         <button class="btn primary" data-act="claim-all" ${t0.claimable ? '' : 'disabled'}>${t0.claimable ? `一键收取（${t0.claimable}）` : '一键收取'}</button>
       </div>
-    </div>
-    ${travelStrip()}
-    ${plaqueRow()}
-    ${homeEntries()}
-    `;
+      <div class="hint mt2">离线也算：回来点一次「一键收取」就把挂机、任务、周常、成就、图鉴里攒下的奖励一起领走。</div>
+    </div>`;
   }
-  /* 首页入口：**分组纯文字菜单**。
-     对标产品是纯文字放置游戏——它的入口就是一行行文字，不靠图标认路。
-     我们上一版把功能分散在"首页印章 + 轮回者→成长子页 + 顶栏"，结果找东西要找三个地方；
-     这一版把所有入口一次摊在首页，按「今天 / 养成 / 玩法」分组，一屏扫完。 */
-  function homeEntries() {
+  /* 首页入口统一走「分组标题 + 三列纯文字宫格」：名字一行、状态一行，不用图标认路。
+     没解锁的不铺成一片灰格子（一眼全是"未解锁"等于没信息），收成一行小字。 */
+  function menuGroup(title, sec, list, before) {
+    const open = list.filter(x => !x[3] || C().isUnlocked(x[3]));
+    const locked = [];
+    list.filter(x => x[3] && !C().isUnlocked(x[3])).forEach(x => locked.push(x[1]));
+    if (!open.length) return '';
+    return `<div class="section-title" data-sec="${sec}">${title}</div>
+      ${before || ''}
+      <div class="text-menu">${open.map(tile).join('')}</div>
+      ${locked.length ? `<div class="hint mt2">还没解锁：${locked.join(' / ')}（跟着关卡进度开，推图就会一个个亮起来）</div>` : ''}`;
+  }
+  /* 养成：一条线一个入口（「轮回者 → 成长」子页里是同一批线的总览）。 */
+  function growBlock() {
     const S = C().S;
     const sect = C().sectInfo();
     const kejiTotal = D.KEJI.reduce((s, k) => s + C().kejiLv(k.id), 0);
-    const pend = C().pendingTravel();
-    const achDot = C().achievementSummary().list.filter(x => x.done && !x.claimed).length > 0;
     const bLv = Object.values(S.buildings).reduce((a, b) => a + b, 0);
     const au = C().authorityInfo();
     const gl = S.player.geneLock > 0 ? `${S.player.geneLock} 阶` : '未解锁';
@@ -708,19 +684,8 @@ window.UI = (function () {
     const gardenBusy = C().gardenState().filter(p => p.plot).length;
     const arena = C().arenaState();
     const mountOwn = C().mountState().own.length;
-    const signSt = C().signState();
-    const signToday = signSt.canDraw ? null : signSt;
     // 一条入口 = [动作, 名字, 状态文字, 解锁条件(可空), 是否亮红点]
-    const menus = [
-      ['今天', [
-        ['open-recruit', '轮回者招募', C().freeRecruitAvailable() ? '今日免费' : '攒碎片升星', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable()],
-        ['open-shop', '兑换大厅', '三档商店', 'shop'],
-        ['open-tasks', '任务', '主线 / 日常 / 周常', 'tasks'],
-        ['open-bounty', '限时悬赏', '按时重置', null, C().bountyState().list.some(x => x.done && !x.claimed)],
-        ['open-travel', '游历奇遇', pend ? '有奇遇待领' : '挂机途中触发', null, !!pend],
-        ['open-ach', '成就', '长线目标', null, achDot],
-      ]],
-      ['养成', [
+    const list = [
       ['open-bloodline', '血统', S.player.bloodline || '未定（点这里选）'],
       ['open-realm', '境界渡劫', st.hasBloodline ? st.curName : '先选血统'],
       ['open-sect', '主神评级', `Lv.${sect.lv}`],
@@ -729,31 +694,41 @@ window.UI = (function () {
       ['open-garden', '药园', `${gardenBusy} 块在用`],
       ['open-arena', '斗法台', `第 ${arena.floor} 台 · 剩 ${arena.left} 次`],
       ['open-mount', '坐骑', mountOwn ? `${mountOwn}/${D.MOUNTS.length} 匹` : '去驯一匹'],
-      ['open-sign', '求签', signToday ? `今日【${signToday.tier}】` : '今日还没求'],
-        ['open-authority', '主神权限', `Lv.${au.lv}/${au.max}`, 'buildings'],
-        ['open-buildings', '基地建设', `合计 Lv.${bLv}`, 'buildings'],
-        ['open-genelock', '基因锁', gl, 'geneLock'],
-        ['open-beast', '伴生体', beasts ? `${beasts} 只` : '未孵化', 'beast'],
-        ['open-reincarn', '转生天赋', `${S.player.reincarnations} 世`, 'reincarn'],
-        ['open-codex', '轮回图鉴', `${C().codexState().owned}/${C().codexState().total} 名`, 'recruit'],
-      ]],
-      ['其他', [
-        ['open-idlelines', '挂机分工', '派人去四条产线'],
-        ['open-guide', '玩法指南', '分章说明'],
-        ['open-settings', '设置与存档', '存档 / 导出'],
-      ]],
+      ['open-authority', '主神权限', `Lv.${au.lv}/${au.max}`, 'buildings'],
+      ['open-buildings', '基地建设', `合计 Lv.${bLv}`, 'buildings'],
+      ['open-genelock', '基因锁', gl, 'geneLock'],
+      ['open-beast', '伴生体', beasts ? `${beasts} 只` : '未孵化', 'beast'],
+      ['open-reincarn', '转生天赋', `${S.player.reincarnations} 世`, 'reincarn'],
+      ['open-codex', '轮回图鉴', `${C().codexState().owned}/${C().codexState().total} 名`, 'recruit'],
     ];
-    // 没解锁的不铺成一片灰格子（一眼全是"未解锁"等于没信息），收成一行小字
-    const locked = [];
-    const groups = menus.map(([title, list]) => {
-      const open = list.filter(x => !x[3] || C().isUnlocked(x[3]));
-      list.filter(x => x[3] && !C().isUnlocked(x[3])).forEach(x => locked.push(x[1]));
-      if (!open.length) return '';
-      return `<div class="section-title">${title}</div><div class="text-menu">${open.map(tile).join('')}</div>`;
-    }).join('');
-    return `${groups}
-      ${locked.length ? `<div class="hint mt3">还没解锁：${locked.join(' / ')}（跟着关卡进度开，推图就会一个个亮起来）</div>` : ''}
-      <div class="hint mt1">「轮回者 → 成长」里也有同一批入口的总览。</div>`;
+    return menuGroup('养成', 'grow', list)
+      + '<div class="hint mt2">「轮回者 → 成长」里是同一批养成线的总览，两处点进去是同一个面板。</div>';
+  }
+  /* 游历：出门做的事。「游历奇遇」只有进度条这一个入口，宫格里不再重复放第二个。 */
+  function travelBlock() {
+    const pend = C().pendingTravel();
+    const achDot = C().achievementSummary().list.filter(x => x.done && !x.claimed).length > 0;
+    const signSt = C().signState();
+    const signToday = signSt.canDraw ? null : signSt;
+    const list = [
+      ['open-bounty', '限时悬赏', '按时重置', null, C().bountyState().list.some(x => x.done && !x.claimed)],
+      ['open-tasks', '每日任务', '主线 / 日常 / 周常', 'tasks'],
+      ['open-ach', '成就', '长线目标', null, achDot],
+      ['open-sign', '求签', signToday ? `今日【${signToday.tier}】` : '今日还没求'],
+      ['open-recruit', '轮回者招募', C().freeRecruitAvailable() ? '今日免费 1 抽' : '攒碎片升星', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable()],
+      ['open-shop', '兑换大厅', '三档商店', 'shop'],
+    ];
+    return menuGroup('游历', 'travel', list, travelStrip());
+  }
+  /* 设置：玩法指南 / 货币图鉴 / 设置与存档。
+     这三样全站只在这里出现一次（顶栏原来那两个图标按钮已经撤掉）。 */
+  function settingsBlock() {
+    const list = [
+      ['open-guide', '玩法指南', '分章图文'],
+      ['open-curdoc', '货币图鉴', '币的用途与来源'],
+      ['open-settings', '设置与存档', '存档 / 音效 / 导出'],
+    ];
+    return menuGroup('设置', 'settings', list);
   }
   // 纯文字入口块：名字一行、状态一行，不用图标
   function tile(x) {
@@ -1015,7 +990,8 @@ window.UI = (function () {
 
   /* ================= 队伍 ================= */
   /* 站位交互：**长按抓起 → 按住拖到目标站位，松手就放下**。
-     （拖不动 / 用鼠标不方便时，抓起后点目标站位也能放下，是备用路径。）
+     （拖不动时，抓起后点一下目标站位也能放下，是备用路径。）
+     所有提示都画在界面上，不弹 toast、不提 Esc——这是手机游戏，玩家手里只有一根手指。
      只在队伍页用；grabbedPos 是模块级状态，重画之后仍然保留。
      上阵固定 5 格：'0'~'4'（0/1 前排、2/3/4 后排）；'P' = 主角本身，指向他当前占的那一格
      （和 core.parsePos 是同一套标识）。 */
@@ -1080,7 +1056,6 @@ window.UI = (function () {
     if (!to || to === grabbedPos) {
       hoverPos = null; dragging = false;
       render();
-      toast('拖到别的站位松手就放下（点一下目标站位也行，Esc 取消）', 2200);
       return null;
     }
     const from = grabbedPos;
@@ -1091,7 +1066,7 @@ window.UI = (function () {
     render();
     return r;
   }
-  // 把手里那一格放回原位（Esc / 提示条上的「取消」/ 再点一次自己 / 离开队伍页）
+  // 把手里那一格放回原位（提示条上的「取消」/ 再点一次自己 / 离开队伍页；电脑上 Esc 也能用）
   function cancelGrab(silent) {
     const had = grabbedPos !== null;
     grabbedPos = null; hoverPos = null; dragging = false;
@@ -1114,7 +1089,10 @@ window.UI = (function () {
         render();          // 重画一次，把"抓起"的高亮画出来；之后拖动只改 class，不再重画
         paintHover();
         startDragTrack();
-        toast('已抓起，拖到别的站位松手就放下（点一下也行，Esc 取消）', 2400);
+        // 抓起**不弹提示框**：手机上一弹框挡住半个屏幕、还带着"Esc 取消"这种电脑说法。
+        // 抓起的状态已经画在界面上（卡片高亮 + 顶部金色提示条 + 空位写"放这里"），
+        // 手上再给一下震动反馈就够了。
+        if (navigator && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { } }
       }, LONG_PRESS_MS);
     };
     const up = () => { if (!dragging) cancelPress(); };
@@ -1194,13 +1172,13 @@ window.UI = (function () {
           <div class="party-slots">${slotTile(2)}${slotTile(3)}${slotTile(4)}</div>
         </div>
         <div style="margin-top:8px;font-size:11px;color:var(--dim)"><b>长按</b>任意一格抓起，拖到别的位置松手就换过去（主角那张牌也一样，可以拖到前排也可以拖到后排，直接拖到「前排 / 后排」这行字上也能整排搬）。上阵固定 <b>前 2 后 3</b>，一共 5 格。</div>
-        <div class="btn-row mt3">
-          <button class="btn small" data-act="auto-equip">⚡ 一键最优装备</button>
+        <button class="btn small block mt3" data-act="auto-equip">⚡ 一键最优装备</button>
+        <div class="btn-grid3 mt2">
           <button class="btn small ghost" data-preset-save="0">存预设 1</button>
           <button class="btn small ghost" data-preset-save="1">存预设 2</button>
           <button class="btn small ghost" data-preset-save="2">存预设 3</button>
         </div>
-        <div class="btn-row mt1">
+        <div class="btn-grid3 mt1">
           <button class="btn small gold" data-preset-use="0">套用预设 1</button>
           <button class="btn small gold" data-preset-use="1">套用预设 2</button>
           <button class="btn small gold" data-preset-use="2">套用预设 3</button>
@@ -1259,6 +1237,9 @@ window.UI = (function () {
     S.stats.profileViews = (S.stats.profileViews || 0) + 1; C().save(); // 主线 q01 熟悉身体
     const P = C().protagonistSkills();
     const st = C().effectivePlayerStats();
+    // 洗点用的两个数：已经分出去的属性点 / 已经投进去的技能点（0 就说明没得洗）
+    const spentAttr = D.ATTR_META.reduce((s, a) => s + ((S.player.attrs && S.player.attrs[a.id]) || 0), 0);
+    const spentSkill = (S.player.skillLv || [1, 1, 1]).reduce((s, x) => s + x - 1, 0);
     const eq = S.equipped['@player'] || {};
     const gl = S.player.geneLock;
     const blCost = S.player.bloodline && S.player.bloodlineLv < D.BLOODLINE_MAX ? D.bloodlineCost(S.player.bloodlineLv) : null;
@@ -1290,7 +1271,14 @@ window.UI = (function () {
           <button class="btn small" data-pskill="${i}" style="float:right" ${(S.player.skillPoints || 0) > 0 && (S.player.skillLv || [1, 1, 1])[i] < 10 ? '' : 'disabled'}>+1</button></div>
         <div class="sdesc">${sk.desc}</div></div>`).join('')}
       <div class="skill-row"><div class="sname">被动·${P.passive.name}</div><div class="sdesc">${P.passive.desc}</div></div>
-      <button class="btn small ghost mt1" data-pskillreset="1">↺ 重置技能（返还全部技能点）</button>
+      <div class="card mt2" style="background:var(--panel2)">
+        <h3>洗点 <span class="sub">随时可洗 · 不花任何东西</span></h3>
+        <div class="hint mb2">加错了不用重开：六维和技能都能把点数退回来重新分配，等级与战力不会掉。</div>
+        <div class="btn-row">
+          <button class="btn small ghost" data-attrreset="1" ${spentAttr > 0 ? '' : 'disabled'}>↺ 六维洗点（退 ${spentAttr} 点）</button>
+          <button class="btn small ghost" data-pskillreset="1" ${spentSkill > 0 ? '' : 'disabled'}>↺ 技能重置（退 ${spentSkill} 点）</button>
+        </div>
+      </div>
       <div class="section-title">血统</div>
       ${S.player.bloodline ? `
         <div style="font-size:12px;margin-bottom:6px">${S.player.bloodline} Lv.${S.player.bloodlineLv}/${D.BLOODLINE_MAX} <span style="color:var(--dim);font-size:11px">${D.BLOODLINES[S.player.bloodline].desc}</span></div>
@@ -1326,9 +1314,19 @@ window.UI = (function () {
       if (r.ok) reopenSelf();
     });
     w.querySelector('[data-pskillreset]').onclick = () => {
-      const r = C().resetSkills();
-      toast(r.msg);
-      if (r.ok) reopenSelf();
+      confirmBox('技能重置', `把 ${spentSkill} 点技能点全部退回，技能回到 Lv.1 重新点？战力只会短暂变化，点数一点不少。`, () => {
+        const r = C().resetSkills();
+        toast(r.msg);
+        if (r.ok) reopenSelf();
+      });
+    };
+    const attrResetBtn = w.querySelector('[data-attrreset]');
+    if (attrResetBtn) attrResetBtn.onclick = () => {
+      confirmBox('六维洗点', `把已经分出去的 ${spentAttr} 点属性全部退回来重新分配？六维总值不会掉，只是重新点一次。`, () => {
+        const r = C().resetAttrs();
+        toast(r.msg);
+        if (r.ok) reopenSelf();
+      });
     };
     const blBtn = w.querySelector('[data-pblup]');
     const realmBtn = w.querySelector('[data-realm-open]');
@@ -1366,6 +1364,7 @@ window.UI = (function () {
         } else toast('名字不能为空');
       };
     };
+    return w;
   }
   function pickPartyChar(slotIdx) {
     const S = C().S;
@@ -2299,9 +2298,10 @@ window.UI = (function () {
     const groups = (D.BLOODLINES[cur].realms || []).map((mj, mi) => {
       const cells = chain.filter(c => c.major === mi).map(c => {
         const done = c.idx < st.realm, curS = c.idx === st.realm;
-        return `<span class="step-chip ${done ? 'done' : curS ? 'cur' : ''}" data-step="${c.idx}"
-          title="Lv.${D.REALMS[c.idx].lv} · 成功率 ${Math.round(D.REALMS[c.idx].rate * 100)}%">
-          <b>${D.REALM_TIERS[c.tier]}</b><i>${done ? '已成' : curS ? '当前' : 'Lv.' + D.REALMS[c.idx].lv}</i></span>`;
+        // 成功率直接写在小字里：手机上没法悬停看 title（写了等于没有）
+        const rate = Math.round(D.REALMS[c.idx].rate * 100);
+        return `<span class="step-chip ${done ? 'done' : curS ? 'cur' : ''}" data-step="${c.idx}">
+          <b>${D.REALM_TIERS[c.tier]}</b><i>${done ? '已成' : `Lv.${D.REALMS[c.idx].lv} · ${rate}%`}</i></span>`;
       }).join('');
       return `<div class="card" style="margin-bottom:8px">
         <h3>${mi + 1}. ${mj}</h3><div class="step-row">${cells}</div></div>`;
@@ -2712,8 +2712,9 @@ window.UI = (function () {
         const gi = base + ti;
         const r = D.REALMS[gi];
         const done = gi < st.realm, cur = gi === st.realm;
-        return `<span class="step-chip ${done ? 'done' : cur ? 'cur' : ''}" data-step="${gi}" title="Lv.${r.lv} · 成功率 ${Math.round(r.rate * 100)}% · ◈${fmt(r.cost.points)} + 材料×${r.cost.matN}">
-          <b>${tier}</b><i>${done ? '已成' : cur ? '当前' : 'Lv.' + r.lv}</i></span>`;
+        // 成功率写在小字里（手机没有悬停）；花费写在下面「渡劫」按钮上，不重复
+        return `<span class="step-chip ${done ? 'done' : cur ? 'cur' : ''}" data-step="${gi}">
+          <b>${tier}</b><i>${done ? '已成' : `Lv.${r.lv} · ${Math.round(r.rate * 100)}%`}</i></span>`;
       }).join('');
       const doneN = D.REALM_TIERS.filter((t, ti) => base + ti < st.realm).length;
       return `<div class="card" style="margin-bottom:8px;${doneN === 4 ? '' : doneN ? 'border-color:#ffd76a77' : 'opacity:.62'}">
@@ -3451,7 +3452,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.5</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.6</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -4080,7 +4081,6 @@ window.UI = (function () {
         }
         case 'open-shop': shopModal('god'); break;
         case 'open-buildings': buildingsModal(); break;
-        case 'open-today': todayModal(); break;
         case 'open-authority': authorityModal(); break;
         case 'open-sect': sectModal(); break;
         case 'open-keji': kejiModal(); break;
@@ -4396,10 +4396,10 @@ window.UI = (function () {
         新手补给已发放：◈50,000 · ✦1,000 · 经验模块×20 · 治疗剂×10<br><br>
         <b style="color:var(--gold)">上手就三件事：</b><br>
         ① 先在「选择血统」里挑一条路——境界线跟着血统走，选定不能改；<br>
-        ② 点首页「今日」那块进去点「一键收取」，把挂机、任务、成就、悬赏能领的一次全领；<br>
+        ② 首页最下面「挂机」那块点「一键收取」，把挂机、任务、成就、悬赏能领的一次全领；<br>
         ③ 点「轮回副本」选第 1 关，点进去就直接开打，通关后解锁招募；招募里每天有一次<b>免费</b>，别忘了领。<br><br>
         三张招募池花的是<b>三种不同的货币</b>：◈点数抽普通（攒碎片）、✦圣洁晶石抽高级（补图鉴）、◆异界结晶抽限定（定向出当期 UP）。<br>
-        右上角的「指南」里有完整说明（货币、套装、挂机分工、副本打法、血统与境界、限时悬赏、回廊、周常都在里面）。<br><br>
+        首页最下面「设置」里的「玩法指南」有完整说明（货币、套装、挂机分工、副本打法、血统与境界、限时悬赏、回廊、周常都在里面）。<br><br>
         <b>如果下一场轮回真的会死，你会带谁进去？</b>
       </div>
       <button class="btn primary block mt4" data-start>签订轮回契约</button>
@@ -4446,6 +4446,24 @@ window.UI = (function () {
       });
       installClickGuard();                 // 防连点
       C().setCurListener(pulseCur);        // 货币变化 → ±数值跳动
+      // 手机专属两件事（电脑上看不出问题，真机才有）：
+      // ① 顶栏高度随系统字号 / 刘海变化，正文上边距跟着量出来的高度走；
+      // ② 键盘弹出时，居中弹窗会被键盘盖住 —— 用 visualViewport 把弹窗往上抬。
+      if (window.addEventListener) {
+        window.addEventListener('resize', syncTopbarHeight);
+        window.addEventListener('orientationchange', syncTopbarHeight);
+      }
+      const vv = window.visualViewport;
+      if (vv && vv.addEventListener) {
+        const syncKb = () => {
+          const root = document.documentElement;
+          if (!root || !root.style || !root.style.setProperty) return;
+          const kb = Math.max(0, (window.innerHeight || 0) - vv.height - (vv.offsetTop || 0));
+          root.style.setProperty('--kb', Math.round(kb) + 'px');
+        };
+        vv.addEventListener('resize', syncKb);
+        vv.addEventListener('scroll', syncKb);
+      }
       // 全局点击音效（按钮级）
       if (document.addEventListener) document.addEventListener('click', ev => {
         const t = ev.target;
@@ -4482,9 +4500,11 @@ window.UI = (function () {
     _panels: {
       bagModal, itemDetail, currencyModal, guideModal, codexModal, shopModal, tasksModal, settingsModal,
       sweepModal, recruitModal, gotoQuest, weeklyHtml, achHtml, reincarnModal, charDetail, equipDetail, geneLockModal,
+      protagonistDetail,
       idleLinesModal, pickIdleLeader, bountyModal, realmModal,
       beastModal,
-      recruitRatesModal, authorityModal, todayModal, travelStrip, plaqueRow, sectModal, kejiModal, travelModal,
+      recruitRatesModal, authorityModal, questStrip, travelStrip, menuGroup, sectModal, kejiModal, travelModal,
+      heroBlock, growBlock, travelBlock, idleBlock, settingsBlock, syncTopbarHeight,
       bloodlineModal,
       autoNextIndex, autoNextBtnHtml,
       gardenModal, arenaModal, fabaoModal, mountModal, signModal,
