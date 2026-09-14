@@ -1128,5 +1128,57 @@ Core.S.party[1] = 'C021';
   t('每个阵型都有名字与人数要求', D.FORMATIONS.every(f => f.name && f.reqText && Object.keys(f.buff).length));
 }
 
+// ---- V8.0 主神评级 / 秘术阁 / 挂机游历（对标《道友修仙》的宗门等级 · KeJi · YouLi） ----
+{
+  Core.newGame();
+  const s0 = Core.sectInfo();
+  t('评级初始 1 级', s0.lv === 1 && s0.pct === 0);
+  const before = Core.effectivePlayerStats().atk;
+  const up = Core.addSectExp(100000);
+  t('评级经验能升级', up > 0 && Core.sectInfo().lv > 1);
+  t('评级加成真的进属性', Core.effectivePlayerStats().atk > before);
+  t('评级加成按每级 0.5% 走', Math.abs(Core.sectInfo().pct - (Core.sectInfo().lv - 1) * 0.005) < 1e-9);
+
+  // 打关卡自动涨评级（不用手动点）
+  const lvBefore = Core.sectInfo().lv;
+  for (let i = 0; i < 6; i++) Core.stageComplete('W01', 'normal', i, 3);
+  t('通关会涨评级经验', Core.S.sect.exp > 0 || Core.sectInfo().lv > lvBefore);
+
+  // 秘术：升级要花 ◆异界结晶，且效果立刻进属性
+  Core.newGame();
+  const atk0 = Core.effectivePlayerStats().atk;
+  Core.addCur('otherworld', 100000);
+  const r1 = Core.kejiUp('gongfa', 10);
+  t('秘术能升级', r1.ok && Core.kejiLv('gongfa') === 10);
+  t('秘术消耗异界结晶', Core.S.cur.otherworld < 100000);
+  t('秘术加成进攻击', Core.effectivePlayerStats().atk > atk0);
+  t('秘术经济线进挂机产出', (() => {
+    const p0 = Core.idleBaseRates().pointsPerMin;
+    Core.kejiUp('caiqi', 10);
+    return Core.idleBaseRates().pointsPerMin > p0;
+  })());
+  t('异界结晶不够时升不动', (() => {
+    Core.S.cur.otherworld = 0;
+    const lv = Core.kejiLv('tixiu');
+    const r = Core.kejiUp('tixiu', 1);
+    return !r.ok && Core.kejiLv('tixiu') === lv;
+  })());
+  t('每条秘术都有名字/上限/消耗', D.KEJI.every(k => k.name && k.max > 0 && D.kejiCost(k, 0) > 0));
+
+  // 挂机游历奇遇：攒满一条、领了归零
+  Core.newGame();
+  t('游历初始没有待领', !Core.pendingTravel());
+  Core.travelAccrue(D.TRAVEL_EVERY_SEC + 1);
+  const pend = Core.pendingTravel();
+  t('挂机攒满会出一条游历', !!pend);
+  const ptBefore = Core.S.cur.points;
+  const got = Core.claimTravel();
+  t('游历能领取', got.ok);
+  t('领完清空待领', !Core.pendingTravel());
+  t('游历奖励真进账', Core.S.cur.points !== ptBefore || Core.S.travel.got === 1);
+  t('游历池够厚（≥10 种）', D.TRAVELS.length >= 10);
+  t('每种游历都有文案与效果', D.TRAVELS.every(x => x.name && x.desc && Object.keys(x.effect).length));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

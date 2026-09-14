@@ -553,7 +553,7 @@ window.DATA = (function () {
       '2. 领每日免费招募（招募页第一个按钮，一天一次）。',
       '3. 做完每日任务 + 全部完成奖励（任务面板）。',
       '4. 扫荡已通关的关卡拿材料（每天 60 次）。',
-      '懒得一项项点？点首页的「🗓 今日」横条，里面有「一键收取」：挂机、任务、周常、成就、图鉴里所有已经达成、躺着等点的奖励，一次全收。',
+      '懒得一项项点？点首页「🗓 今日」那块（挂机主视觉下面、主线旁边），里面有「一键收取」：挂机、任务、周常、成就、图鉴里所有已经达成、躺着等点的奖励，一次全收。',
     ] },
     { id: 'recruit', title: '⑨ 三张招募池，花的是三种钱', body: [
       '普通招募（◈点数）：日常池，只出 N / R / SR，重复角色转碎片。花的是挂机能刷的点数，定位是攒碎片升星。',
@@ -573,7 +573,7 @@ window.DATA = (function () {
     { id: 'bounty', title: '⑪ 限时悬赏与境界', body: [
       '限时悬赏有截止时间，到点作废：达成后手动领奖，奖励是圣洁晶石 / 异界结晶 / 血统结晶这类硬通货。',
       '目标是**按你的当前进度生成的**：推进当前世界、等级再高 5 级、强化次数翻一档，剩下的位置按你缺什么（回廊层数 / SSR 数量 / 伴生体 / 渡劫）补。四条全部结束后开新一期，会重新按那时的进度生成。',
-      '首页「🗓 今日」横条上会显示最快到期的那条还剩多久，别让它白白过期。',
+      '首页「🗓 今日」那块上会显示最快到期的那条还剩多久，别让它白白过期。',
       '境界（渡劫）：9 个大境界 × 初/中/后/大圆满 = **36 小阶**，从炼气初期一路到渡劫大圆满。每突破一小阶，主角全属性永久 +1.4%（36 阶合计 +50.4%）。',
       '渡劫失败只扣材料与点数，等级不掉，可以反复挑战——但失败也照扣，所以别在材料不够的时候硬渡。',
       '境界面板按"大境界一行、行内四个小阶"排列，一眼看得到自己走到哪一格、离下一格还差多少。',
@@ -582,7 +582,14 @@ window.DATA = (function () {
       '对标别人的"洞府"：花 ✦圣洁晶石 + ◆异界结晶向主神换**永久授权**，10 级，投入一次永久生效，转生也不清空。',
       '和「基地建设」分工不同——建筑花的是挂机就能刷的 ◈点数，逐级堆到 50 级；主神权限花的是稀缺的高级货币，所以给的多是"倍率"：挂机产出、挂机经验、离线上限、离线效率、每日扫荡次数。',
       '满 10 级额外给全队全属性 +5%，是这条线的收尾奖励。',
-      '入口：首页功能宫格「🔑 主神权限」，或者首页顶部状态区的「轮回」那一格。',
+      '入口：「👥 轮回者 → 🌱 成长」里的「🔑 主神权限」，或者首页顶部状态区的「轮回」那一格。',
+    ] },
+    { id: 'sect', title: '⑭ 主神评级 · 秘术阁 · 游历奇遇', body: [
+      '这三条是照着别人的「宗门等级 / 秘术 / 游历」做的，作用各不相同：',
+      '**主神评级**（对标宗门等级）：不用你点。打关卡首通 +12/+26/+48（普通/困难/地狱），重复刷减半，每打赢一场 +2，挂机每分钟 +1.2。升一级全队（含主角）全属性 +0.5%，永久生效、转生保留。等价于"推图顺便变强"。',
+      '**秘术阁**（对标 KeJi）：12 条线，每条每级只加 0.2%~0.5%，但可以一直修到顶（合 550 级）。前 8 条加战斗（攻/生/防/速/暴击/暴伤/技能/闪避），后 4 条加挂机经济（产出/经验/掉落/离线效率）。升级只花 ◆异界结晶——这是给高级货币的第二条长线出口，抽卡之外的钱有地方放。',
+      '**游历奇遇**（对标 YouLi）：挂机每累计 10 分钟，路上就会冒一次随机奇遇（在线、离线都算），共 12 种，有捡材料、遇前辈、挖矿脉、得招募令等。攒满会挂在首页，**不会过期丢东西**，回来点一下就行。',
+      '入口：首页印章入口带的「🏯 主神评级」「📜 秘术阁」「🚶 游历奇遇」，评级和秘术也在「👥 轮回者 → 🌱 成长」里。',
     ] },
     { id: 'beast', title: '⑫ 伴生体与五行克制', body: [
       '伴生体是第二条养成线（对标灵兽驯宠）：上阵 1 只，给**全队**加属性，主角也吃。',
@@ -766,6 +773,62 @@ window.DATA = (function () {
     const b = BUILDINGS.find(x => x.id === id);
     return Math.round(b.base * Math.pow(1.12, lv - 1));
   };
+
+  /* ================= 宗门等级（对标《道友修仙》的 ZongMenLevel · 321 级） =================
+     它的"宗门等级"不是手动点的按钮，而是**随主线 / 副本推进自动涨**的一条全局长线：
+     321 级，每级都在抬全队属性。意义在于：打关卡除了掉装备之外，还有一条看得见的长线回报。
+     我们照这个机制做，名字沿用我们的世界观（"主神评级"），机制一模一样。 */
+  const SECT_MAX = 120;
+  const SECT_PCT_PER_LV = 0.005;                                   // 每级：全队全属性 +0.5%
+  const sectExpNeed = lv => Math.round(300 * Math.pow(1.075, lv - 1));
+  const sectBonusPct = lv => Math.max(0, lv - 1) * SECT_PCT_PER_LV;
+  // 评级经验来源（写在一处，UI 直接读这张表，避免"说明和实装两处写"）
+  const SECT_EXP = { normal: 12, hard: 26, hell: 48, win: 2, perMin: 1.2 };
+
+  /* ================= 秘术阁（对标《道友修仙》的 KeJi · 41 条线，每级 +0.3%） =================
+     它的秘术线是"用金币 + 仙石喂出来的百分比"，每条 40~60 级，每级加得很小。
+     作用有两个：① 高级货币多一条出口（不只有抽卡）；② 长线目标一眼看得到头。
+     rate 就是每级加多少（0.004 = +0.4%），消耗走 KEJI_COIN 这一种货币。 */
+  const KEJI_COIN = 'otherworld';
+  const KEJI = [
+    { id: 'gongfa', name: '攻伐诀', ico: '⚔', key: 'atkPct',   rate: 0.004, max: 60, base: 10, step: 2, info: '全队攻击' },
+    { id: 'tixiu',  name: '体修术', ico: '🛡', key: 'hpPct',    rate: 0.004, max: 60, base: 10, step: 2, info: '全队生命' },
+    { id: 'hufa',   name: '护法咒', ico: '🧱', key: 'defPct',   rate: 0.004, max: 60, base: 10, step: 2, info: '全队防御' },
+    { id: 'shenfa', name: '身法诀', ico: '💨', key: 'spdPct',   rate: 0.003, max: 50, base: 12, step: 3, info: '全队速度' },
+    { id: 'huixin', name: '会心术', ico: '🎯', key: 'critPct',  rate: 0.002, max: 50, base: 15, step: 3, info: '暴击率' },
+    { id: 'zhumo',  name: '破魔经', ico: '💥', key: 'critDmg',  rate: 0.005, max: 40, base: 18, step: 4, info: '暴击伤害' },
+    { id: 'lingfa', name: '灵法诀', ico: '✨', key: 'skillPct', rate: 0.003, max: 50, base: 12, step: 3, info: '技能伤害' },
+    { id: 'yufeng', name: '御风术', ico: '🌀', key: 'evaPct',   rate: 0.002, max: 40, base: 16, step: 3, info: '闪避' },
+    { id: 'caiqi',  name: '采气术', ico: '⛏', key: 'idlePct',  rate: 0.004, max: 40, base: 14, step: 3, info: '挂机产出' },
+    { id: 'wuxing', name: '悟性诀', ico: '📘', key: 'expPct',   rate: 0.004, max: 40, base: 14, step: 3, info: '经验获取' },
+    { id: 'juyun',  name: '聚运术', ico: '🍀', key: 'dropPct',  rate: 0.003, max: 30, base: 20, step: 4, info: '掉落概率' },
+    { id: 'jingxin', name: '静心诀', ico: '🌙', key: 'offlinePct', rate: 0.003, max: 30, base: 20, step: 4, info: '离线效率' },
+  ];
+  const kejiById = id => KEJI.find(k => k.id === id) || null;
+  const kejiCost = (k, lv) => k.base + k.step * lv;
+
+  /* ================= 挂机游历奇遇（对标《道友修仙》的 YouLi · 601 条） =================
+     它的挂机不是"只涨数字"：挂机过程中会随机掉出"游历事件"，点一下拿东西。
+     意义是让离线收益变成"有东西可看"，而不是回家只看到一条进度条。
+     我们原来只有副本探索里的随机事件，挂机这边是空的，所以补上这一池。
+     effect 的键与 EVENTS / applyRewardObj 完全一致，不再另造一套规格。 */
+  const TRAVELS = [
+    { id: 'tv01', ico: '🍃', name: '灵草偶得',   w: 16, desc: '挂机路上顺手采到一株灵草。', effect: { points: 800, item: 'mat_t1' } },
+    { id: 'tv02', ico: '💧', name: '灵泉洗髓',   w: 12, desc: '一口灵泉，喝下去浑身通透。', effect: { story: 20 } },
+    { id: 'tv03', ico: '📜', name: '残卷觅迹',   w: 10, desc: '捡到半卷功法残篇，勉强化进了修为里。', effect: { points: 2000, skillChip: 5 } },
+    { id: 'tv04', ico: '🕳', name: '秘境裂隙',   w: 8,  desc: '空间裂开一道缝，里面的东西被你捞了出来。', effect: { otherworld: 40 } },
+    { id: 'tv05', ico: '🦴', name: '妖兽伏击',   w: 9,  desc: '一头低阶妖兽扑上来，被你随手拍死。', effect: { points: 1200, item: 'mat_t2' } },
+    { id: 'tv06', ico: '🧙', name: '前辈指点',   w: 7,  desc: '一位路过的老修士指点了两句，胜过苦修数日。', effect: { holy: 30 } },
+    { id: 'tv07', ico: '💎', name: '晶石矿脉',   w: 5,  desc: '山壁里露出半截晶石矿脉。', effect: { otherworld: 90 } },
+    { id: 'tv08', ico: '📦', name: '遗落行囊',   w: 9,  desc: '不知哪位同行者丢下的行囊。', effect: { item: 'exp_s' } },
+    { id: 'tv09', ico: '🔥', name: '心魔考验',   w: 6,  desc: '心魔翻涌，你稳住了道心。', effect: { points: 3000, bloodCrystal: 10 } },
+    { id: 'tv10', ico: '🐣', name: '兽魂残响',   w: 5,  desc: '一声兽鸣，你从残响里凝出一枚兽魂石。', effect: { item: 'beast_egg' } },
+    { id: 'tv11', ico: '🌟', name: '天降机缘',   w: 3,  desc: '天光落下来，这一趟收获格外丰厚。', effect: { points: 8000, holy: 80, otherworld: 120 } },
+    { id: 'tv12', ico: '🧧', name: '同道馈赠',   w: 6,  desc: '一位同门托人捎来份礼。', effect: { item: 'ticket_adv' } },
+  ];
+  const TRAVEL_TOTAL_W = TRAVELS.reduce((s, t) => s + t.w, 0);
+  // 挂机每满这么久，攒出一次游历（秒）。攒满就停在"待触发"，不会丢。
+  const TRAVEL_EVERY_SEC = 600;   // 10 分钟一次
 
   /* ================= 主神权限（对标《道友修仙》的"洞府"） ================= */
   // 它的洞府是"一次性把高级货币（钻石/灵石）投进去，永久抬高挂机倍率、任务数、副本次数"，
@@ -1319,6 +1382,9 @@ window.DATA = (function () {
     ITEMS, EVENTS,
     BLOODLINES, BLOODLINE_MAX, bloodlineCost, GENE_LOCKS,
     BUILDINGS, buildingCost,
+    SECT_MAX, SECT_PCT_PER_LV, sectExpNeed, sectBonusPct, SECT_EXP,
+    KEJI, KEJI_COIN, kejiById, kejiCost,
+    TRAVELS, TRAVEL_TOTAL_W, TRAVEL_EVERY_SEC,
     RECRUIT_POOLS, PITY, PITY_UP, recruitUpChar, weekIndex,
     FORMATIONS, pityText,
     AUTHORITY, AUTHORITY_MAX, authorityCost, authorityBonus, AUTHORITY_PER_LV,

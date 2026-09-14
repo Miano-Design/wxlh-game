@@ -35,6 +35,9 @@ window.Core = (function () {
       serums: {},           // charId（或 '@player'）→ { serumId: 已服支数 }
       buildings: { core: 1, training: 1, medical: 1, workshop: 1, geneLab: 1 },
       auth: 0,               // 主神权限等级（对标"洞府"：高级货币的一次性长线投资）
+      sect: { lv: 1, exp: 0 },   // 主神评级（对标"宗门等级"：随关卡推进自动涨的全局长线）
+      keji: {},                  // 秘术阁（对标"KeJi"）：id → 等级
+      travel: { bankSec: 0, pending: null, got: 0 },   // 挂机游历奇遇（对标"YouLi"）
       worlds: {},           // worldId → {unlocked, stages: {normal:[stars×12], hard, hell}}
       corridor: { floor: 1, best: 0 },
       // 保底按池分开记账：高级 / 限定 各自算 SSR / UR / 当期 UP 的累计数
@@ -85,6 +88,10 @@ window.Core = (function () {
   function migrate() {
     const def = defaultState();
     S.stats = Object.assign(def.stats, S.stats || {});
+    // V8.0 新增的三块（主神评级 / 秘术阁 / 挂机游历）：老档补默认值，缺字段不会读出 undefined
+    S.sect = Object.assign({ lv: 1, exp: 0 }, S.sect || {});
+    S.keji = S.keji || {};
+    S.travel = Object.assign({ bankSec: 0, pending: null, got: 0 }, S.travel || {});
     S.recruit = Object.assign(def.recruit, S.recruit || {});
     // 招募保底从"两个散字段"改成"按池记账"；老档把旧计数搬过来，进度不丢
     S.recruit.pity = S.recruit.pity || {};
@@ -290,7 +297,7 @@ window.Core = (function () {
   }
   const graceIdleMult = () => 1 + (talentAll().idlePct || 0);
   const graceExpMult = () => 1 + (talentAll().expPct || 0);
-  const graceDropMult = () => 1 + (talentAll().dropPct || 0);
+  const graceDropMult = () => 1 + (talentAll().dropPct || 0) + kejiBonus().dropPct;
   // 背包占用 = 道具种类数 + 未装备装备件数
   function bagUsage() {
     const equippedUids = new Set();
@@ -564,6 +571,8 @@ window.Core = (function () {
     applySerums(charId, pct);                      // 血清（永久强化剂）
     applyBeast(pct);                               // 随行伴生体（全队加成）
     applyAuthority(pct);                           // 主神权限（满 10 级的全属性加成）
+    applySect(pct);                                // 主神评级（全队，随进度自动涨）
+    applyKeji(pct);                                // 秘术阁（全队百分比长线）
     // 装备
     const eq = S.equipped[charId] || {};
     const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
@@ -642,6 +651,8 @@ window.Core = (function () {
     applySerums('@player', pct);                   // 血清（主角同样是永久加成）
     applyBeast(pct);                               // 随行伴生体（全队加成）
     applyAuthority(pct);                           // 主神权限（满 10 级的全属性加成）
+    applySect(pct);                                // 主神评级（对标"宗门等级"：随进度自动涨）
+    applyKeji(pct);                                // 秘术阁（对标"KeJi"：12 条百分比长线）
     // 境界（渡劫）：每突破一境全属性 +5%，与基因锁/血统/血清并列，属于永久成长
     const rp = realmBonusPct();
     if (rp) { pct.atkPct += rp; pct.hpPct += rp; pct.defPct += rp; pct.spdPct += rp; }
@@ -1131,10 +1142,11 @@ window.Core = (function () {
   function idleBaseRates() {
     const lv = S.player.level;
     const au = authority();
-    const coreBonus = (1 + S.buildings.core * 0.02 + (S.player.geneLock >= 1 ? 0.10 : 0) + au.idlePct) * graceIdleMult();
+    const kb = kejiBonus();
+    const coreBonus = (1 + S.buildings.core * 0.02 + (S.player.geneLock >= 1 ? 0.10 : 0) + au.idlePct + kb.idlePct) * graceIdleMult();
     return {
       pointsPerMin: (10 + lv * 0.3) * coreBonus,
-      expPerMin: (8 + lv * 0.5) * (1 + S.buildings.training * 0.03 + au.expPct) * graceExpMult(),
+      expPerMin: (8 + lv * 0.5) * (1 + S.buildings.training * 0.03 + au.expPct + kb.expPct) * graceExpMult(),
       otherworldPer10Min: 1 + Math.floor(lv / 50),
       storyPer30Min: 1,
     };
@@ -1215,7 +1227,7 @@ window.Core = (function () {
     return cap;
   }
   function offlineEfficiency() {
-    return Math.min(1.5, 0.85 + S.buildings.medical * 0.01 + (talentAll().offlinePct || 0) + authority().offlinePct);
+    return Math.min(1.5, 0.85 + S.buildings.medical * 0.01 + (talentAll().offlinePct || 0) + authority().offlinePct + kejiBonus().offlinePct);
   }
   // 上线结算离线收益
   function settleOffline() {
@@ -1235,13 +1247,13 @@ window.Core = (function () {
       mat: Math.floor((r.matPerMin || 0) * mins),
     };
     S.idle.lastTs = now;
+    travelAccrue(elapsedSec);      // 离线时间同样攒"游历奇遇"
+    addSectExp(Math.floor(elapsedSec / 60 * D.SECT_EXP.perMin));
     save();
     return { seconds: elapsedSec, gains, efficiency: eff };
   }
   // 在线挂机：每秒累计
-  function onlineTick(dtSec) {
-    S.idle.bankSec += dtSec;
-  }
+  function onlineTick(dtSec) { S.idle.bankSec += dtSec; travelTick(dtSec); }
   function idleBankGains() {
     const r = idleRates();
     const mins = S.idle.bankSec / 60;
@@ -1409,6 +1421,152 @@ window.Core = (function () {
     return { ok: true, msg: `主神权限提升到 Lv.${S.auth}` };
   }
 
+  /* ================= 主神评级（对标《道友修仙》的"宗门等级"） =================
+     它那条线是 321 级、随主线推进自动涨、每级抬全队属性。
+     我们做成同样的机制：**不用手动点**，打关卡 / 打赢 / 挂机都会涨经验，满了自动升。
+     这样"打关卡"这件事除了掉装备之外，还有一条挡不住的长期回报。 */
+  function sectInfo() {
+    const lv = (S.sect && S.sect.lv) || 1;
+    const exp = (S.sect && S.sect.exp) || 0;
+    const need = D.sectExpNeed(lv);
+    return {
+      lv, exp, need, max: D.SECT_MAX, maxed: lv >= D.SECT_MAX,
+      pct: D.sectBonusPct(lv),                 // 当前全队加成（数值，不是对象）
+      nextPct: D.sectBonusPct(Math.min(D.SECT_MAX, lv + 1)),
+      rate: D.SECT_PCT_PER_LV,
+      gain: D.SECT_EXP,
+    };
+  }
+  // 每级：全队全属性 +0.5%（与基因锁 / 血统 / 血清同为百分比区，加算）
+  function sectBonusPct() {
+    if (!S.sect) return { atkPct: 0, hpPct: 0, defPct: 0, spdPct: 0, critPct: 0, critDmg: 0, skillPct: 0, evaPct: 0 };
+    const v = D.sectBonusPct(S.sect.lv || 1);
+    return { atkPct: v, hpPct: v, defPct: v, spdPct: v, critPct: 0, critDmg: 0, skillPct: 0, evaPct: 0 };
+  }
+  function applySect(pct) {
+    const s = sectBonusPct();
+    Object.keys(s).forEach(k => { if (s[k]) pct[k] = (pct[k] || 0) + s[k]; });
+  }
+  // 涨评级经验；返回本次升了几级（UI 用来提示"评级提升"）
+  function addSectExp(n) {
+    if (!n || n <= 0) return 0;
+    if (!S.sect) S.sect = { lv: 1, exp: 0 };
+    if (S.sect.lv >= D.SECT_MAX) return 0;
+    S.sect.exp += n;
+    let up = 0;
+    while (S.sect.lv < D.SECT_MAX && S.sect.exp >= D.sectExpNeed(S.sect.lv)) {
+      S.sect.exp -= D.sectExpNeed(S.sect.lv);
+      S.sect.lv++;
+      up++;
+    }
+    if (S.sect.lv >= D.SECT_MAX) S.sect.exp = 0;
+    save();
+    return up;
+  }
+
+  /* ================= 秘术阁（对标《道友修仙》的 KeJi） =================
+     41 条线 × 每级 +0.3% 那种"喂到天荒地老"的长线。我们收成 12 条主轴，
+     消耗统一走 ◆异界结晶（这是它的 coinBase 那一路），让高级货币有第二个出口。 */
+  function kejiLv(id) { return (S.keji && S.keji[id]) || 0; }
+  function kejiCostOf(id) {
+    const k = D.kejiById(id);
+    if (!k) return 0;
+    const lv = kejiLv(id);
+    return lv >= k.max ? null : D.kejiCost(k, lv);
+  }
+  // 所有秘术的加成汇总：战斗键进 pct，产出键单独给
+  function kejiBonus() {
+    const out = { combat: {}, idlePct: 0, expPct: 0, dropPct: 0, offlinePct: 0 };
+    D.KEJI.forEach(k => {
+      const lv = kejiLv(k.id);
+      if (!lv) return;
+      const v = k.rate * lv;
+      if (k.key === 'idlePct' || k.key === 'expPct' || k.key === 'dropPct' || k.key === 'offlinePct') out[k.key] += v;
+      else out.combat[k.key] = (out.combat[k.key] || 0) + v;
+    });
+    return out;
+  }
+  function applyKeji(pct) {
+    const kb = kejiBonus().combat;
+    Object.keys(kb).forEach(k => { pct[k] = (pct[k] || 0) + kb[k]; });
+  }
+  function kejiUp(id, times = 1) {
+    const k = D.kejiById(id);
+    if (!k) return { ok: false, msg: '没有这条秘术' };
+    let done = 0;
+    for (let i = 0; i < times; i++) {
+      const cost = kejiCostOf(id);
+      if (cost === null) break;
+      if ((S.cur[D.KEJI_COIN] || 0) < cost) break;
+      addCur(D.KEJI_COIN, -cost);
+      S.keji[id] = kejiLv(id) + 1;
+      done++;
+    }
+    if (!done) {
+      const cost = kejiCostOf(id);
+      return { ok: false, msg: cost === null ? `${k.name} 已满级` : `${curMeta(D.KEJI_COIN).name}不足（需要 ${cost}）` };
+    }
+    const lv = kejiLv(id);
+    save();
+    return { ok: true, msg: `${k.name} 提升到 Lv.${lv}（${k.info} +${(k.rate * lv * 100).toFixed(1)}%）`, lv, done };
+  }
+
+  /* ================= 挂机游历奇遇（对标《道友修仙》的 YouLi） =================
+     挂机的时间里会攒"游历"，攒满就出一条随机奇遇（停在待触发，不会过期丢东西）。
+     原来的挂机只有一条进度条，回家点"收取"就完了；补上这一池之后，
+     离线收益变成"有东西可看"，也更接近对标产品的挂机观感。 */
+  function travelBank() {
+    if (!S.travel) S.travel = { bankSec: 0, pending: null, got: 0 };
+    return S.travel;
+  }
+  function travelProgress() {
+    const t = travelBank();
+    return { sec: t.bankSec, every: D.TRAVEL_EVERY_SEC, pct: Math.min(1, t.bankSec / D.TRAVEL_EVERY_SEC), pending: t.pending };
+  }
+  // 累计挂机时长（在线 + 离线都算），攒满就摇一条奇遇挂起来
+  function travelAccrue(sec) {
+    if (!sec || sec <= 0) return;
+    const t = travelBank();
+    t.bankSec += sec;
+    if (!t.pending && t.bankSec >= D.TRAVEL_EVERY_SEC) {
+      t.bankSec -= D.TRAVEL_EVERY_SEC;
+      t.pending = rollTravel();
+    }
+  }
+  function rollTravel() {
+    let r = Math.random() * D.TRAVEL_TOTAL_W;
+    for (const tv of D.TRAVELS) { r -= tv.w; if (r <= 0) return tv.id; }
+    return D.TRAVELS[0].id;
+  }
+  function pendingTravel() {
+    const t = travelBank();
+    return t.pending ? D.TRAVELS.find(x => x.id === t.pending) || null : null;
+  }
+  function claimTravel() {
+    const t = travelBank();
+    const tv = pendingTravel();
+    if (!tv) return { ok: false, msg: '还没有新的游历' };
+    applyRewardObj(tv.effect);
+    t.pending = null;
+    t.got = (t.got || 0) + 1;
+    save();
+    return { ok: true, msg: `${tv.name}：${travelRewardText(tv)}`, travel: tv };
+  }
+  function travelRewardText(tv) {
+    return rewardTextOf(tv.effect);
+  }
+  // 把效果对象写成一行可读文字（说明由效果派生，不另写一套文案）
+  function rewardTextOf(eff) {
+    const parts = [];
+    const curKeys = ['points', 'story', 'otherworld', 'holy', 'skillChip', 'bloodCrystal', 'corridor', 'rp'];
+    curKeys.forEach(k => { if (eff[k]) parts.push(`${curMeta(k).icon}${eff[k]}`); });
+    if (eff.item) [].concat(eff.item).forEach(id => parts.push(`${(D.ITEMS[id] || {}).name || id}×1`));
+    return parts.join(' · ') || '空手而归';
+  }
+  function curMeta(id) { return D.CURRENCIES.find(c => c.id === id) || { name: id, icon: '' }; }
+  // 触发时的定时器入口（在线挂机每秒调用）
+  function travelTick(dtSec) { travelAccrue(dtSec); }
+
   /* ================= 世界进度 ================= */
   function unlockWorld(id) {
     if (!S.worlds[id]) {
@@ -1434,9 +1592,12 @@ window.Core = (function () {
     }
     S.stats.runs++;
     task('dungeon1', 1);
+    // 主神评级经验：打关卡就涨，首通给全额，重复刷给一半（对标"宗门等级随进度涨"）
+    const sectGain = Math.round((D.SECT_EXP[diff] || D.SECT_EXP.normal) * (first ? 1 : 0.5));
+    const sectUp = addSectExp(sectGain);
     const newUnlocks = refreshUnlocks();
     save();
-    return { first, firstClearReward, newUnlocks };
+    return { first, firstClearReward, newUnlocks, sectGain, sectUp };
   }
   // 根据当前进度刷新功能解锁，返回本次新解锁的功能名列表
   function refreshUnlocks() {
@@ -2042,6 +2203,9 @@ window.Core = (function () {
     idleRates, idleBaseRates, idleLines, idleLineBonus, setIdleLeader, idleMatItem, grantIdleMat,
     settleOffline, onlineTick, idleBankGains, claimIdle, addPlayerExp, offlineCapHours, offlineEfficiency,
     upgradeBuilding, authority, authorityInfo, upgradeAuthority,
+    sectInfo, sectBonusPct, addSectExp,
+    kejiLv, kejiCostOf, kejiBonus, kejiUp,
+    travelAccrue, travelTick, travelProgress, pendingTravel, claimTravel, rollTravel, rewardTextOf,
     unlockWorld, worldCleared, stageComplete, stageUnlocked,
     refreshUnlocks, isUnlocked, unlockTip,
     mainQuestState, currentQuest, claimQuest,

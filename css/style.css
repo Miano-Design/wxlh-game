@@ -112,9 +112,6 @@ body {
 .mb1 { margin-bottom: var(--sp1); } .mb2 { margin-bottom: var(--sp2); } .mb3 { margin-bottom: var(--sp3); } .mb4 { margin-bottom: var(--sp4); }
 .mt1 { margin-top: var(--sp1); } .mt2 { margin-top: var(--sp2); } .mt3 { margin-top: var(--sp3); } .mt4 { margin-top: var(--sp4); }
 .tap { cursor: pointer; }
-.kv { display: flex; align-items: baseline; gap: var(--sp2); padding: 3px 0; font-size: var(--fs-lg); }
-.kv .k { color: var(--dim); flex: 0 0 auto; }
-.kv > span:last-child { margin-left: auto; text-align: right; }
 .empty { text-align: center; color: var(--dim); font-size: var(--fs-md); padding: var(--sp5) 0; }
 
 /* ---------- 按钮 ---------- */
@@ -329,9 +326,11 @@ body {
 .event-desc { color: var(--dim); font-size: 13px; line-height: 1.7; background: var(--panel); border-radius: 10px; padding: 12px; }
 
 /* ---------- 其他 ---------- */
-.kv { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 1px dashed #ffffff0d; }
+/* 键值行（左标签 / 右数值）只定义这一处；以前这里和上面各写了一份，改一处漏一处 */
+.kv { display: flex; align-items: baseline; gap: var(--sp2); justify-content: space-between; font-size: var(--fs-lg); padding: 5px 0; border-bottom: 1px dashed #ffffff0d; }
 .kv:last-child { border-bottom: none; }
-.kv .k { color: var(--dim); }
+.kv .k { color: var(--dim); flex: 0 1 auto; min-width: 0; }
+.kv > span:last-child { margin-left: auto; text-align: right; white-space: nowrap; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
 
 /* ---------- 副本探索中底栏（替代导航，防误触） ---------- */
@@ -381,29 +380,73 @@ body {
 .corridor-hero { text-align: center; padding: 20px 0 8px; }
 .corridor-hero .floor-num { font-size: 44px; font-weight: 800; color: var(--accent); text-shadow: 0 0 30px #d43a4f55; }
 
-/* ---------- 首页「今日」卡 ---------- */
-/* 挂机主卡：全页唯一的"主角块"，靠金色描边与更大的数字拉层级，不再靠蓝紫渐变抢眼 */
-.hero-idle { border-color: #e6b64c44; background: linear-gradient(180deg, #161d29, var(--panel)); }
-.hero-top { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp3); }
-.hero-label { font-size: var(--fs-sm); color: var(--dim); letter-spacing: 1px; }
+/* ---------- 主视觉区（首页唯一的"画面"） ---------- */
+/* 对标产品的主界面中间是一块世界画面，两侧才是信息面板。我们没有美术图，
+   就用"近黑底 + 金色描边 + 一圈极淡的星尘"来当画面，把最大的数字放在正中间。
+   全页只有这一块允许用金色描边，层级才立得住。 */
+.stage {
+  position: relative; overflow: hidden;
+  border: 1px solid #e6b64c44; border-radius: var(--radius);
+  background:
+    radial-gradient(120% 90% at 50% 0%, #1b2436 0%, #10151f 55%, #0b0f16 100%),
+    var(--panel);
+  box-shadow: inset 0 1px 0 #ffffff0f, 0 6px 22px #00000059;
+  padding: var(--sp3) var(--sp3) var(--sp4); margin-bottom: var(--sp2);
+}
+.stage::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background-image:
+    radial-gradient(1px 1px at 18% 22%, #ffffff55, transparent),
+    radial-gradient(1px 1px at 72% 14%, #ffffff40, transparent),
+    radial-gradient(1px 1px at 44% 62%, #ffffff33, transparent),
+    radial-gradient(1px 1px at 86% 74%, #ffffff2e, transparent),
+    radial-gradient(1px 1px at 8% 82%, #ffffff26, transparent);
+}
+.stage > * { position: relative; z-index: 1; }
+.stage-top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp2); }
+.stage-tag { font-size: var(--fs-sm); color: var(--text2); letter-spacing: 1px; }
+.stage-sub { font-size: var(--fs-sm); color: var(--dim); line-height: 1.6; }
+.stage-core { text-align: center; padding: var(--sp3) 0 var(--sp2); }
+.stage-core .hero-num { font-size: 38px; }
+
+/* ---------- 两枚匾额（主线 / 今日） ---------- */
+/* 这一排替代了原来"一整张主线卡 + 一条今日条"的竖排，首页因此少掉近半屏。 */
+.plaque-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp2); margin-bottom: var(--sp2); }
+.plaque {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 10px 11px 11px; display: flex; flex-direction: column; min-height: 104px;
+}
+.plaque.hot { border-color: #e6b64c66; box-shadow: inset 0 1px 0 #ffffff0f; }
+.plaque .pq-k { font-size: var(--fs-sm); color: var(--dim); letter-spacing: .5px; }
+.plaque .pq-n { font-size: var(--fs-1); font-weight: 700; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plaque .pq-s { font-size: var(--fs-sm); color: var(--dim); line-height: 1.6; }
+.plaque .pq-btn { margin-top: auto; padding-top: var(--sp2); }
+.plaque .pq-btn .btn { width: 100%; }
+
+/* ---------- 首页入口带（对标主界面底部那排"印章"） ---------- */
+.stamp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp2); }
+.stamp {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; min-height: 78px; padding: 10px 6px; cursor: pointer; font-family: inherit;
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border: 1px solid var(--line2); border-radius: var(--radius); color: var(--text);
+  box-shadow: inset 0 1px 0 #ffffff0d;
+}
+.stamp:active { background: var(--panel3); transform: scale(.97); }
+.stamp .s-ico { font-size: 22px; line-height: 1; }
+.stamp .s-name { font-size: var(--fs-md); font-weight: 600; color: var(--text2); }
+.stamp.locked { opacity: .48; }
+.stamp .s-badge {
+  position: absolute; top: 5px; right: 6px; font-size: var(--fs-xs);
+  color: var(--gold); border: 1px solid #e6b64c55; border-radius: var(--radius-sm); padding: 0 4px;
+}
 .hero-num { font-size: 32px; font-weight: 800; color: var(--gold); line-height: 1.1; letter-spacing: -.5px; }
 .hero-num .hero-unit { font-size: var(--fs-md); font-weight: 600; color: var(--dim); margin-left: 3px; }
-.hero-right { text-align: right; }
-.hero-sub { font-size: var(--fs-sm); color: var(--dim); line-height: 1.65; }
 .hero-bank { display: flex; gap: var(--sp2); margin-top: var(--sp3); }
 .hero-bank .hb-item { flex: 1; min-width: 0; background: #0a0e16; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--sp2) 10px; }
 .hero-bank .hb-k { display: block; font-size: var(--fs-xs); color: var(--dim); margin-bottom: 3px; letter-spacing: 1px; }
 .hero-bank b { font-size: var(--fs-lg); font-weight: 700; }
 
-/* 功能宫格：图标在上、名字在下。三列排布，一眼扫完所有系统入口（对标主界面的"宫格"做法） */
-.feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp2); margin-bottom: var(--sp2); }
-.btn.feat {
-  flex-direction: column; gap: 5px; min-height: 82px; padding: 12px 6px;
-  background: var(--panel); border-color: var(--line);
-}
-.btn.feat .fico { font-size: 24px; line-height: 1; }
-.btn.feat .fname { font-size: var(--fs-md); font-weight: 600; color: var(--text2); }
-.btn.feat:active { border-color: var(--line2); }
 /* 宫格分组标题：比 section-title 更轻，紧贴宫格 */
 .grid-title { font-size: var(--fs-sm); color: var(--dim); letter-spacing: 2px; margin: var(--sp3) 2px var(--sp2); }
 .grid-title:first-child { margin-top: 0; }

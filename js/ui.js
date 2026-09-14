@@ -455,6 +455,11 @@ window.UI = (function () {
         cur: `五栋合计 Lv.${bLv}`, desc: '花 ◈点数，永久提升挂机产出 / 经验 / 离线上限 / 强化折扣' },
       { act: 'open-authority', unlock: 'buildings', ico: '🔑', name: '主神权限',
         cur: `Lv.${au.lv} / ${au.max}`, desc: '花 ✦圣洁晶石 + ◆异界结晶，永久提升挂机产出、离线效率、每日扫荡次数' },
+      { act: 'open-sect', unlock: null, ico: '🏯', name: '主神评级',
+        cur: `Lv.${C().sectInfo().lv} / ${D.SECT_MAX}`, desc: '打关卡自动涨的全局评级，每级全队全属性 +0.5%，不用手动点' },
+      { act: 'open-keji', unlock: null, ico: '📜', name: '秘术阁',
+        cur: `已修 ${D.KEJI.reduce((s, k) => s + C().kejiLv(k.id), 0)} 级`,
+        desc: '12 条百分比长线（战斗 8 条 + 挂机经济 4 条），花 ◆异界结晶，点一下立刻生效' },
       { act: 'open-realm', unlock: null, ico: '🌌', name: '境界渡劫',
         cur: r.realm ? `${D.REALMS[r.realm - 1].full}（第 ${r.realm}/${D.REALMS.length} 阶）` : '凡体（未突破）',
         desc: '36 小阶，每阶全属性永久 +1.4%；失败只扣材料，等级不掉' },
@@ -484,7 +489,26 @@ window.UI = (function () {
   // 今日：首页上是一条横条（点开才是四行详情），不再占整块正文
   // 今日：从"一整张卡四行"收成**一条可点的横条**。
   // 对标产品的主界面只把"每日"做成一个很小的入口，不占正文；四行详情点开再看。
-  function todayStrip() {
+  /* 挂机游历条：挂满一段时间会亮起来（对标《道友修仙》的游历事件）。
+     没有待领的奇遇时它显示进度，有的时候就变成一条"点一下领走"的金条。 */
+  function travelStrip() {
+    const prog = C().travelProgress();
+    const pend = C().pendingTravel();
+    const left = Math.max(0, Math.round(prog.every - prog.sec));
+    return `<div class="today-strip tap${pend ? ' hot' : ''}" data-act="open-travel">
+      <span class="ts-ico">${pend ? pend.ico : '🚶'}</span>
+      <div class="ts-grow">
+        <div class="ts-t1">游历奇遇${pend ? ' · 有一次在路上' : ''}</div>
+        <div class="ts-t2">${pend ? `${pend.name}：${C().rewardTextOf(pend.effect)}` : `距下一次 ${formatDuration(left)}`}</div>
+      </div>
+      <span class="ts-go">›</span>
+    </div>`;
+  }
+  /* 首页两枚匾额：主线 + 今日。对标产品把这类"今天该干什么"的信息贴在主视觉旁边，
+     我们原来是一整张主线卡 + 一条今日条竖着排，占了小半屏；现在并成一排两块。 */
+  function plaqueRow() {
+    const list = C().mainQuestState();
+    const idx = list.findIndex(x => !x.claimed);
     const t = C().todayState();
     const bt = C().bountyState();
     const btLive = bt.list.filter(x => !x.claimed && !x.expired);
@@ -495,14 +519,24 @@ window.UI = (function () {
       recruitUnlocked ? `免费招募 ${t.freeRecruit ? '可领' : '已领'}` : '免费招募 未解锁',
       btLive.length ? `悬赏 ${formatDuration(Math.floor(btSoon / 1000))}` : '悬赏 已结束',
     ];
-    const hot = t.claimable || bt.claimable;
-    return `<div class="today-strip tap${hot ? ' hot' : ''}" data-act="open-today">
-      <span class="ts-ico">🗓</span>
-      <div class="ts-grow">
-        <div class="ts-t1">今日${t.claimable ? ` · ${t.claimable} 项可收` : ''}</div>
-        <div class="ts-t2">${bits.join(' · ')}</div>
+    const q = idx < 0 ? null : list[idx];
+    return `<div class="plaque-row">
+      <div class="plaque${q && q.done ? ' hot' : ''}">
+        <div class="pq-k">📜 主线 ${idx < 0 ? '已走完' : `第 ${idx + 1}/${list.length} 步`}</div>
+        ${q ? `<div class="pq-n">${q.q.name}</div>
+          <div class="pq-s">${rewardText(q.q.reward)}</div>
+          <div class="pq-btn">${q.done
+            ? '<button class="btn small primary" data-act="claim-quest">领取奖励</button>'
+            : '<button class="btn small ghost" data-act="goto-quest">去完成 ›</button>'}</div>`
+          : '<div class="pq-n">全部完成</div><div class="pq-s">挑战更高难度与无限回廊</div>'}
       </div>
-      <span class="ts-go">›</span>
+      <div class="plaque">
+        <div class="pq-k">🗓 今日${t.claimable ? ` · ${t.claimable} 项可收` : ''}</div>
+        ${bits.map(b => `<div class="pq-s">${b}</div>`).join('')}
+        <div class="pq-btn">
+          <button class="btn small ${t.claimable || bt.claimable ? 'gold' : 'ghost'}" data-act="open-today">${t.claimable || bt.claimable ? '去收取 ›' : '看看 ›'}</button>
+        </div>
+      </div>
     </div>`;
   }
   // 点"今日"才展开的四行详情（原来的今日卡内容原样保留，只是不再占首页）
@@ -581,16 +615,14 @@ window.UI = (function () {
     const t0 = C().todayState();
     return `
     ${statusStrip()}
-    <div class="card hero-idle">
-      <div class="hero-top">
-        <div>
-          <div class="hero-label">⏳ 轮回挂机中</div>
-          <div class="hero-num">◈${r.pointsPerMin.toFixed(1)}<span class="hero-unit">/分</span></div>
-        </div>
-        <div class="hero-right">
-          <div class="hero-sub">EXP ${r.expPerMin.toFixed(1)}/分</div>
-          <div class="hero-sub">离线效率 ${Math.round(C().offlineEfficiency() * 100)}% · 上限 ${C().offlineCapHours().toFixed(1)}h</div>
-        </div>
+    <div class="stage">
+      <div class="stage-top">
+        <span class="stage-tag">⏳ 轮回挂机中</span>
+        <span class="stage-sub">EXP ${r.expPerMin.toFixed(1)}/分</span>
+      </div>
+      <div class="stage-core">
+        <div class="hero-num">◈${r.pointsPerMin.toFixed(1)}<span class="hero-unit">/分</span></div>
+        <div class="stage-sub">离线效率 ${Math.round(C().offlineEfficiency() * 100)}% · 上限 ${C().offlineCapHours().toFixed(1)}h</div>
       </div>
       <div class="hero-bank">
         <div class="hb-item"><span class="hb-k">已累积</span><b id="idle-time">${formatDuration(bank.seconds)}</b></div>
@@ -602,54 +634,46 @@ window.UI = (function () {
         <button class="btn primary" data-act="claim-all" ${t0.claimable ? '' : 'disabled'}>${t0.claimable ? `⚡ 一键收取（${t0.claimable}）` : '⚡ 一键收取'}</button>
       </div>
     </div>
-    ${todayStrip()}
-    ${questCard()}
+    ${travelStrip()}
+    ${plaqueRow()}
     ${homeEntries()}
     `;
   }
-  // 首页入口只留"在这儿做"的六件事；养成线（基地/权限/境界/基因锁/转生/伴生体）整体搬到
-  // 「轮回者 → 成长」子页，避免首页把十几个系统一次摊平（这是这一版最主要的收缩）。
+  /* 首页入口带：对标《道友修仙》主界面底部那排"印章"入口——图形在上、名字在下，一眼扫完。
+     这是首页最后一块，也是"点哪里去干什么"最直接的答案。
+     养成线（基地/权限/境界/基因锁/转生/伴生体/评级/秘术）在「👥 轮回者 → 🌱 成长」里。 */
   function homeEntries() {
     const S = C().S;
+    const sect = C().sectInfo();
+    const kejiTotal = D.KEJI.reduce((s, k) => s + C().kejiLv(k.id), 0);
+    const pend = C().pendingTravel();
+    const achDot = C().achievementSummary().list.filter(x => x.done && !x.claimed).length > 0;
     return `<div class="section-title">入口</div>
-    <div class="feat-grid">
-      ${featureBtn('open-recruit', '✦ 轮回者招募', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable())}
-      ${featureBtn('open-shop', '🏪 兑换大厅', 'shop')}
-      ${featureBtn('open-tasks', '📋 任务', 'tasks')}
-      ${featureBtn('open-bounty', '🔥 限时悬赏', null, C().bountyState().list.some(x => x.done && !x.claimed))}
-      ${featureBtn('open-codex', '📕 轮回图鉴', 'recruit')}
-      ${featureBtn('open-ach', '🏅 成就', null, C().achievementSummary().list.filter(x => x.done && !x.claimed).length > 0)}
+    <div class="stamp-grid">
+      ${stampBtn('open-recruit', '✦', '轮回者招募', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable(), null)}
+      ${stampBtn('open-sect', '🏯', '主神评级', null, false, `Lv.${sect.lv}`)}
+      ${stampBtn('open-keji', '📜', '秘术阁', null, false, `${kejiTotal} 级`)}
+      ${stampBtn('open-shop', '🏪', '兑换大厅', 'shop', false, null)}
+      ${stampBtn('open-tasks', '📋', '任务', 'tasks', false, null)}
+      ${stampBtn('open-bounty', '🔥', '限时悬赏', null, C().bountyState().list.some(x => x.done && !x.claimed), null)}
+      ${stampBtn('open-travel', '🚶', '游历奇遇', null, !!pend, pend ? '待领' : null)}
+      ${stampBtn('open-codex', '📕', '轮回图鉴', 'recruit', false, null)}
+      ${stampBtn('open-ach', '🏅', '成就', null, achDot, null)}
     </div>
-    <div class="hint mt1" style="text-align:center">养成线在「👥 轮回者 → 🌱 成长」里</div>`;
+    <div class="hint mt2" style="text-align:center">养成线在「👥 轮回者 → 🌱 成长」里</div>`;
   }
-  function featureBtn(act, label, unlockId, dot) {
-    // 图标在上、名字在下的宫格按钮（放置类主界面的通用做法：一眼扫得到功能，点得到区域够大）
-    const sp = label.indexOf(' ');
-    const ico = sp > 0 ? label.slice(0, sp) : '';
-    const name = sp > 0 ? label.slice(sp + 1) : label;
-    // unlockId 传 null = 没有解锁条件，永远可用（别用"有没有解锁记录"当判据）
+  // 印章按钮；unlockId 传 null = 永远可用（别拿"有没有解锁记录"当判据）
+  function stampBtn(act, ico, name, unlockId, dot, badge) {
     if (!unlockId || C().isUnlocked(unlockId)) {
-      return `<button class="btn feat" data-act="${act}"><span class="fico">${ico}</span><span class="fname">${name}</span>${dot ? '<span class="dot"></span>' : ''}</button>`;
+      return `<button class="stamp" data-act="${act}">
+        <span class="s-ico">${ico}</span><span class="s-name">${name}</span>
+        ${badge ? `<span class="s-badge">${badge}</span>` : ''}
+        ${dot ? '<span class="dot"></span>' : ''}
+      </button>`;
     }
-    return `<button class="btn feat" data-locked="${unlockId}" style="opacity:.5"><span class="fico">🔒</span><span class="fname">${name}</span></button>`;
-  }
-  function questCard() {
-    const list = C().mainQuestState();
-    const idx = list.findIndex(x => !x.claimed);
-    if (idx < 0) {
-      return `<div class="card"><h3>📜 主线任务 <span class="sub">全部完成</span></h3>
-        <div class="note">你已走完当前全部主线。继续挑战更高难度的世界与无限回廊吧。</div></div>`;
-    }
-    const cur = list[idx];
-    const q = cur.q;
-    return `<div class="card" style="border-color:#ffd76a55">
-      <h3>📜 主线 · 第 ${idx + 1}/${list.length} 步 · ${q.name} <span class="sub">${rewardText(q.reward)}</span></h3>
-      <div style="font-size:13px;color:var(--dim);margin-bottom:8px">${q.desc}</div>
-      <div class="btn-row">
-        ${cur.done ? '<button class="btn primary" data-act="claim-quest">领取奖励</button>' : '<button class="btn ghost" data-act="goto-quest">去完成 ›</button>'}
-        <button class="btn small ghost" data-act="open-tasks">全部 ${list.length} 步 ›</button>
-      </div>
-    </div>`;
+    return `<button class="stamp locked" data-locked="${unlockId}">
+      <span class="s-ico">🔒</span><span class="s-name">${name}</span>
+    </button>`;
   }
   function formatDuration(sec) {
     sec = Math.floor(sec);
@@ -1810,6 +1834,128 @@ window.UI = (function () {
   }
 
   /* ================= 主神权限（对标《道友修仙》的"洞府"） ================= */
+  /* ================= 主神评级（对标《道友修仙》的“宗门等级”） =================
+     它那条线是 321 级、随主线推进自动涨、每级抬全队属性。我们照机制做，
+     强调一句：**不用手动点**——打关卡、打赢战斗、挂机都会涨，满了自动升。
+     意义在于让"打关卡"除了掉装备之外，还有一条挡不住的长期回报。 */
+  function sectModal(wrap) {
+    const info = C().sectInfo();
+    const g = info.gain;
+    const body = `
+      <div class="card" style="border-color:#ffd76a55">
+        <h3>主神评级 <span class="sub">Lv.${info.lv} / ${info.max}</span></h3>
+        <div class="note">这条线<b>不用你点</b>：打关卡、战斗获胜、挂机都会自动涨经验，满了就升。
+          每升一级，全队（含主角）所有基础属性 +${(info.rate * 100).toFixed(1)}%，永久生效、转生保留。</div>
+        <div class="bar exp mt3"><i style="width:${info.maxed ? 100 : Math.min(100, info.exp / info.need * 100)}%"></i></div>
+        <div class="kv"><span class="k">${info.maxed ? '已到顶' : '距离下一级'}</span>
+          <span>${info.maxed ? '满级' : `${fmt(info.exp)} / ${fmt(info.need)}`}</span></div>
+      </div>
+      <div class="card">
+        <h3>当前生效</h3>
+        <div class="kv"><span class="k">全队全属性</span><span style="color:var(--gold)">+${(info.pct * 100).toFixed(1)}%</span></div>
+        <div class="kv"><span class="k">下一级变成</span><span>+${(info.nextPct * 100).toFixed(1)}%</span></div>
+      </div>
+      <div class="card">
+        <h3>评级经验从哪来</h3>
+        <div class="hint mb2">首通给全额，重复刷同一关只给一半——所以"往前推"永远比"原地刷"划算。</div>
+        <div class="kv"><span class="k">通关 普通 / 困难 / 地狱</span><span style="white-space:nowrap">+${g.normal} / +${g.hard} / +${g.hell}</span></div>
+        <div class="kv"><span class="k">每打赢一场战斗</span><span>+${g.win}</span></div>
+        <div class="kv"><span class="k">挂机（在线 / 离线都算）</span><span>每分钟 +${g.perMin}</span></div>
+      </div>`;
+    return showPanel(wrap, '主神评级', body);
+  }
+  // 挂机游历奇遇（对标《道友修仙》的 YouLi）：挂满一段时间就出一条，点一下拿东西
+  function travelModal(wrap) {
+    const st = C().S.travel || {};
+    const prog = C().travelProgress();
+    const pend = C().pendingTravel();
+    const body = `
+      <div class="card" style="border-color:${pend ? '#ffd76a88' : 'var(--line)'}">
+        <h3>游历奇遇 <span class="sub">已遇 ${st.got || 0} 次</span></h3>
+        ${pend ? `
+          <div class="event-desc">${pend.ico} <b>${pend.name}</b><br>${pend.desc}</div>
+          <button class="btn primary block mt3" data-travel-claim>领取：${C().rewardTextOf(pend.effect)}</button>
+        ` : `
+          <div class="note">挂机每累计 ${Math.round(prog.every / 60)} 分钟，路上就会冒一次奇遇（在线、离线都算）。
+            攒满会自动挂在这里，<b>不会过期丢东西</b>，回来点一下就行。</div>
+          <div class="bar mt3"><i style="width:${Math.round(prog.pct * 100)}%"></i></div>
+          <div class="kv"><span class="k">距离下一次</span><span>${Math.max(0, Math.round(prog.every - prog.sec))} 秒</span></div>
+        `}
+      </div>
+      <div class="section-title">可能遇到什么（${D.TRAVELS.length} 种）</div>
+      ${D.TRAVELS.map(t => `<div class="list-row">
+        <span style="font-size:19px">${t.ico}</span>
+        <div class="grow"><div class="t1">${t.name}</div><div class="t2">${t.desc}</div></div>
+        <span class="hint">${C().rewardTextOf(t.effect)}</span>
+      </div>`).join('')}`;
+    const w = showPanel(wrap, '游历奇遇', body);
+    const cb = w.querySelector('[data-travel-claim]');
+    if (cb) cb.onclick = () => {
+      const r = C().claimTravel();
+      if (!r.ok) { toast(r.msg); return; }
+      toast(`🎁 ${r.msg}`, 2600);
+      sfx('coin');
+      travelModal(w);   // 原地刷新：遮罩/页面不动，不闪屏
+      renderTopbar();
+    };
+    return w;
+  }
+  /* ================= 秘术阁（对标《道友修仙》的 KeJi） =================
+     41 条线 × 每级 +0.3% 那种长线，我们收成 12 条主轴，
+     消耗统一走 ◆异界结晶（它的 coinBase 那一路）。 */
+  function kejiModal(wrap) {
+    const S = C().S;
+    const coin = S.cur[D.KEJI_COIN] || 0;
+    const kb = C().kejiBonus();
+    const total = D.KEJI.reduce((s, k) => s + C().kejiLv(k.id), 0);
+    const maxTotal = D.KEJI.reduce((s, k) => s + k.max, 0);
+    const body = `
+      <div class="card" style="border-color:#ffd76a55">
+        <h3>秘术阁 <span class="sub">已修 ${total} / ${maxTotal} 级</span></h3>
+        <div class="note">12 条秘术，每条每级只加一点点（0.2%~0.5%），但可以一直修到顶：
+          升级<b>只花 ◆异界结晶</b>，这是给"抽卡之外"的第二条长期出口。
+          前 8 条加<b>战斗</b>（攻/生/防/速/暴击/暴伤/技能/闪避），后 4 条加<b>挂机经济</b>（产出/经验/掉落/离线效率）。</div>
+        <div class="kv mt2"><span class="k">◆异界结晶</span><span style="color:var(--gold)">${fmt(coin)}</span></div>
+      </div>
+      ${D.KEJI.map(k => {
+        const lv = C().kejiLv(k.id);
+        const cost = C().kejiCostOf(k.id);
+        const cur = lv ? (k.rate * lv * 100) : 0;
+        const next = cost === null ? cur : (k.rate * (lv + 1) * 100);
+        const can = cost !== null && coin >= cost;
+        return `<div class="list-row">
+          <span style="font-size:19px">${k.ico}</span>
+          <div class="grow">
+            <div class="t1">${k.name} <span class="tag">Lv.${lv} / ${k.max}</span></div>
+            <div class="t2">${k.info} 当前 <b style="color:var(--gold)">+${cur.toFixed(1)}%</b>
+              ${cost === null ? '· 已满级' : `→ 下一级 +${next.toFixed(1)}%（需 ◆${fmt(cost)}）`}</div>
+          </div>
+          ${cost === null
+            ? '<button class="btn small" disabled>满级</button>'
+            : `<button class="btn small ${can ? 'gold' : ''}" data-keji="${k.id}" ${can ? '' : 'disabled'}>升 1 级</button>`}
+        </div>`;
+      }).join('')}
+      <div class="card mt3">
+        <h3>当前合计</h3>
+        ${[['攻击', kb.combat.atkPct], ['生命', kb.combat.hpPct], ['防御', kb.combat.defPct], ['速度', kb.combat.spdPct],
+           ['暴击率', kb.combat.critPct], ['暴击伤害', kb.combat.critDmg], ['技能伤害', kb.combat.skillPct], ['闪避', kb.combat.evaPct],
+           ['挂机产出', kb.idlePct], ['经验获取', kb.expPct], ['掉落概率', kb.dropPct], ['离线效率', kb.offlinePct]]
+          .filter(([, v]) => v)
+          .map(([n, v]) => `<div class="kv"><span class="k">${n}</span><span style="color:var(--gold)">+${(v * 100).toFixed(1)}%</span></div>`)
+          .join('') || '<div class="note">还没修任何秘术。先挑一条来点，哪怕 1 级也立刻生效。</div>'}
+      </div>`;
+    const w = showPanel(wrap, '秘术阁', body);
+    w.querySelectorAll('[data-keji]').forEach(b => b.onclick = () => {
+      const r = C().kejiUp(b.dataset.keji, 1);
+      if (!r.ok) { toast(r.msg); return; }
+      toast(r.msg, 2200);
+      sfx('coin');
+      kejiModal(w);          // 原地刷新，不闪屏
+      renderTopbar();
+    });
+    return w;
+  }
+
   // 洞府在那边是"一次性把高级货币投进去，永久抬高挂机倍率 / 任务数 / 副本次数"的滚雪球投资。
   // 我们把它落地成一条独立的 10 级线：花 ✦圣洁晶石 + ◆异界结晶，投入永久、转生保留。
   function authorityModal(wrap) {
@@ -2790,7 +2936,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V7.3</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.0</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -3351,6 +3497,9 @@ window.UI = (function () {
         case 'open-buildings': buildingsModal(); break;
         case 'open-today': todayModal(); break;
         case 'open-authority': authorityModal(); break;
+        case 'open-sect': sectModal(); break;
+        case 'open-keji': kejiModal(); break;
+        case 'open-travel': travelModal(); break;
         case 'open-tasks': tasksModal(); break;
         case 'open-genelock': geneLockModal(); break;
         case 'open-reincarn': reincarnModal(); break;
@@ -3676,7 +3825,7 @@ window.UI = (function () {
         ♾ 挑战无限回廊，寻找离开的方法<br><br>
         新手补给已发放：◈50,000 · ✦1,000 · 经验模块×20 · 治疗剂×10<br><br>
         <b style="color:var(--gold)">上手就三件事：</b><br>
-        ① 点首页的「🗓 今日」横条，里面「一键收取」把挂机、任务、成就、悬赏能领的一次全领；<br>
+        ① 点首页挂机主视觉下面的「🗓 今日」那块，进去点「一键收取」，把挂机、任务、成就、悬赏能领的一次全领；<br>
         ② 点「轮回副本」打进第 1 关，通关后解锁招募；<br>
         ③ 招募里每天有一次<b>免费</b>，别忘了领。<br><br>
         三张招募池花的是<b>三种不同的货币</b>：◈点数抽普通（攒碎片）、✦圣洁晶石抽高级（补图鉴）、◆异界结晶抽限定（定向出当期 UP）。<br>
@@ -3756,7 +3905,7 @@ window.UI = (function () {
       sweepModal, recruitModal, gotoQuest, weeklyHtml, achHtml, reincarnModal, charDetail, equipDetail, geneLockModal,
       idleLinesModal, pickIdleLeader, bountyModal, realmModal,
       beastModal,
-      recruitRatesModal, authorityModal, todayModal, todayStrip,
+      recruitRatesModal, authorityModal, todayModal, travelStrip, plaqueRow, sectModal, kejiModal, travelModal,
       _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen, growScreen },
     },
   };

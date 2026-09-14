@@ -197,6 +197,29 @@ t('今日卡含一键收取 / 悬赏 / 免费招募', () => {
     if (html.indexOf(k) < 0) throw new Error('今日卡缺少：' + k);
   });
 });
+// ---- V8.0：首页改「主视觉 + 印章入口带」，并新增评级 / 秘术 / 游历三个面板 ----
+t('首页有主视觉区（stage）', () => {
+  const html = UI._panels._screens.homeScreen();
+  if (html.indexOf('class="stage"') < 0) throw new Error('缺主视觉区');
+});
+t('首页入口带换成印章（旧宫格已下线）', () => {
+  const html = UI._panels._screens.homeScreen();
+  if (html.indexOf('stamp-grid') < 0) throw new Error('缺印章入口带');
+  if (html.indexOf('feat-grid') >= 0) throw new Error('旧宫格还在');
+});
+t('首页两枚匾额：主线 + 今日', () => {
+  const html = UI._panels._screens.homeScreen();
+  if (html.indexOf('plaque-row') < 0) throw new Error('缺匾额排');
+  if (html.indexOf('主线') < 0) throw new Error('缺主线');
+});
+t('首页有游历奇遇条', () => {
+  const html = UI._panels._screens.homeScreen();
+  if (html.indexOf('游历奇遇') < 0) throw new Error('缺游历条');
+});
+panel('主神评级', () => UI._panels.sectModal());
+panel('秘术阁', () => UI._panels.kejiModal());
+panel('游历奇遇', () => UI._panels.travelModal());
+
 t('背包卡片带快捷批量按钮', () => {
   const html = UI._panels._screens.bagScreen();
   if (html.indexOf('data-quick') < 0) throw new Error('背包卡没有快捷按钮');
