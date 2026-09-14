@@ -290,10 +290,13 @@ window.UI = (function () {
     return w;
   }
   function guideModal(chapterId, wrap) {
+    // 指南正文里用 **加粗** 标注重点（数据表里写的就是这个约定），这里统一翻成 <b> 再上屏，
+    // 免得玩家看到一堆星号。
+    const md = s => String(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
     const body = D.GUIDE_CHAPTERS.map(ch => `
       <div class="card" id="guide-${ch.id}" style="margin-bottom:8px">
         <h3>${ch.title}</h3>
-        ${ch.body.map(line => `<div style="font-size:12px;line-height:1.85;color:var(--text)">· ${line}</div>`).join('')}
+        ${ch.body.map(line => `<div style="font-size:12px;line-height:1.85;color:var(--text)">· ${md(line)}</div>`).join('')}
       </div>`).join('')
       + `<div class="card" style="background:var(--panel2)"><h3>📖 看不懂就点这里</h3>
         <div class="note">任何一屏里有「?」或小字说明的地方，都可以点开看解释；货币、道具也都能点开看用途。</div>
@@ -431,6 +434,7 @@ window.UI = (function () {
     if (sub) rosterView = sub;
     dungeonView = { page: 'worlds' };
     batchMode = false; batchSel.clear();
+    cancelGrab(true);                     // 换页时清掉"抓起"状态与拖动监听，别把上次的高亮带过去
     screenEnter = true;
     pendingScroll = null;
     refresh();
@@ -906,8 +910,7 @@ window.UI = (function () {
       buffs: {},
       kills: 0,
     };
-    run.hpPct['@player'] = 1;
-    S.party.filter(Boolean).forEach(id => { run.hpPct[id] = 1; });
+    S.party.filter(Boolean).forEach(id => { run.hpPct[id] = 1; });   // 主角就在 S.party 里
     persistRun();
     dungeonView = { page: 'run' };
     render();
@@ -921,7 +924,7 @@ window.UI = (function () {
     const w = D.WORLDS.find(x => x.id === run.worldId);
     const total = run.waves.length;
     const prog = Array.from({ length: total }, (_, i) => `<i class="${i < run.wave ? 'done' : ''}"></i>`).join('');
-    const partyHp = ['@player', ...C().S.party.filter(Boolean)].map(id => {
+    const partyHp = C().S.party.filter(Boolean).map(id => {
       const pct = run.hpPct[id] !== undefined ? run.hpPct[id] : 1;
       return `<div style="flex:1"><div style="font-size:10px;color:var(--dim);text-align:center">${cname(id)}</div><div class="bar hp ${pct < 0.35 ? 'low' : ''}"><i style="width:${pct * 100}%"></i></div></div>`;
     }).join('');
@@ -1005,29 +1008,169 @@ window.UI = (function () {
   }
 
   /* ================= 队伍 ================= */
+  /* 站位交互：**长按抓起 → 按住拖到目标站位，松手就放下**。
+     （拖不动 / 用鼠标不方便时，抓起后点目标站位也能放下，是备用路径。）
+     只在队伍页用；grabbedPos 是模块级状态，重画之后仍然保留。
+     上阵固定 5 格：'0'~'4'（0/1 前排、2/3/4 后排）；'P' = 主角本身，指向他当前占的那一格
+     （和 core.parsePos 是同一套标识）。 */
+  const LONG_PRESS_MS = 420;
+  let grabbedPos = null;    // 现在被抓起的那一格（null = 手里没东西）
+  let hoverPos = null;      // 拖动中，手指/鼠标当前压在哪一格上
+  let pressTimer = null;
+  let suppressClick = false;
+  let dragging = false;     // 长按已触发、正在拖（用来区分"滚动取消"和"拖动中"）
+  function cancelPress() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }
+  // 拖动中指针底下的落点（鼠标与触摸都走指针坐标，不用各自写一套）：
+  //   站在某一格上 → '0'~'4'；只压在"前排 / 后排"那行标题上 → 'row:front' / 'row:back'
+  function targetAt(x, y) {
+    if (typeof document === 'undefined' || !document.elementFromPoint) return null;
+    const el = document.elementFromPoint(x, y);
+    if (!el || !el.closest) return null;
+    const tile = el.closest('[data-pos]');
+    if (tile && tile.dataset) return tile.dataset.pos || null;
+    const rowEl = el.closest('[data-row]');
+    if (rowEl && rowEl.dataset && rowEl.dataset.row) return 'row:' + rowEl.dataset.row;
+    return null;
+  }
+  // 拖动中给"指针底下那一格"加高亮：只改 class，不整页重画（重画会把手指底下的元素换掉）
+  function paintHover() {
+    const root = document.getElementById ? document.getElementById('view') : null;
+    if (!root || !root.querySelectorAll) return;
+    const hit = t => {
+      if (!t.classList || !t.classList.toggle) return;
+      const key = t.dataset && t.dataset.pos !== undefined ? t.dataset.pos : ('row:' + (t.dataset && t.dataset.row));
+      t.classList.toggle('drop-target', hoverPos !== null && key === hoverPos);
+    };
+    root.querySelectorAll('.pslot').forEach(hit);
+    root.querySelectorAll('.pos-row-label').forEach(hit);
+  }
+  function stopDragTrack() {
+    if (!window.removeEventListener) return;
+    window.removeEventListener('pointermove', onDragMove);
+    window.removeEventListener('pointerup', onDragEnd);
+    window.removeEventListener('pointercancel', onDragEnd);
+  }
+  function onDragMove(ev) {
+    if (grabbedPos === null) return;
+    if (ev && ev.preventDefault) ev.preventDefault();   // 拖动期间页面别跟着滚
+    const p = targetAt(ev ? ev.clientX : 0, ev ? ev.clientY : 0);
+    if (p !== hoverPos) { hoverPos = p; paintHover(); }
+  }
+  function onDragEnd(ev) {
+    stopDragTrack();
+    if (grabbedPos === null) return;
+    const under = ev && ev.clientX !== undefined ? targetAt(ev.clientX, ev.clientY) : null;
+    dropOn(under || hoverPos);
+  }
+  function startDragTrack() {
+    if (!window.addEventListener) return;
+    window.addEventListener('pointermove', onDragMove, { passive: false });
+    window.addEventListener('pointerup', onDragEnd);
+    window.addEventListener('pointercancel', onDragEnd);
+  }
+  // 松手落地：落在别的站位＝换过去；落回自己身上或空白处＝保持"抓着"，等下一次拖动或点选
+  function dropOn(to) {
+    if (grabbedPos === null) return null;
+    if (!to || to === grabbedPos) {
+      hoverPos = null; dragging = false;
+      render();
+      toast('拖到别的站位松手就放下（点一下目标站位也行，Esc 取消）', 2200);
+      return null;
+    }
+    const from = grabbedPos;
+    grabbedPos = null; hoverPos = null; dragging = false;
+    const r = C().swapPositions(from, to);
+    toast(r.msg, r.ok ? 1800 : 2400);
+    sfx(r.ok ? 'success' : 'fail');
+    render();
+    return r;
+  }
+  // 把手里那一格放回原位（Esc / 提示条上的「取消」/ 再点一次自己 / 离开队伍页）
+  function cancelGrab(silent) {
+    const had = grabbedPos !== null;
+    grabbedPos = null; hoverPos = null; dragging = false;
+    cancelPress();
+    stopDragTrack();
+    if (had && !silent) { render(); toast('已放回原位', 1600); }
+    return had;
+  }
+  // 给一个站位元素挂上"长按抓起"的手势（触摸与鼠标都走指针事件；还没长按就滑走＝在滚列表，不算抓）
+  function armLongPress(el, pos) {
+    if (!el.addEventListener) return;
+    const down = ev => {
+      cancelPress();
+      pressTimer = setTimeout(() => {
+        pressTimer = null;
+        suppressClick = true;
+        setTimeout(() => { suppressClick = false; }, 700);   // 兜底：万一点击事件没跟上，别把下一次点击吞掉
+        grabbedPos = pos; hoverPos = pos; dragging = true;
+        sfx('click');
+        render();          // 重画一次，把"抓起"的高亮画出来；之后拖动只改 class，不再重画
+        paintHover();
+        startDragTrack();
+        toast('已抓起，拖到别的站位松手就放下（点一下也行，Esc 取消）', 2400);
+      }, LONG_PRESS_MS);
+    };
+    const up = () => { if (!dragging) cancelPress(); };
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('touchstart', down, { passive: true });
+    el.addEventListener('pointerup', up);
+    el.addEventListener('touchend', up);
+    el.addEventListener('pointercancel', up);
+    el.addEventListener('pointerleave', up);
+    // 长按还没触发就移动 = 在滚列表，取消这次长按；触发之后的拖动交给 window 上的监听
+    el.addEventListener('pointermove', up);
+    el.addEventListener('touchmove', up, { passive: true });
+  }
+  // 点一个站位：手里有东西＝放下换位；没抓着＝空位选人上阵 / 已上阵换人 / 主角看详情。
+  // 单独抽出来是为了能脱离 DOM 直接测（见 scripts/test_ui.js 的"长按抓起 → 拖到另一格放下"）。
+  function clickPosition(pos) {
+    if (suppressClick) { suppressClick = false; return null; }   // 刚才是长按，不再当成点击
+    if (grabbedPos !== null) {
+      if (pos === grabbedPos) { cancelGrab(false); return null; }   // 点自己＝放回原位
+      return dropOn(pos);
+    }
+    if (pos === 'P') { protagonistDetail(); return null; }
+    pickPartyChar(+pos);
+    return null;
+  }
+  // 测试用：读当前"抓起"状态（grabbedPos 是模块级私有变量，外部看不到）
+  function grabState() { return { grabbed: grabbedPos, hover: hoverPos, suppress: suppressClick, dragging }; }
   function partyScreen() {
     const S = C().S;
     const fb = C().factionBuffs(S.party);
-    const pst = C().effectivePlayerStats();
-    const protag = `
-      <div class="pslot filled" data-protag="1" style="border-color:var(--gold);cursor:pointer">
-        <span class="pos-tag">主角 · 前排</span>
-        ${charAvatar('@player', 40)}
-        <div class="pname">${cname('@player')}</div>
-        <div class="pmeta">Lv.${S.player.level} · 战力${fmt(C().playerPower())}</div>
-      </div>`;
-    const slots = S.party.map((id, i) => {
+    const row = C().playerRow();
+    const grabbed = grabbedPos;
+    // 上阵格子**永远固定前 2 后 3（共 5 格）**：主角必上阵，他自己就占其中一格，
+    // 所以主角站前排时前排是「主角 + 1 名队友」，站后排时后排是「主角 + 2 名队友」——不会多出一格。
+    // 换位方式：**长按抓起 → 按住拖到目标位置松手就放下**（主角那张牌也照样能拖）。
+    const gcls = grabbed ? ' grabbed' : '';
+    const slotTile = i => {
+      const id = S.party[i];
       const pos = i < 2 ? '前排' : '后排';
-      if (!id) return `<div class="pslot" data-slot="${i}"><span class="pos-tag">${pos}</span><div style="text-align:center;color:var(--dim);padding-top:34px;font-size:12px">＋ 上阵</div></div>`;
+      const grabCls = grabbed === String(i) ? ' grabbing' : '';
+      if (!id) {
+        const freeHint = grabbed !== null && grabbed !== String(i) ? '放这里' : '＋ 上阵';
+        return `<div class="pslot${grabCls}" data-pos="${i}" data-slot="${i}"><span class="pos-tag">${pos}</span><div style="text-align:center;color:var(--dim);padding-top:34px;font-size:12px">${freeHint}</div></div>`;
+      }
+      if (id === '@player') {
+        return `<div class="pslot filled protag-slot${grabCls}" data-pos="${i}" data-protag="1">
+          <span class="pos-tag" style="color:var(--gold)">主角 · ${C().ROW_NAME[C().playerRow()]}</span>
+          ${charAvatar('@player', 40)}
+          <div class="pname">${cname('@player')}</div>
+          <div class="pmeta">Lv.${S.player.level} · 战力${fmt(C().playerPower())}</div>
+        </div>`;
+      }
       const ch = D.charById[id];
       const c = S.chars[id];
-      return `<div class="pslot filled rarity-${ch.rarity}" data-slot="${i}">
+      return `<div class="pslot filled rarity-${ch.rarity}${grabCls}" data-pos="${i}" data-slot="${i}">
         <span class="pos-tag">${pos}</span>
         ${charAvatar(id, 40)}
         <div class="pname">${cname(id)}</div>
         <div class="pmeta">Lv.${c.lv} · ${ch.role} · ${ch.faction}</div>
       </div>`;
-    }).join('');
+    };
+    const gname = grabbed !== null && S.party[+grabbed] ? cname(S.party[+grabbed]) : '';
     const fbText = [];
     if (fb.atkPct) fbText.push(`攻击+${Math.round(fb.atkPct * 100)}%`);
     if (fb.hpPct) fbText.push(`生命+${Math.round(fb.hpPct * 100)}%`);
@@ -1036,9 +1179,15 @@ window.UI = (function () {
     return `
       <div class="card">
         <h3>⚔️ 轮回小队 <span class="sub">总战力 ${fmt(C().teamPower())}（主角必上阵）</span></h3>
-        <div class="mb3">${protag}</div>
-        <div class="party-slots">${slots}</div>
-        <div style="margin-top:10px;font-size:11px;color:var(--dim)">主角（你）永远参战 · 前排受击概率更高 · 后排相对安全</div>
+        ${grabbed !== null ? `<div class="drag-bar">已抓起「${gname}」 · 拖到别的位置松手放下
+          <button class="btn small ghost" data-grab-cancel="1">取消</button></div>` : ''}
+        <div class="party-grid${gcls}">
+          <div class="pos-row-label" data-row="front">前排 <span>2 格 · 受击概率更高，适合坦度高的</span></div>
+          <div class="party-slots">${slotTile(0)}${slotTile(1)}</div>
+          <div class="pos-row-label" data-row="back">后排 <span>3 格 · 相对安全，适合输出与治疗</span></div>
+          <div class="party-slots">${slotTile(2)}${slotTile(3)}${slotTile(4)}</div>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--dim)"><b>长按</b>任意一格抓起，拖到别的位置松手就换过去（主角那张牌也一样，可以拖到前排也可以拖到后排，直接拖到「前排 / 后排」这行字上也能整排搬）。上阵固定 <b>前 2 后 3</b>，一共 5 格。</div>
         <div class="btn-row mt3">
           <button class="btn small" data-act="auto-equip">⚡ 一键最优装备</button>
           <button class="btn small ghost" data-preset-save="0">存预设 1</button>
@@ -1051,8 +1200,33 @@ window.UI = (function () {
           <button class="btn small gold" data-preset-use="2">套用预设 3</button>
         </div>
         <div class="hint mt1">
-          当前预设：${C().S.presets.map((p, i) => `${i + 1}${p && p.filter(Boolean).length ? '✓' : '—'}`).join(' ')} · 预设记录 4 个上阵位置，一键切换阵容
+          当前预设：${C().S.presets.map((p, i) => `${i + 1}${p && p.filter(Boolean).length ? '✓' : '—'}`).join(' ')} · 预设记录 5 个上阵位置（含主角站哪一排），一键切换阵容
         </div>
+      </div>
+      <div class="card">
+        <h3>成员一览 <span class="sub">点名字看详情 · 换位在上面的站位区长按拖</span></h3>
+        ${S.party.map((id, i) => {
+          const inFront = i < 2;
+          if (!id) return '';
+          if (id === '@player') {
+            return `<div class="list-row" data-protag-row="1" style="cursor:pointer;border-color:#e6b64c55">
+              ${charAvatar('@player', 40)}
+              <div class="grow"><div class="t1">${cname('@player')} <span class="tag" style="color:var(--gold);border-color:var(--gold)">主角</span> <span class="tag">${inFront ? '前排' : '后排'}</span></div>
+                <div class="t2">Lv.${S.player.level} · 战力${fmt(C().playerPower())} · 必上阵，不能下阵</div></div>
+            </div>`;
+          }
+          const ch = D.charById[id];
+          const c = S.chars[id];
+          const st = C().effectiveStats(id);
+          return `<div class="list-row" data-char="${id}" style="cursor:pointer">
+            ${charAvatar(id, 40)}
+            <div class="grow"><div class="t1">${cname(id)} <span class="stars">${stars(c.star, D.RARITY_MAXSTAR[ch.rarity])}</span> <span class="tag">${inFront ? '前排' : '后排'}</span></div>
+            <div class="t2">攻${fmt(st.atk)} · 防${fmt(st.def)} · 血${fmt(st.hp)} · 速${fmt(st.spd)}</div></div>
+            <button class="btn small ghost" data-remove="${id}">下阵</button>
+          </div>`;
+        }).join('')}
+        ${S.party.filter(id => id && id !== '@player').length ? '' : `<div class="empty">还没有招募角色上阵。上阵共 5 格（前 2 后 3），主角占 1 格，还能再上 4 名队友。</div>
+          <button class="btn primary block mt3" data-act="open-recruit">✦ 去招募角色</button>`}
       </div>
       <div class="card">
         <h3>🧩 阵型 <span class="sub">主角是"万能补位"</span></h3>
@@ -1071,21 +1245,7 @@ window.UI = (function () {
         <div style="margin-top:8px;font-size:11px;color:var(--dim)">「同阵营」一族只取命中的最高档，不重复叠；主角不属于任何阵营，但可以顶任意一个阵营的名额。</div>
         <div class="hint mt1">克制环：先锋→策略→科技→异能→先锋（克制伤害+15%）</div>
       </div>
-      <div class="card">
-        <h3>成员一览</h3>
-        ${S.party.filter(Boolean).map(id => {
-          const ch = D.charById[id];
-          const c = S.chars[id];
-          const st = C().effectiveStats(id);
-          return `<div class="list-row" data-char="${id}" style="cursor:pointer">
-            ${charAvatar(id, 40)}
-            <div class="grow"><div class="t1">${cname(id)} <span class="stars">${stars(c.star, D.RARITY_MAXSTAR[ch.rarity])}</span></div>
-            <div class="t2">攻${fmt(st.atk)} · 防${fmt(st.def)} · 血${fmt(st.hp)} · 速${fmt(st.spd)}</div></div>
-            <button class="btn small ghost" data-remove="${id}">下阵</button>
-          </div>`;
-        }).join('') || `<div class="empty">还没有上阵任何角色。招募到的角色在这里上阵，前 2 后 2 共 4 位（主角必上阵）。</div>
-          <button class="btn primary block mt3" data-act="open-recruit">✦ 去招募角色</button>`}
-      </div>`;
+      `;
   }
   /* ================= 主角详情 ================= */
   function protagonistDetail(scrollTop, wrap) {
@@ -1219,6 +1379,7 @@ window.UI = (function () {
         const id = el.dataset.pick;
         if (S.party.includes(id)) return;
         const oldId = S.party[slotIdx];
+        if (oldId === '@player') return;     // 主角那一格不能被顶掉
         S.party[slotIdx] = id;
         C().save();
         closeModal(w);
@@ -1476,7 +1637,8 @@ window.UI = (function () {
       <button class="btn ghost block mt4" data-back>‹ 返回角色</button>`);
     w.querySelector('[data-back]').onclick = () => backFn(w);
     w.querySelectorAll('[data-eq]').forEach(el => el.onclick = () => {
-      if (C().equipItem(charId, el.dataset.eq)) toast('已装备');
+      const from = C().equipWearer(el.dataset.eq);
+      if (C().equipItem(charId, el.dataset.eq)) toast(from && from !== charId ? `已装备（从 ${cname(from)} 身上取下）` : '已装备');
       else toast('该角色无法穿戴此装备');
       backFn(w);
     });
@@ -1623,24 +1785,27 @@ window.UI = (function () {
     };
     w.querySelector('[data-equipto]').onclick = () => {
       closeModal(w);
+      const wearer = C().equipWearer(uid);   // 现在这件穿在谁身上（一件装备只有一个人穿）
       const canPlayer = D.PLAYER_SLOTS.includes(eq.slot);
       const candidates = (eq.charId ? [eq.charId] : (canPlayer ? ['@player'] : []).concat(Object.keys(S.chars)))
         .filter(id => C().canEquip(id, eq));
-      const w2 = modal('装备给…', candidates.map(id => {
+      const w2 = modal('装备给…', (wearer ? `<div class="hint mb2">现在穿在 <b>${cname(wearer)}</b> 身上；换成别人会自动从他身上取下（一件装备只能有一个人穿）。</div>` : '')
+        + candidates.map(id => {
         if (id === '@player') {
           return `<div class="list-row tap" data-to="@player">
             ${charAvatar('@player', 36)}
-            <div class="grow"><div class="t1">${cname('@player')}（主角）</div><div class="t2">Lv.${S.player.level} · 战力${fmt(C().playerPower())}</div></div>
+            <div class="grow"><div class="t1">${cname('@player')}（主角）${wearer === '@player' ? ' <span class="tag" style="color:var(--gold)">当前穿戴</span>' : ''}</div><div class="t2">Lv.${S.player.level} · 战力${fmt(C().playerPower())}</div></div>
           </div>`;
         }
         const ch = D.charById[id];
         return `<div class="list-row" data-to="${id}" style="cursor:pointer">
           ${charAvatar(id, 36)}
-          <div class="grow"><div class="t1">${cname(id)}</div><div class="t2">Lv.${S.chars[id].lv} · ${ch.role}</div></div>
+          <div class="grow"><div class="t1">${cname(id)}${wearer === id ? ' <span class="tag" style="color:var(--gold)">当前穿戴</span>' : ''}</div><div class="t2">Lv.${S.chars[id].lv} · ${ch.role}</div></div>
         </div>`;
       }).join('') || '<div class="empty">没有可穿戴该装备的角色</div>');
       w2.querySelectorAll('[data-to]').forEach(el => el.onclick = () => {
-        if (C().equipItem(el.dataset.to, uid)) toast('已装备');
+        const from = C().equipWearer(uid);
+        if (C().equipItem(el.dataset.to, uid)) toast(from && from !== el.dataset.to ? `已装备（从 ${cname(from)} 身上取下）` : '已装备');
         else toast('该角色无法穿戴此装备');
         closeModal(w2);
         render();
@@ -1863,6 +2028,13 @@ window.UI = (function () {
 
   /* ================= 主神权限（对标《道友修仙》的"洞府"） ================= */
   /* ================= 药园（对标《道友修仙》洞府里的"药园"） ================= */
+  // 一块地收什么：主产 + 稀有掉落概率，写成一行的文字（"说明与实装同源"：直接读 GARDEN 数据）
+  function gardenYieldText(g) {
+    const nm = id => (D.ITEMS[id] || {}).name || id;
+    let s = `${nm(g.out.item)}×${g.out.n}`;
+    if (g.extra) s += ` · ${Math.round(g.extra.p * 100)}% 出 ${nm(g.extra.item)}×${g.extra.n}`;
+    return s;
+  }
   function gardenModal(wrap) {
     const plots = C().gardenState();
     const busy = plots.filter(p => p.plot).length;
@@ -1870,15 +2042,16 @@ window.UI = (function () {
       <div class="card" style="border-color:#e6b64c44">
         <h3>药园 <span class="sub">${busy} / ${D.GARDEN_PLOTS} 块在用</span></h3>
         <div class="note">花 ◈点数种下灵田，到点回来收强化材料——这是"点数换材料"的稳定出口，不用一直刷副本。
-          另外有几率出稀有物（兽魂石 / 装备箱）。种下就开始计时，离线也算。</div>
+          另外有几率出稀有物（兽魂石 / 装备箱）。种下就开始计时，离线也算。
+          收货分量按"强化时用点数替代材料"的价定，比直接用点数补材料划算。</div>
       </div>
       ${plots.map(p => `<div class="list-row">
         <span class="tag">第 ${p.idx + 1} 块</span>
         <div class="grow">
           <div class="t1">${p.plot ? p.kind.name : '空地'}</div>
           <div class="t2">${p.plot
-            ? (p.ready ? '已成熟，可以收了' : `成熟还需 ${formatDuration(Math.ceil(p.leftMs / 1000))}`)
-            : `可种「${p.kind.name}」：◈${fmt(p.kind.points)} · ${Math.round(p.kind.sec / 60)} 分钟`}</div>
+            ? (p.ready ? `已成熟，可以收了 → 收 ${gardenYieldText(p.kind)}` : `成熟还需 ${formatDuration(Math.ceil(p.leftMs / 1000))} → 收 ${gardenYieldText(p.kind)}`)
+            : `可种「${p.kind.name}」：◈${fmt(p.kind.points)} · ${Math.round(p.kind.sec / 60)} 分钟 → 收 ${gardenYieldText(p.kind)}`}</div>
         </div>
         ${p.plot
           ? `<button class="btn small ${p.ready ? 'gold' : ''}" data-harvest="${p.idx}" ${p.ready ? '' : 'disabled'}>${p.ready ? '收获' : '未熟'}</button>`
@@ -2614,7 +2787,7 @@ window.UI = (function () {
       setTab('home');
       setTimeout(() => {
         protagonistDetail();
-        coachmark('[data-pblup]', '血统升级消耗血统结晶 + 点数，是中期最猛的成长线；主角 Lv.10 之后还能在「🌌 境界」里渡劫，每突破一境全属性永久 +5%。');
+        coachmark('[data-pblup]', '血统升级消耗血统结晶 + 点数，是中期最猛的成长线；主角 Lv.10 之后还能在「🌌 境界」里渡劫——每突破一小阶全属性永久 +1.4%，36 阶合计 +50.4%。');
       }, 250);
       return;
     }
@@ -2634,7 +2807,8 @@ window.UI = (function () {
     }
     if (qid === 'q04') {
       setTab('party');
-      coachmark('[data-slot="0"]', '点击空位，把招募到的角色放入队伍。主角必上阵，还可再上 4 名队友（前 2 后 2）。');
+      // 注意：主角默认就占着第 1 格，所以这里指向"前排"这一整排，别指向某个具体格子（可能正好是主角）
+      coachmark('[data-row="front"]', '点空位把招募到的角色放进队伍。上阵共 5 格（前 2 后 3），主角占其中一格，还能再上 4 名队友；想换位置就长按任意一格抓起，按住拖到别的位置松手放下——主角也能拖到后排。');
       return;
     }
     if (qid === 'q07') {
@@ -3271,7 +3445,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.2</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.3</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -3352,31 +3526,34 @@ window.UI = (function () {
     const buffAtk = (extraBuffs && extraBuffs.atkPct) || 0;
     const buffSpd = (extraBuffs && extraBuffs.spdPct) || 0;
     const allies = [];
-    // 主角必上阵
-    if (!hpPctMap || hpPctMap['@player'] === undefined || hpPctMap['@player'] > 0.01) {
-      const pst = C().effectivePlayerStats();
-      const pFullHp = pst.hp;
-      const pHp = hpPctMap && hpPctMap['@player'] !== undefined ? Math.max(1, Math.round(pFullHp * hpPctMap['@player'])) : pFullHp;
-      allies.push(Object.assign({}, pst, {
-        name: cname('@player'), kind: 'warrior', faction: null,
-        position: 'front',
-        skills: C().protagonistSkills(), skillLv: S.player.skillLv || [1, 1, 1],
-        atk: Math.round(pst.atk * (1 + buffAtk) * mult),
-        def: Math.round(pst.def * mult),
-        spd: Math.round(pst.spd * (1 + buffSpd) * mult),
-        hp: Math.round(pHp * mult), maxHp: Math.round(pFullHp * mult),
-        charId: '@player',
-      }));
-    }
-    S.party.filter(Boolean).filter(id => !hpPctMap || (hpPctMap[id] === undefined || hpPctMap[id] > 0.01)).forEach(id => {
+    // 上阵 5 格里就有主角本人（'@player'）：站哪一排完全看他占的是哪一格（0/1 前排、2/3/4 后排）
+    S.party.forEach((id, idx) => {
+      if (!id) return;
+      if (hpPctMap && hpPctMap[id] !== undefined && hpPctMap[id] <= 0.01) return;   // 这一波他已经倒下了
+      const position = idx < 2 ? 'front' : 'back';
+      if (id === '@player') {
+        const pst = C().effectivePlayerStats();
+        const pFullHp = pst.hp;
+        const pHp = hpPctMap && hpPctMap['@player'] !== undefined ? Math.max(1, Math.round(pFullHp * hpPctMap['@player'])) : pFullHp;
+        allies.push(Object.assign({}, pst, {
+          name: cname('@player'), kind: 'warrior', faction: null,
+          position,
+          skills: C().protagonistSkills(), skillLv: S.player.skillLv || [1, 1, 1],
+          atk: Math.round(pst.atk * (1 + buffAtk) * mult),
+          def: Math.round(pst.def * mult),
+          spd: Math.round(pst.spd * (1 + buffSpd) * mult),
+          hp: Math.round(pHp * mult), maxHp: Math.round(pFullHp * mult),
+          charId: '@player',
+        }));
+        return;
+      }
       const base = D.charById[id];
       const eff = C().effectiveStats(id);
-      const idx = S.party.indexOf(id);
       const fullHp = Math.round(eff.hp * (1 + fb.hpPct));
       const hp = hpPctMap && hpPctMap[id] !== undefined ? Math.max(1, Math.round(fullHp * hpPctMap[id])) : fullHp;
       allies.push(Object.assign({}, eff, {
         name: cname(id), kind: base.kind, faction: base.faction,
-        position: idx < 2 ? 'front' : 'back',
+        position,
         skills: base.skills, skillLv: S.chars[id].skillLv,
         atk: Math.round(eff.atk * (1 + fb.atkPct + buffAtk) * mult),
         def: Math.round(eff.def * mult),
@@ -3944,7 +4121,7 @@ window.UI = (function () {
         case 'open-ach': tasksModal('ach'); break;
         case 'auto-equip': {
           const r = C().autoEquipBest();
-          toast(r.changed ? `已为 ${r.members} 名成员换上 ${r.changed} 件更优装备` : '当前已是最优配置', 2400);
+          toast(r.changed ? `已为 ${r.members} 名成员重新分配 ${r.changed} 处装备（含从没上阵的角色身上取下的）` : '当前已是最优配置', 2600);
           sfx('coin');
           render(); renderTopbar();
           break;
@@ -4027,7 +4204,14 @@ window.UI = (function () {
         render();
       });
     });
-    root.querySelectorAll('[data-slot]').forEach(el => el.onclick = () => pickPartyChar(+el.dataset.slot));
+    // 站位：长按抓起 → 拖到别的位置松手放下；没抓起时，点空位＝选人上阵，点已上阵＝换人，点主角＝看详情
+    root.querySelectorAll('[data-pos]').forEach(el => {
+      const pos = el.dataset.pos;
+      armLongPress(el, pos);
+      el.onclick = () => clickPosition(pos);
+    });
+    const grabCancel = root.querySelector('[data-grab-cancel]');
+    if (grabCancel) grabCancel.onclick = () => { cancelGrab(false); };
     root.querySelectorAll('[data-preset-save]').forEach(el => el.onclick = () => {
       const r = C().savePreset(+el.dataset.presetSave);
       toast(r.msg || (r.ok ? '已保存编队预设' : '保存失败'));
@@ -4040,10 +4224,14 @@ window.UI = (function () {
       sfx(r.ok ? 'success' : 'fail');
       if (r.ok) render();
     });
-    root.querySelectorAll('[data-protag]').forEach(el => el.onclick = () => protagonistDetail());
+    // 顶栏状态行的「轮回」那一格也开主角详情；队伍页的主角牌由 [data-pos] 接管（带长按换位）
+    root.querySelectorAll('[data-protag]:not([data-pos])').forEach(el => el.onclick = () => protagonistDetail());
+    // 成员一览里点主角那一行 = 打开主角详情
+    root.querySelectorAll('[data-protag-row]').forEach(el => el.onclick = () => protagonistDetail());
     root.querySelectorAll('[data-remove]').forEach(el => el.onclick = ev => {
       ev.stopPropagation();
       const S = C().S;
+      if (el.dataset.remove === '@player') { toast('主角必上阵，不能下阵'); return; }   // 主角占着一格，但拖不出去
       const idx = S.party.indexOf(el.dataset.remove);
       if (idx >= 0) { S.party[idx] = null; C().save(); render(); }
     });
@@ -4245,6 +4433,11 @@ window.UI = (function () {
       // 手机返回键 / 手势：先关弹窗，再退子页面，最后才交给系统
       armGuard();   // 先放一条哨兵，保证"返回"优先被游戏接管
       if (window.addEventListener) window.addEventListener('popstate', onPopState);
+      // Esc = 把"长按抓起"的那一格放回去（长按换位的撤销出口，和提示条上的「取消」等效）
+      if (window.addEventListener) window.addEventListener('keydown', ev => {
+        if (ev.key !== 'Escape') return;
+        cancelGrab(false);
+      });
       installClickGuard();                 // 防连点
       C().setCurListener(pulseCur);        // 货币变化 → ±数值跳动
       // 全局点击音效（按钮级）
@@ -4289,6 +4482,8 @@ window.UI = (function () {
       bloodlineModal,
       autoNextIndex, autoNextBtnHtml,
       gardenModal, arenaModal, fabaoModal, mountModal, signModal,
+      buildAllies,
+      armLongPress, clickPosition, dropOn, cancelGrab, grabState,
       _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen, growScreen },
     },
   };

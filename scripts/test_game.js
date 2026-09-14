@@ -22,10 +22,32 @@ function withRandom(v, fn) { Math.random = () => v; try { return fn(); } finally
 Core.newGame();
 t('初始点数 50000', Core.S.cur.points === 50000);
 t('初始无招募角色', Object.keys(Core.S.chars).length === 0);
-t('招募位全空（主角必上阵不占位）', Core.S.party.filter(Boolean).length === 0);
+// 上阵 5 格：0/1 前排、2/3/4 后排；主角本人（'@player'）就占一格
+t('开局上阵只有主角一人', Core.S.party.length === 5 && Core.S.party[0] === '@player' && Core.S.party.filter(Boolean).length === 1);
 t('主角未命名', Core.S.player.name === '');
 t('命名主角', Core.setPlayerName('测试者') && Core.charName('@player') === '测试者');
 t('主角独立属性', (() => { const st = Core.effectivePlayerStats(); return st.atk > 0 && st.hp > 0; })());
+// 组队助手：传要上阵的招募角色（最多 4 个），主角自动排进去（默认前排第一格）
+function setParty(ids, playerRow) {
+  const m = (ids || []).slice(0, 4);
+  Core.S.party = (playerRow === 'back')
+    ? [m[0] || null, m[1] || null, '@player', m[2] || null, m[3] || null]
+    : ['@player', m[0] || null, m[1] || null, m[2] || null, m[3] || null];
+  return Core.S.party;
+}
+// 测试用：按 S.party 现况拼出战斗编队（主角用主角属性，其余人用角色属性）
+function alliesFromParty() {
+  const pst = Core.effectivePlayerStats();
+  return Core.S.party.filter(Boolean).map((id, i) => {
+    const position = i < 2 ? 'front' : 'back';
+    if (id === '@player') {
+      return Object.assign({ name: '主角', kind: 'warrior', faction: null, position, skills: D.PROTAGONIST.skills, skillLv: Core.S.player.skillLv || [1, 1, 1], maxHp: pst.hp, charId: '@player' }, pst);
+    }
+    const base = D.charById[id];
+    const eff = Core.effectiveStats(id);
+    return Object.assign({ name: base.name, kind: base.kind, faction: base.faction, position, skills: base.skills, skillLv: Core.S.chars[id].skillLv, maxHp: eff.hp }, eff);
+  });
+}
 t('主角与招募角色都是6装备槽', D.PLAYER_SLOTS.length === 6 && D.RECRUIT_SLOTS.length === 6);
 t('W01解锁', Core.S.worlds.W01 && Core.S.worlds.W01.unlocked);
 t('招募初始锁定', !Core.isUnlocked('recruit'));
@@ -78,13 +100,7 @@ t('招募计数', results >= 100);
 
 // 6. 战斗：强队打 W01 第一关必胜（含主角）
 Object.keys(Core.S.chars).forEach(id => { Core.S.chars[id].lv = 30; });
-const pst = Core.effectivePlayerStats();
-const allies = [Object.assign({ name: '主角', kind: 'warrior', faction: null, position: 'front', skills: D.PROTAGONIST.skills, skillLv: [1, 1, 1], maxHp: pst.hp, charId: '@player' }, pst)]
-  .concat(Core.S.party.filter(Boolean).map((id, i) => {
-  const base = D.charById[id];
-  const eff = Core.effectiveStats(id);
-  return Object.assign({ name: base.name, kind: base.kind, faction: base.faction, position: i < 2 ? 'front' : 'back', skills: base.skills, skillLv: Core.S.chars[id].skillLv, maxHp: eff.hp }, eff);
-}));
+const allies = alliesFromParty();
 const enemies = Dungeon.makeEnemies('W01', 'normal', 1, 'combat');
 const res = Battle.run({ allies, enemies, worldId: 'W01', maxRounds: 30 });
 t('Lv30打W01-1胜利', res.win);
@@ -161,21 +177,14 @@ t('默认不可转生', !Core.canReincarnate());
 
 // 17. 全员满级队打 W03 Boss（中期校验）
 Object.keys(Core.S.chars).forEach(id => { Core.S.chars[id].lv = 60; Core.S.chars[id].star = 3; });
-Core.S.party = Object.keys(Core.S.chars).slice(0, 4); // 组满 4 名招募角色，模拟正常中期队伍
+setParty(Object.keys(Core.S.chars).slice(0, 4)); // 组满 4 名招募角色 + 主角，模拟正常中期队伍
 Core.S.player.level = 60;
-const pst2 = Core.effectivePlayerStats();
-const allies2 = [Object.assign({ name: '主角', kind: 'warrior', faction: null, position: 'front', skills: D.PROTAGONIST.skills, skillLv: [3, 3, 3] }, pst2)]
-  .concat(Core.S.party.filter(Boolean).map((id, i) => {
-  const base = D.charById[id];
-  const eff = Core.effectiveStats(id);
-  return Object.assign({ name: base.name, kind: base.kind, faction: base.faction, position: i < 2 ? 'front' : 'back', skills: base.skills, skillLv: [5, 5, 5] }, eff);
-}));
+const allies2 = alliesFromParty();
 const w3boss = Dungeon.makeEnemies('W03', 'normal', 12, 'boss');
 const w3res = Battle.run({ allies: allies2, enemies: w3boss, worldId: 'W03', maxRounds: 50 });
 t('Lv60★3 五人队能打过 W03 Boss', w3res.win);
 Core.S.player.level = 1;
-Core.S.party = [null, null, null, null];
-Core.S.party[1] = 'C021';
+setParty(['C021']);
 
 // 10b. 主角成长体系
 {
@@ -588,7 +597,7 @@ Core.S.party[1] = 'C021';
 {
   Core.newGame(); Core.setPlayerName('配装');
   ['C021', 'C022', 'C023', 'C024'].forEach(id => Core.addChar(id));
-  Core.S.party = ['C021', 'C022', 'C023', 'C024'];
+  setParty(['C021', 'C022', 'C023', 'C024']);
   for (let i = 0; i < 16; i++) Core.grantEquip('W03', 'SSR');
   const r = Core.autoEquipBest();
   t('一键最优装备会换装', r.ok && r.changed > 0);
@@ -603,9 +612,9 @@ Core.S.party[1] = 'C021';
   for (let i = 0; i < 6; i++) Core.grantEquip('W06', 'UR', 'weapon');
   Core.autoEquipBest();
   t('锁定装备不会被一键换走', Core.S.equipped['C021'].weapon === w1.equip.uid);
-  t('编队预设保存', Core.savePreset(0).ok && Core.S.presets[0].filter(Boolean).length === 4);
-  Core.S.party = [null, null, null, null];
-  t('编队预设套用', Core.applyPreset(0).ok && Core.S.party.filter(Boolean).length === 4);
+  t('编队预设保存（5 格，含主角）', Core.savePreset(0).ok && Core.S.presets[0].filter(Boolean).length === 5);
+  setParty([]);
+  t('编队预设套用', Core.applyPreset(0).ok && Core.S.party.filter(Boolean).length === 5);
   t('空预设不可套用', !Core.applyPreset(2).ok);
 }
 
@@ -815,9 +824,9 @@ Core.S.party[1] = 'C021';
   const baseExp = Core.idleRates().expPerMin;
   const basePoints = Core.idleRates().pointsPerMin;
   t('没派领队时产线全是空的', Core.idleLines().every(x => !x.leaderId));
-  Core.S.party[0] = cid;
+  Core.S.party[1] = cid;          // 1 号位是前排的第二个格子（0 号位是主角）
   t('上阵主力不能派去挂机', Core.setIdleLeader('cultivate', cid).ok === false);
-  Core.S.party[0] = null;
+  Core.S.party[1] = null;
   t('派领队成功', Core.setIdleLeader('cultivate', cid).ok);
   t('派了领队后挂机经验变高', Core.idleRates().expPerMin > baseExp);
   t('没派领队的产线不受影响', Math.abs(Core.idleRates().pointsPerMin - basePoints) < 1e-6);
@@ -1207,6 +1216,16 @@ Core.S.party[1] = 'C021';
   t('熟了能收', h1.ok);
   t('收获给到材料', (Core.S.items.mat_t1 || 0) >= D.GARDEN[0].out.n);
   t('收完地变空', !Core.S.garden[0]);
+  // 种地不能是"亏本买卖"：收获材料的替代价必须 ≥ 投入点数（否则点数不如直接留着买材料）
+  t('每块灵田都不亏（收获价值 ≥ 投入点数）', D.GARDEN.every(g => {
+    const tier = +g.out.item.replace('mat_t', '');
+    const worth = (D.MAT_SUBSTITUTE_POINTS[tier] || 0) * g.out.n;
+    return worth >= g.points;
+  }));
+  t('灵田产量比直接买材料更划算（≥1.1 倍投入）', D.GARDEN.every(g => {
+    const tier = +g.out.item.replace('mat_t', '');
+    return (D.MAT_SUBSTITUTE_POINTS[tier] || 0) * g.out.n >= g.points * 1.1;
+  }));
   Core.S.cur.points = 0;
   t('点数不足种不下', !Core.plantGarden(1, 'g1').ok);
   // 一键收：两块地都熟了才收得动
@@ -1334,6 +1353,151 @@ Core.S.party[1] = 'C021';
   t('新道具都有真实用途', ['heal_x', 'def_shield', 'atk_surge', 'spd_surge', 'exp_xxl'].every(k => {
     const it = D.ITEMS[k]; return it && (it.effect || it.exp);
   }));
+}
+
+// ---- V8.3 站位（主角也能选前后排）＋ 装备唯一性 ----
+{
+  Core.newGame();
+  t('上阵固定 5 格（前 2 后 3）', Core.rowOfSlots('front').join(',') === '0,1' && Core.rowOfSlots('back').join(',') === '2,3,4');
+  t('开局主角占第 1 格', Core.S.party.indexOf('@player') === 0);
+  t('主角默认站前排', Core.playerRow() === 'front');
+  t('主角能换到后排', Core.setPlayerRow('back').ok && Core.playerRow() === 'back');
+  t('重复换同一排会被拒', !Core.setPlayerRow('back').ok);
+  t('主角能换回前排', Core.setPlayerRow('front').ok && Core.playerRow() === 'front');
+  t('站位表把主角算进去', Core.rowLayout().front.includes('@player'));
+  Core.setPlayerRow('back');
+  t('主角在后排时不出现在前排', !Core.rowLayout().front.includes('@player') && Core.rowLayout().back.includes('@player'));
+  Core.setPlayerRow('front');
+  t('主角换排之后队伍里还是只有他一个（不会分身）', Core.S.party.filter(x => x === '@player').length === 1);
+
+  // 队员换排：有空位直接搬，没空位和那一排第一个换
+  Core.newGame();
+  Core.addChar('C021'); Core.addChar('C022'); Core.addChar('C023'); Core.addChar('C024');
+  Core.addChar('C025');
+  setParty(['C021', 'C022', 'C023', 'C024']);
+  t('组满之后 5 格全是人', Core.S.party.filter(Boolean).length === 5);
+  const mv = Core.moveMemberRow('C021', 'back');
+  t('前排成员能移到后排', mv.ok && Core.S.party.indexOf('C021') >= 2);
+  t('移过去之后原位置空了（不会分身）', Core.S.party.filter(x => x === 'C021').length === 1);
+  const mv2 = Core.moveMemberRow('C021', 'front');
+  t('后排成员能移回前排', mv2.ok && Core.S.party.indexOf('C021') < 2);
+  t('已经在那一排时不动', !Core.moveMemberRow(Core.S.party[0], 'front').ok);
+  // 两排都满时：和那一排第一个换位
+  const before0 = Core.S.party[0], before2 = Core.S.party[2];
+  const sw = Core.moveMemberRow(Core.S.party[0], 'back');
+  t('目标排满时与那一排第一个换位', sw.ok && Core.S.party[2] === before0 && Core.S.party[0] === before2);
+  const sp = Core.swapPartySlots(0, 3);
+  t('任意两个位置能互换', sp.ok && Core.S.party[3] === before2);
+  t('同位置互换被拒', !Core.swapPartySlots(1, 1).ok);
+
+  // 长按换位走的总入口：swapPositions（'0'~'4' 上阵位，'P' 主角本人，'row:front/back' 整排）
+  Core.newGame();
+  Core.addChar('C021'); Core.addChar('C022'); Core.addChar('C023'); Core.addChar('C024');
+  setParty(['C021', 'C022', 'C023']);                 // 0 主角,1 C021,2 C022,3 C023,4 空
+  t('位置解析：P 指向主角那一格、数字是格子号、row:xxx 是整排',
+    Core.parsePos('P').idx === 0 && Core.parsePos('P').protag && Core.parsePos('2').idx === 2 && Core.parsePos('row:back').row === 'back');
+  t('位置能算出在哪一排',
+    Core.posRow('P') === 'front' && Core.posRow('2') === 'back' && Core.posRow('4') === 'back' && Core.posRow('row:back') === 'back');
+  t('位置解析：空值不算位置', !Core.parsePos('') && !Core.parsePos(null));
+  // 格子 ↔ 格子：两人互换（含空位）
+  const mvSlot = Core.swapPositions('1', '4');
+  t('队友能拖到空位', mvSlot.ok && Core.S.party[4] === 'C021' && !Core.S.party[1] && Core.S.party[0] === '@player');
+  t('拖到另一个队友身上＝两人互换', (() => {
+    const a = Core.S.party[1], b = Core.S.party[2];
+    const r = Core.swapPositions('1', '2');
+    return r.ok && Core.S.party[2] === a && Core.S.party[1] === b;
+  })());
+  // 主角 ↔ 后排的格子：两人互换（主角跟队友一样占一格，换完两排仍是 2 + 3）
+  Core.newGame(); Core.addChar('C021'); Core.addChar('C022'); Core.addChar('C023'); Core.addChar('C024');
+  setParty(['C021', 'C022', 'C023', 'C024']);
+  const othersBefore = Core.S.party.filter(x => x !== '@player').slice().sort().join(',');
+  const mvP = Core.swapPositions('P', '2');
+  t('主角能拖到后排的格子上', mvP.ok && Core.playerRow() === 'back');
+  t('主角换过去之后，原来那一格由那个队友顶上（互换）', Core.S.party[0] === 'C022' && Core.S.party[2] === '@player');
+  t('换位不会弄丢人也不会造重复', (() => {
+    const all = Core.S.party.filter(Boolean);
+    return all.length === 5 && new Set(all).size === 5 && Core.S.party.filter(x => x !== '@player').slice().sort().join(',') === othersBefore;
+  })());
+  t('主角拖到整排标题也能换排', Core.swapPositions('P', 'row:front').ok && Core.playerRow() === 'front');
+  t('主角拖到已经在的那一排会被拒', !Core.swapPositions('P', 'row:front').ok);
+  t('主角拖到自己那一格无效', !Core.swapPositions('P', 'P').ok);
+  // 主角拖到空位＝搬过去，原来那一格留空
+  Core.newGame(); Core.addChar('C021');
+  setParty(['C021']);                                  // 0 主角,1 C021,2~4 空
+  t('主角拖到空的后排格＝搬过去、原位留空', (() => {
+    const r = Core.swapPositions('P', '3');
+    return r.ok && Core.playerRow() === 'back' && Core.S.party[3] === '@player' && Core.S.party[0] === null;
+  })());
+  // 队友 → 整排标题
+  t('队友拖到"后排"整排标题＝搬到后排', (() => {
+    Core.newGame(); Core.addChar('C021'); Core.addChar('C022'); Core.addChar('C023'); Core.addChar('C024');
+    setParty(['C021', 'C022', 'C023']);
+    const r = Core.swapPositions('1', 'row:back');
+    return r.ok && Core.S.party.indexOf('C021') >= 2;
+  })());
+  t('空位拖到整排标题＝拒绝（那一格上没人）', (() => {
+    Core.newGame(); Core.addChar('C021');
+    setParty(['C021']);
+    return !Core.swapPositions('4', 'row:front').ok;
+  })());
+  // 老存档迁移：4 格（主角不占位）→ 5 格（主角占一格）
+  t('老档迁移：主角原来在前排', (() => {
+    Core.newGame();
+    const mates = ['C021', 'C022', 'C023', 'C024'];
+    mates.forEach(id => Core.addChar(id));
+    // normalizeParty 就是读档时用的那一步，这里直接调它模拟老档
+    const old4 = ['C021', 'C022', 'C023', 'C024'];
+    const a = Core.normalizeParty(old4, 'front');
+    const ok1 = a.length === 5 && a[0] === '@player' && a[1] === 'C021' && a[4] === 'C024';
+    const b = Core.normalizeParty(old4, 'back');
+    const ok2 = b.length === 5 && b[2] === '@player' && b[0] === 'C021' && b[4] === 'C024';
+    // 新结构再跑一次不会被改动（幂等）
+    const c = Core.normalizeParty(a, 'back');
+    const ok3 = c.join(',') === a.join(',');
+    return ok1 && ok2 && ok3;
+  })());
+
+  // 装备唯一性：一件装备不能同时穿在两个人身上
+  Core.newGame();
+  Core.addChar('C021'); Core.addChar('C022');
+  // 固定造"普通套装"装备：grantEquip 有概率出职业套装（限定位才能穿），不适合做唯一性用例
+  const mkEq = (uid, rarity) => { Core.S.equips[uid] = D.makeEquip('W01', 'weapon', rarity, uid, { setType: 'plain' }); return uid; };
+  const u1 = mkEq('test_eq_1', 'SR');
+  t('先给甲穿上', Core.equipItem('C021', u1));
+  t('甲穿着它', Core.equipWearer(u1) === 'C021');
+  t('再给乙穿同一件也成功（会自动从甲身上取下）', Core.equipItem('C022', u1));
+  t('同一件装备只剩一个人穿', Core.equipWearer(u1) === 'C022');
+  t('甲身上已经没有这件了', !(Core.S.equipped['C021'] || {}).weapon);
+  t('全队找不到重复穿戴', (() => {
+    const seen = new Set(); let dup = false;
+    Object.values(Core.S.equipped).forEach(sl => Object.values(sl).forEach(u => { if (!u) return; if (seen.has(u)) dup = true; seen.add(u); }));
+    return !dup;
+  })());
+  // 一键最优装备也不能造出重复
+  Core.S.party = ['C021', 'C022'];
+  mkEq('test_eq_2', 'SR'); mkEq('test_eq_3', 'UR'); mkEq('test_eq_4', 'R');
+  mkEq('test_eq_5', 'SSR'); mkEq('test_eq_6', 'N');
+  Core.autoEquipBest();
+  t('一键最优装备后也没有重复穿戴', (() => {
+    const seen = new Set(); let dup = false;
+    Object.values(Core.S.equipped).forEach(sl => Object.values(sl).forEach(u => { if (!u) return; if (seen.has(u)) dup = true; seen.add(u); }));
+    return !dup;
+  })());
+  // 老档脏数据：同一件装备挂在两个人身上，读档时会被修掉
+  Core.newGame();
+  Core.addChar('C021'); Core.addChar('C022');
+  const u2 = mkEq('test_eq_7', 'SR');
+  Core.S.equipped['C021'] = Object.assign({}, Core.S.equipped['C021'], { weapon: u2 });
+  Core.S.equipped['C022'] = Object.assign({}, Core.S.equipped['C022'], { weapon: u2 });
+  t('修脏数据：只留一个穿戴者', (() => {
+    const fixed = Core.dedupeEquips();
+    const wearers = Object.entries(Core.S.equipped).filter(([, sl]) => Object.values(sl).includes(u2));
+    return fixed === 1 && wearers.length === 1;
+  })());
+  t('装备唯一性门禁：n 件装备最多 n 个穿戴位', (() => {
+    const uids = new Set(Object.values(Core.S.equipped).flatMap(sl => Object.values(sl).filter(Boolean)));
+    return uids.size === Object.values(Core.S.equipped).flatMap(sl => Object.values(sl).filter(Boolean)).length;
+  })());
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

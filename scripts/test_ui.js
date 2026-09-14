@@ -2,7 +2,15 @@
 const fs = require('fs');
 const store = {};
 global.window = global;
-global.addEventListener = () => {};
+// window 上的监听要真的收下来，才能测"长按拖拽"这条走 window 指针事件的路径
+const winListeners = {};
+global.addEventListener = (n, fn) => { (winListeners[n] = winListeners[n] || []).push(fn); };
+global.removeEventListener = (n, fn) => {
+  const a = winListeners[n] || [];
+  const i = a.indexOf(fn);
+  if (i >= 0) a.splice(i, 1);
+};
+global.fireWindow = (n, ev) => (winListeners[n] || []).slice().forEach(fn => fn(ev || {}));
 global.localStorage = {
   getItem: k => (k in store ? store[k] : null),
   setItem: (k, v) => { store[k] = String(v); },
@@ -39,6 +47,7 @@ global.document = {
   createElement(t) { return El(t); },
   addEventListener() {},
   hidden: false,
+  elementFromPoint: () => null,     // 默认指针下面没东西；拖拽用例里再临时指到一个格子上
 };
 global.setTimeout = (fn) => 0;   // 不执行延时回调
 global.setInterval = () => 0;
@@ -333,6 +342,18 @@ t('药园面板能渲染', () => {
   if (!html.includes('灵田')) throw new Error('缺灵田');
   if (!html.includes('收获') && !html.includes('收')) throw new Error('缺收获入口');
 });
+t('药园面板把"花多少 / 收什么"都写出来（不能只写价格）', () => {
+  const html = UI._panels.gardenModal().innerHTML;
+  // 四块地的产物与稀有掉落都要在界面上看得见，否则玩家不知道种下去能拿到什么
+  (D.GARDEN || []).forEach(g => {
+    const name = (D.ITEMS[g.out.item] || {}).name || g.out.item;
+    if (!html.includes(`${name}×${g.out.n}`)) throw new Error(`没写清「${g.name}」收什么：${name}`);
+    if (g.extra) {
+      const en = (D.ITEMS[g.extra.item] || {}).name || g.extra.item;
+      if (!html.includes(`${Math.round(g.extra.p * 100)}% 出 ${en}`)) throw new Error(`没写清稀有掉落：${en}`);
+    }
+  });
+});
 t('斗法台面板能渲染', () => {
   const html = UI._panels.arenaModal().innerHTML;
   if (!html.includes('斗法台')) throw new Error('缺标题');
@@ -379,6 +400,213 @@ t('玩法指南收录新章节', () => {
   if (!html.includes('药园')) throw new Error('指南缺药园');
   if (!html.includes('斗法台')) throw new Error('指南缺斗法台');
   if (!html.includes('法宝')) throw new Error('指南缺法宝');
+});
+t('指南正文的重点是加粗，不是星号', () => {
+  const html = UI._panels.guideModal().innerHTML;
+  if (html.includes('**')) throw new Error('指南里还残留 markdown 星号');
+});
+
+// ---- V8.3：队伍页（主角可换排 · 成员一览排到阵型前面） ----
+t('队伍页：成员一览排在阵型前面', () => {
+  const html = UI._panels._screens.partyScreen();
+  const iTeam = html.indexOf('成员一览');
+  const iForm = html.indexOf('阵型');
+  if (iTeam < 0) throw new Error('缺成员一览');
+  if (iForm < 0) throw new Error('缺阵型');
+  if (iTeam > iForm) throw new Error('成员一览还在阵型后面');
+});
+t('队伍页：站位可长按换位（不再有单独按钮）', () => {
+  const html = UI._panels._screens.partyScreen();
+  if (!html.includes('data-protag="1"')) throw new Error('主角那一格缺少标记');
+  if (!html.includes('data-pos="0"')) throw new Error('上阵位缺少可抓取标记');
+  if (!html.includes('data-pos="4"')) throw new Error('后排应该有 3 格（0/1 前排、2/3/4 后排）');
+  if (!html.includes('长按')) throw new Error('缺长按提示');
+  if (html.includes('data-prow') || html.includes('data-mrow')) throw new Error('换排按钮应该已经撤掉');
+});
+t('队伍页：上阵固定前 2 后 3（不再多出一格）', () => {
+  Core.newGame();
+  Core.addChar('C021'); Core.addChar('C022'); Core.addChar('C023'); Core.addChar('C024');
+  Core.S.party = ['@player', 'C021', 'C022', 'C023', 'C024'];
+  const html = UI._panels._screens.partyScreen();
+  const front = (html.match(/data-row="front"/g) || []).length;
+  if (front !== 1) throw new Error('前排标题数量不对');
+  // 前排 2 格、后排 3 格：按 data-pos 数一遍（主角也算一格）
+  const slots = (html.match(/data-pos="[0-4]"/g) || []).length;
+  if (slots !== 5) throw new Error('上阵格子数不对：' + slots);
+  if (!html.includes('2 格 · 受击概率更高') || !html.includes('3 格 · 相对安全')) throw new Error('缺前后排格数说明');
+  // 主角站在前排时，前排是「主角 + 1 名队友」，不会变成 3 个
+  const frontRow = html.slice(html.indexOf('data-row="front"'), html.indexOf('data-row="back"'));
+  const frontSlots = (frontRow.match(/data-pos="[0-4]"/g) || []).length;
+  if (frontSlots !== 2) throw new Error('前排格子数不是 2：' + frontSlots);
+  const backRow = html.slice(html.indexOf('data-row="back"'));
+  const backSlots = (backRow.match(/data-pos="[0-4]"/g) || []).length;
+  if (backSlots !== 3) throw new Error('后排格子数不是 3：' + backSlots);
+});
+t('队伍页：前后排分开显示', () => {
+  const html = UI._panels._screens.partyScreen();
+  if (!html.includes('pos-row-label')) throw new Error('缺前后排分组标题');
+  if (!html.includes('受击概率更高')) throw new Error('缺前排说明');
+});
+t('战斗编队：主角站位跟着玩家选择走', () => {
+  Core.addChar('C021');
+  Core.S.party = ['@player', 'C021', null, null, null];
+  Core.setPlayerRow('back');
+  const allies = UI._panels.buildAllies();
+  const me = allies.find(a => a.charId === '@player');
+  if (!me) throw new Error('主角不在编队里');
+  if (me.position !== 'back') throw new Error('主角没站到后排：' + me.position);
+  Core.setPlayerRow('front');
+  const me2 = UI._panels.buildAllies().find(a => a.charId === '@player');
+  if (me2.position !== 'front') throw new Error('主角没站回前排：' + me2.position);
+});
+t('战斗编队：满编 5 人（含主角）都进战斗，不重不漏', () => {
+  Core.addChar('C022'); Core.addChar('C023'); Core.addChar('C024');
+  Core.S.party = ['@player', 'C021', 'C022', 'C023', 'C024'];
+  const allies = UI._panels.buildAllies();
+  if (allies.length !== 5) throw new Error('编队人数不对：' + allies.length);
+  if (new Set(allies.map(a => a.charId)).size !== 5) throw new Error('编队里有人重复');
+  const me = allies.find(a => a.charId === '@player');
+  if (!me || me.name !== Core.charName('@player')) throw new Error('主角没进编队或名字不对');
+});
+t('战斗编队：后排队友标记为 back', () => {
+  Core.addChar('C022'); Core.addChar('C023');
+  Core.S.party = ['@player', 'C021', 'C022', 'C023', null];
+  const allies = UI._panels.buildAllies();
+  const c23 = allies.find(a => a.charId === 'C023');
+  if (!c23 || c23.position !== 'back') throw new Error('第 4 格应当在后排');
+  const c21 = allies.find(a => a.charId === 'C021');
+  if (!c21 || c21.position !== 'front') throw new Error('第 2 格应当在前排');
+});
+
+// ---- V8.3：长按拖拽换位的交互路径 ----
+// DOM 桩的 addEventListener 是空函数，所以这里自己造一个能收集监听器的假元素，
+// 并把 setTimeout 换成"把回调收起来、由测试手动触发"，好把 420ms 的长按计时器握在手里。
+function pressHarness() {
+  const handlers = {}, timers = [], cleared = [];
+  const el = {
+    addEventListener(n, fn) { (handlers[n] = handlers[n] || []).push(fn); },
+    fire(n, ev) { (handlers[n] || []).forEach(fn => fn(ev || {})); },
+  };
+  const realSet = global.setTimeout, realClear = global.clearTimeout;
+  global.setTimeout = (fn) => { timers.push(fn); return timers.length; };
+  global.clearTimeout = (id) => { cleared.push(id); };
+  return {
+    el, timers, cleared,
+    down(ev) { el.fire('pointerdown', ev); return timers[timers.length - 1]; },   // 返回 420ms 后的长按回调
+    up() { el.fire('pointerup'); },
+    restore() { global.setTimeout = realSet; global.clearTimeout = realClear; },
+  };
+}
+// 每个用例收尾：把手里的格子放回去，并吞掉长按留下的那一下"收尾点击"（清 suppressClick）
+function settleGrab() { UI._panels.cancelGrab(true); UI._panels.clickPosition('9'); }
+t('站位：长按抓起 → 手上有东西 + 出现"已抓起"提示条', () => {
+  UI._setTab('party');
+  const h = pressHarness();
+  try {
+    UI._panels.armLongPress(h.el, '0');
+    const fire = h.down({ clientX: 10, clientY: 10 });
+    if (typeof fire !== 'function') throw new Error('按下之后没有排长按计时器');
+    fire();                                     // 420ms 到点 = 抓起
+    const g = UI._panels.grabState();
+    if (g.grabbed !== '0') throw new Error('长按之后没抓起：' + g.grabbed);
+    if (!g.dragging) throw new Error('没有进入拖动状态');
+    if (!g.suppress) throw new Error('长按之后没抑制随后那一下点击（会立刻把抓起状态点掉）');
+    if (!UI._panels._screens.partyScreen().includes('drag-bar')) throw new Error('没显示"已抓起"提示条');
+    if (!UI._panels._screens.partyScreen().includes('放这里')) throw new Error('空位没有出现"放这里"的落点提示');
+  } finally {
+    h.restore();
+    settleGrab();                         // 放回原位 + 清掉模块里的抓起状态
+  }
+  if (UI._panels.grabState().grabbed !== null) throw new Error('测试收尾没清掉抓起状态');
+});
+t('站位：长按之后松开手指会取消计时（不会误抓）', () => {
+  UI._setTab('party');
+  const h = pressHarness();
+  try {
+    UI._panels.armLongPress(h.el, '1');
+    const id = h.down({ clientX: 10, clientY: 10 }) && h.timers.length;   // 计时器编号
+    h.up();
+    if (!h.cleared.includes(id)) throw new Error('抬起手指没有取消长按计时器');
+    if (UI._panels.grabState().grabbed !== null) throw new Error('没到 420ms 就抓起来了');
+  } finally { h.restore(); }
+});
+t('站位：抓起之后拖到另一格松手＝直接换位', () => {
+  Core.addChar('C024');
+  Core.setPlayerRow('front');
+  Core.S.party = ['@player', 'C021', 'C022', 'C023', 'C024'];
+  const h = pressHarness();
+  try {
+    UI._panels.armLongPress(h.el, '1');
+    h.down({ clientX: 10, clientY: 10 })();     // 抓起第 2 位
+    if (UI._panels.grabState().grabbed !== '1') throw new Error('没抓起第 2 位');
+    const r = UI._panels.dropOn('4');           // 拖到第 5 格松手
+    if (!r || !r.ok) throw new Error('拖动换位失败：' + (r && r.msg));
+    if (Core.S.party[1] !== 'C024' || Core.S.party[4] !== 'C021') {
+      throw new Error('站位没换过去：' + Core.S.party.join(','));
+    }
+    if (UI._panels.grabState().grabbed !== null) throw new Error('换完位还留着"抓起"状态');
+  } finally { h.restore(); settleGrab(); }
+});
+t('站位：拖回自己身上不换位，仍保持抓起', () => {
+  Core.S.party = ['@player', 'C021', 'C022', 'C023', 'C024'];
+  const h = pressHarness();
+  try {
+    UI._panels.armLongPress(h.el, '2');
+    h.down({ clientX: 10, clientY: 10 })();     // 抓起第 3 位
+    const before = Core.S.party.slice();
+    const r = UI._panels.dropOn('2');           // 拖回自己身上松手
+    if (r !== null) throw new Error('拖回自己身上不该产生换位');
+    if (Core.S.party.join(',') !== before.join(',')) throw new Error('队伍被改动了');
+    if (UI._panels.grabState().grabbed !== '2') throw new Error('拖回自己身上不该把抓起状态清掉');
+    settleGrab();
+  } finally { h.restore(); }
+});
+t('站位：按住拖到另一格，松手就落在那里（走真实指针事件）', () => {
+  Core.addChar('C024');
+  Core.setPlayerRow('front');
+  Core.S.party = ['@player', 'C021', 'C022', 'C023', 'C024'];
+  const h = pressHarness();
+  let under = null;
+  global.document.elementFromPoint = () => under;
+  try {
+    UI._panels.armLongPress(h.el, '0');
+    h.down({ clientX: 10, clientY: 10 })();     // 长按抓起第 1 位
+    under = { dataset: { pos: '4' }, closest: () => under };   // 指针现在压在第 5 格上
+    global.fireWindow('pointermove', { clientX: 50, clientY: 120, preventDefault() {} });
+    if (UI._panels.grabState().hover !== '4') throw new Error('拖动中没有识别到落点：' + UI._panels.grabState().hover);
+    global.fireWindow('pointerup', { clientX: 50, clientY: 120 });
+    if (Core.S.party[0] !== 'C024' || Core.S.party[4] !== '@player') {
+      throw new Error('拖放没落下去：' + Core.S.party.join(','));
+    }
+    if (UI._panels.grabState().grabbed !== null) throw new Error('放下之后手里还留着东西');
+  } finally {
+    global.document.elementFromPoint = () => null;
+    h.restore();
+    settleGrab();
+  }
+});
+t('站位：长按之后紧接着那一下点击会被吞掉', () => {
+  UI._setTab('party');
+  const h = pressHarness();
+  try {
+    UI._panels.armLongPress(h.el, '0');
+    h.down({ clientX: 10, clientY: 10 })();
+    const before = Core.S.party.slice();
+    const r = UI._panels.clickPosition('1');    // 这一下是长按的收尾，不算点击
+    if (r !== null) throw new Error('长按后的第一下点击不该执行换位');
+    if (Core.S.party.join(',') !== before.join(',')) throw new Error('队伍被误改了');
+    if (UI._panels.grabState().grabbed !== '0') throw new Error('抓起状态被误清');
+  } finally { h.restore(); settleGrab(); }
+});
+t('站位：Esc / 取消按钮能把手里的格子放回去', () => {
+  UI._setTab('party');
+  const h = pressHarness();
+  try {
+    UI._panels.armLongPress(h.el, '3');
+    h.down({ clientX: 10, clientY: 10 })();
+    if (!UI._panels.cancelGrab(true)) throw new Error('取消没有生效');
+    if (UI._panels.grabState().grabbed !== null) throw new Error('取消之后还留着抓起状态');
+  } finally { h.restore(); UI._panels.clickPosition('9'); }
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

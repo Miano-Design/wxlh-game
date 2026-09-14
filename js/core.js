@@ -16,8 +16,9 @@ window.Core = (function () {
 
   /* ================= 存档 ================= */
   const ATTR_ZERO = () => ({ muscle: 0, immune: 0, cell: 0, nerve: 0, intelligence: 0, spirit: 0 });
+  // row：主角站前排还是后排（V8.3 新增）。默认前排——和旧存档的战场表现一致。
   function freshProtagonist(name) {
-    return { name: name || '', level: 1, exp: 0, bloodline: null, bloodlineLv: 0, attrPoints: 0, attrs: ATTR_ZERO(), skillPoints: 0, skillLv: [1, 1, 1] };
+    return { name: name || '', level: 1, exp: 0, bloodline: null, bloodlineLv: 0, attrPoints: 0, attrs: ATTR_ZERO(), skillPoints: 0, skillLv: [1, 1, 1], row: 'front' };
   }
   function defaultState() {
     return {
@@ -28,7 +29,9 @@ window.Core = (function () {
       bag: { cap: 100, expands: 0 },
       cur: { points: 0, story: 0, otherworld: 0, holy: 0, skillChip: 0, bloodCrystal: 0, corridor: 0, rp: 0 },
       chars: {},            // id → {lv, exp, star, shards, skillLv:[1,1,1], bloodlineLv}
-      party: [null, null, null, null],   // 4 个招募位：0,1 前排；2,3 后排（主角必上阵，不占位）
+      // 上阵 5 格（固定前 2 后 3）：0/1 前排，2/3/4 后排。
+      // '@player' 就是主角本人——主角必上阵，所以他也占其中一格，站位能拖到前排也能拖到后排。
+      party: ['@player', null, null, null, null],
       equips: {},           // uid → 装备实例
       equipped: { '@player': { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null } },
       items: {},            // itemId → count
@@ -89,8 +92,24 @@ window.Core = (function () {
       return true;
     } catch (e) { return false; }
   }
+  // 上阵 5 格归一化：0/1 前排，2/3/4 后排；'@player' 一定在里面（主角必上阵）。
+  // 老存档是 4 格且主角不占位，按他原来站的那一排把他插进去，其它人顺序不变。
+  function normalizeParty(raw, oldRow) {
+    const src = (Array.isArray(raw) ? raw : []).slice(0, 5);
+    if (src.indexOf('@player') >= 0) {
+      // 已经是新结构：只补长度、清掉不再拥有的角色
+      while (src.length < 5) src.push(null);
+      return src.map(id => (id === '@player' || (id && S.chars && S.chars[id])) ? id : null);
+    }
+    const mates = src.filter(id => id && S.chars && S.chars[id]);
+    const arr = oldRow === 'back'
+      ? [mates[0] || null, mates[1] || null, '@player', mates[2] || null, mates[3] || null]
+      : ['@player', mates[0] || null, mates[1] || null, mates[2] || null, mates[3] || null];
+    while (arr.length < 5) arr.push(null);
+    return arr.slice(0, 5);
+  }
   // 旧档迁移：C001 林默不再是主角占位，主角为独立实体
-  function migrate() {
+ function migrate() {
     const def = defaultState();
     S.stats = Object.assign(def.stats, S.stats || {});
     // V8.0 新增的三块（主神评级 / 秘术阁 / 挂机游历）：老档补默认值，缺字段不会读出 undefined
@@ -102,6 +121,8 @@ window.Core = (function () {
     S.fabao = Object.assign({ own: [], on: null }, S.fabao || {});
     S.mount = Object.assign({ own: [], on: null }, S.mount || {});
     S.sign = Object.assign({ date: '', tier: '', idlePct: 0, drawn: 0 }, S.sign || {});
+    // V8.3：主角也能选前后排（老档默认前排）
+    S.player.row = S.player.row === 'back' ? 'back' : 'front';
     S.recruit = Object.assign(def.recruit, S.recruit || {});
     // 招募保底从"两个散字段"改成"按池记账"；老档把旧计数搬过来，进度不丢
     S.recruit.pity = S.recruit.pity || {};
@@ -159,7 +180,13 @@ window.Core = (function () {
       if (S.codex && S.codex.chars) S.codex.chars = S.codex.chars.filter(x => x !== 'C001');
     }
     if (S.party) S.party = S.party.map(id => (id === 'C001' ? null : id));
+    // V8.3：上阵位从「4 格（主角不占位）」改成「5 格（前 2 后 3，主角占一格）」
+    S.party = normalizeParty(S.party, S.player.row);
+    if (Array.isArray(S.presets)) S.presets = S.presets.map(p => (p ? normalizeParty(p, 'front') : p));
     if (!S.equipped['@player']) S.equipped['@player'] = { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null };
+    // V8.3：老档里可能存在的"一件装备被多人穿"（旧版换装 / 一键最优装备留下的脏数据）——
+    // 在装备槽补齐之后再修，只留给排在最前面的那个人
+    dedupeEquips();
     S.player.bloodline = S.player.bloodline || null;
     S.player.bloodlineLv = S.player.bloodlineLv || 0;
     S.player.attrs = Object.assign(ATTR_ZERO(), S.player.attrs || {});
@@ -665,7 +692,7 @@ window.Core = (function () {
     applySect(pct);                                // 主神评级（对标"宗门等级"：随进度自动涨）
     applyKeji(pct);                                // 秘术阁（对标"KeJi"：42 条百分比长线）
     applyMount(pct);                               // 坐骑（全队，含主角）
-    // 境界（渡劫）：每突破一境全属性 +5%，与基因锁/血统/血清并列，属于永久成长
+    // 境界（渡劫）：9 大境 × 初/中/后/大圆满 = 36 小阶，每阶全属性 +1.4%（合计 +50.4%），属于永久成长
     const rp = realmBonusPct();
     if (rp) { pct.atkPct += rp; pct.hpPct += rp; pct.defPct += rp; pct.spdPct += rp; }
     // 装备（6 槽）
@@ -730,7 +757,8 @@ window.Core = (function () {
     return { ok: true, msg: `血统 Lv.${S.player.bloodlineLv}` };
   }
   function teamPower() {
-    return playerPower() + S.party.filter(Boolean).reduce((sum, id) => sum + power(id), 0);
+    // 上阵 5 格里就有主角本人（'@player'），所以这里按人算，别再单独加一次主角战力
+    return S.party.filter(Boolean).reduce((sum, id) => sum + (id === '@player' ? playerPower() : power(id)), 0);
   }
   // 阵型（对标《道友修仙》的"阵法"）：由 D.FORMATIONS 的具名组合判定，界面直接显示"站的是哪一阵"。
   // 规则只有两条：①「同阵营」那一族只取命中的最高档，不重复叠；② 主角是万能补位（顶人数最多的那个阵营）。
@@ -832,10 +860,55 @@ window.Core = (function () {
     const eq = S.equips[uid];
     if (!eq) return false;
     if (!canEquip(charId, eq)) return false;
+    // 一件装备只能有一个人穿：先把它从别人（或自己的别的槽）身上摘下来。
+    // 旧版少了这一步，同一件装备会同时留在多个角色身上（越换装越脏）。
+    unequipEverywhere(uid, charId);
     if (!S.equipped[charId]) S.equipped[charId] = { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null };
     S.equipped[charId][eq.slot] = uid;
     save();
     return true;
+  }
+  // 把某件装备从所有人的所有槽里摘掉（keepId 指向的那个角色除外——他马上要穿上）
+  function unequipEverywhere(uid, keepId) {
+    let removed = 0;
+    Object.entries(S.equipped).forEach(([cid, slots]) => {
+      if (!slots) return;
+      Object.keys(slots).forEach(k => {
+        if (slots[k] !== uid) return;
+        if (cid === keepId && k === (S.equips[uid] || {}).slot) return;   // 自己本来就穿在这个槽，保留
+        slots[k] = null;
+        removed++;
+      });
+    });
+    return removed;
+  }
+  // 找出某件装备现在穿在谁身上（没有则返回 null）。装备页 / 选装备页都靠它显示"谁穿着"
+  function equipWearer(uid) {
+    if (!S.equips[uid]) return null;
+    const hit = Object.entries(S.equipped).find(([, slots]) => slots && Object.values(slots).includes(uid));
+    return hit ? hit[0] : null;
+  }
+  // 清掉"一件装备多人穿"的脏数据：主角优先，其次队伍顺序，最后其余角色
+  // （老存档读档时跑一次，改完之后的存档不会再出现这种数据）
+  function dedupeEquips() {
+    const seen = new Set();
+    let fixed = 0;
+    const party = Array.isArray(S.party) ? S.party.filter(Boolean) : [];
+    const order = ['@player'].concat(party, Object.keys(S.equipped || {}));
+    const done = {};
+    order.forEach(cid => {
+      if (done[cid]) return;
+      done[cid] = true;
+      const slots = S.equipped[cid];
+      if (!slots) return;
+      Object.keys(slots).forEach(k => {
+        const uid = slots[k];
+        if (!uid) return;
+        if (!S.equips[uid] || seen.has(uid)) { slots[k] = null; fixed++; return; }
+        seen.add(uid);
+      });
+    });
+    return fixed;
   }
   // 装备锁定：锁上的装备不会被分解（含批量分解），避免手滑拆掉主力装备
   function toggleEquipLock(uid) {
@@ -857,9 +930,26 @@ window.Core = (function () {
   }
   function autoEquipBest() {
     const members = ['@player', ...S.party.filter(Boolean)];
-    // 候选池：所有没被锁定的装备（含别人身上的，稍后统一重新分配；同一件只会分给一个人）
-    const pool = Object.values(S.equips).filter(e => !e.lock);
+    // 换装前的快照：用来算"到底改了几处"（否则先全脱再全穿，数字会虚高）
+    const before = {};
+    Object.keys(S.equipped).forEach(cid => { before[cid] = Object.assign({}, S.equipped[cid]); });
+    // 1) 先把所有**没锁定**的装备从每个人（含没上阵的）身上摘下来，回到待分配池。
+    //    旧版没做这一步，池子里含"别人身上那件"时，会把它同时留给原主和新主 → 一件装备两个人穿。
+    //    锁定的装备不动，继续留在原位（并且占位，不再参与分配）。
     const used = new Set();
+    Object.keys(S.equipped).forEach(cid => {
+      const cur = S.equipped[cid];
+      if (!cur) return;
+      Object.keys(cur).forEach(slot => {
+        const uid = cur[slot];
+        if (!uid) return;
+        const e = S.equips[uid];
+        if (e && e.lock) { used.add(uid); return; }
+        cur[slot] = null;
+      });
+    });
+    // 2) 候选池：所有没被锁定的装备（同一件只会分给一个人）
+    const pool = Object.values(S.equips).filter(e => !e.lock);
     let changed = 0;
     members.forEach(cid => {
       const cur = S.equipped[cid] || (S.equipped[cid] = { weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null });
@@ -877,9 +967,14 @@ window.Core = (function () {
         });
         if (best) {
           used.add(best.uid);
-          if (cur[slot] !== best.uid) { cur[slot] = best.uid; changed++; }
+          if (cur[slot] !== best.uid) cur[slot] = best.uid;
         }
       });
+    });
+    // 3) 和快照对比，数出真实变化
+    Object.keys(S.equipped).forEach(cid => {
+      const now = S.equipped[cid] || {}, was = before[cid] || {};
+      Object.keys(Object.assign({}, now, was)).forEach(slot => { if ((now[slot] || null) !== (was[slot] || null)) changed++; });
     });
     save();
     return { ok: true, changed, members: members.length };
@@ -980,9 +1075,7 @@ window.Core = (function () {
   function applyPreset(idx) {
     const p = S.presets[idx];
     if (!p) return { ok: false, msg: '该预设还是空的' };
-    const owned = p.map(id => (id && S.chars[id] ? id : null));
-    S.party = owned.slice(0, 4);
-    while (S.party.length < 4) S.party.push(null);
+    S.party = normalizeParty(p, 'front');      // 老预设（4 格）与新预设（5 格）都能套
     save();
     return { ok: true, msg: `已套用预设 ${idx + 1}` };
   }
@@ -990,6 +1083,109 @@ window.Core = (function () {
     const equippedUids = new Set();
     Object.values(S.equipped).forEach(slots => Object.values(slots).forEach(u => u && equippedUids.add(u)));
     return Object.values(S.equips).sort((a, b) => D.RARITIES.indexOf(b.rarity) - D.RARITIES.indexOf(a.rarity) || b.enhance - a.enhance);
+  }
+
+  /* ================= 站位（前排 / 后排） =================
+     规则只有一条：**谁站前排谁挨打**——敌人优先攻击前排，前排没人了才打后排。
+     所以谁想站哪一排是玩家的战术选择：主角也不例外。 */
+  const ROW_NAME = { front: '前排', back: '后排' };
+  function rowOfSlots(row) { return row === 'front' ? [0, 1] : [2, 3, 4]; }
+  // 主角站在哪一排：看他自己占的是哪一格（0/1 前排，2/3/4 后排）
+  function playerRow() {
+    const i = S.party.indexOf('@player');
+    return i >= 2 ? 'back' : 'front';
+  }
+  function setPlayerRow(row) {
+    const r = row === 'back' ? 'back' : 'front';
+    if (playerRow() === r) return { ok: false, msg: `主角已经在${ROW_NAME[r]}了` };
+    const mv = moveMemberRow('@player', r);
+    if (!mv.ok) return mv;
+    S.player.row = r;      // 兼容：老字段跟着走，读旧档的人也能看对
+    save();
+    return { ok: true, msg: `主角已换到${ROW_NAME[r]}` };
+  }
+  // 两个上阵位互换（含空位）：把人挪到另一排，或者同排换顺序
+  function swapPartySlots(a, b) {
+    a = +a; b = +b;
+    const n = S.party.length;
+    if (!(a >= 0 && a < n && b >= 0 && b < n)) return { ok: false, msg: '位置不对' };
+    if (a === b) return { ok: false, msg: '选的是同一个位置' };
+    if (!S.party[a] && !S.party[b]) return { ok: false, msg: '两个位置都是空的' };
+    const tmp = S.party[a]; S.party[a] = S.party[b]; S.party[b] = tmp;
+    syncPlayerRow();
+    save();
+    return { ok: true, msg: '已换位', party: S.party.slice() };
+  }
+  // 老字段 S.player.row 与"主角占哪一格"保持一致（主角站位以 S.party 为准，这里只是同步）
+  function syncPlayerRow() {
+    if (S.party && S.party.indexOf('@player') >= 0) S.player.row = playerRow();
+  }
+  // 把某名上阵成员移到另一排：目标排有空位就搬过去，没空位就和那一排第一个换
+  function moveMemberRow(id, row) {
+    const from = S.party.indexOf(id);
+    if (from < 0) return { ok: false, msg: '这名角色不在队伍里' };
+    const r = row === 'front' ? 'front' : 'back';
+    const want = rowOfSlots(r);
+    if (want.includes(from)) return { ok: false, msg: `已经在${ROW_NAME[r]}了` };
+    const empty = want.find(i => !S.party[i]);
+    if (empty !== undefined) {
+      S.party[empty] = S.party[from];
+      S.party[from] = null;
+      syncPlayerRow();
+      save();
+      return { ok: true, msg: `已移到${ROW_NAME[r]}`, party: S.party.slice() };
+    }
+    const other = want[0];
+    const swapped = S.party[other];
+    S.party[other] = S.party[from];
+    S.party[from] = swapped;
+    syncPlayerRow();
+    save();
+    const nm = swapped ? charName(swapped) : '队友';
+    return { ok: true, msg: `已与「${nm}」换位`, party: S.party.slice() };
+  }
+  // 谁站在哪一排：界面用（队伍页标签、战斗前的站位预览都读这一处）
+  function rowLayout() {
+    const out = { front: [], back: [] };
+    S.party.forEach((id, i) => { if (id) out[i < 2 ? 'front' : 'back'].push(id); });
+    return out;
+  }
+  // 位置标识有三种：
+  //   '0'~'4'         = 上阵 5 格（0/1 前排、2/3/4 后排，**永远固定前 2 后 3**）
+  //   'P' / '@player' = 主角本人——他就占着 5 格里的某一格，所以等同于那个格子
+  //   'row:front' / 'row:back' = 整排（界面上"前排 / 后排"那两行标题，也是可放下的落点）
+  // 位置→排的换算只有这一处，界面不用自己算。
+  function parsePos(p) {
+    if (p === 'P' || p === '@player') {
+      const i = S.party.indexOf('@player');
+      return i < 0 ? null : { idx: i, protag: true };
+    }
+    if (p === 'row:front' || p === 'row:back') return { row: String(p).slice(4) };
+    if (p === '' || p === null || p === undefined) return null;
+    const n = +p;
+    return (n >= 0 && n < S.party.length) ? { idx: n } : null;
+  }
+  function posRow(p) {
+    const v = parsePos(p);
+    if (!v) return null;
+    if (v.row) return v.row;
+    return v.idx < 2 ? 'front' : 'back';
+  }
+  // 换位总入口（长按拖拽 / 点击都走这一个）：从 a 拖到 b。
+  //   落在某一格上＝两格互换（主角也只是一个格子的占用者，跟队友一样换）
+  //   落在整排标题上＝把这一格上的人搬到那一排（有空位进空位，满员和最前面那位换）
+  function swapPositions(a, b) {
+    const pa = parsePos(a), pb = parsePos(b);
+    if (!pa || !pb) return { ok: false, msg: '位置不对' };
+    if (pb.row) {
+      if (pa.row) return { ok: false, msg: '位置不对' };
+      const id = S.party[pa.idx];
+      if (!id) return { ok: false, msg: '这个位置是空的' };
+      return moveMemberRow(id, pb.row);
+    }
+    if (pa.row) return { ok: false, msg: '位置不对' };
+    if (pa.idx === pb.idx) return { ok: false, msg: '选的是同一个位置' };
+    return swapPartySlots(pa.idx, pb.idx);
   }
 
   /* ================= 招募 ================= */
@@ -2417,6 +2613,9 @@ window.Core = (function () {
     allocateAttr, allocateSkill, resetSkills, protagonistSkills, protagonistList, createProtagonist, switchProtagonist,
     grantEquip, grantSignatureEquip, equipItem, canEquip, unequipItem, enhanceCost, enhance, decompose, decomposeMany, inventoryEquips,
     toggleEquipLock, autoEquipBest, equipScore, savePreset, applyPreset,
+    unequipEverywhere, equipWearer, dedupeEquips,
+    playerRow, setPlayerRow, swapPartySlots, moveMemberRow, rowLayout, ROW_NAME, rowOfSlots, normalizeParty,
+    parsePos, posRow, swapPositions,
     recruitOnce, recruitTen, freeRecruit, freeRecruitAvailable, ssrTicketUse, ticketOf,
     idleRates, idleBaseRates, idleLines, idleLineBonus, setIdleLeader, idleMatItem, grantIdleMat,
     settleOffline, onlineTick, idleBankGains, claimIdle, addPlayerExp, offlineCapHours, offlineEfficiency,
