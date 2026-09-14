@@ -219,6 +219,43 @@ body {
 .sheet.center { top: 50%; bottom: auto; transform: translate(-50%, -50%); border-radius: 18px; border: 1px solid var(--line); max-height: 80%; animation: pop .18s ease; width: 92%; }
 @keyframes pop { from { transform: translate(-50%, -50%) scale(.92); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
 
+/* ---------- 整页面板（二级内容各占一页，左上角返回） ---------- */
+/* 对标产品的骨架：点系统入口 = 换一页，不是从底部顶上来一叠抽屉。
+   只有确认/提示框还保留居中弹窗（.sheet.center），全局只剩这一种弹窗。 */
+.page {
+  position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 520px;
+  background: linear-gradient(180deg, var(--bg2), var(--bg));
+  pointer-events: auto; display: flex; flex-direction: column;
+  animation: pagein .16s ease;
+}
+@keyframes pagein { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.page .page-head {
+  flex: 0 0 auto; position: relative; display: flex; align-items: center; gap: var(--sp2);
+  padding: calc(env(safe-area-inset-top) + 8px) var(--sp3) 10px;
+  border-bottom: 1px solid var(--line); background: rgba(9,12,18,.96);
+}
+/* 标题居中 + 底部一道金色短横，做"匾额"感；左右各一个等宽占位保证真居中 */
+.page .page-head h3 {
+  flex: 1; margin: 0; text-align: center; font-size: var(--fs-2); font-weight: 700;
+  letter-spacing: .5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.page .page-head::after {
+  content: ''; position: absolute; left: 50%; bottom: -1px; transform: translateX(-50%);
+  width: 46px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.back-x {
+  width: 40px; height: 40px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line2); border-radius: var(--radius-sm); background: var(--panel);
+  color: var(--text2); font-size: 20px; line-height: 1; cursor: pointer; font-family: inherit; padding: 0;
+}
+.back-x:active { background: var(--panel3); }
+.page-pad { width: 40px; flex: 0 0 auto; }
+.page .sheet-body {
+  flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: var(--sp3) var(--sp3) calc(env(safe-area-inset-bottom) + 24px);
+}
+
 /* ---------- Toast ---------- */
 #toast-root { position: fixed; top: calc(env(safe-area-inset-top) + 60px); left: 0; right: 0; z-index: 120; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 .toast { background: #000000d9; border: 1px solid var(--line); border-radius: 999px; padding: 8px 18px; font-size: 13px; animation: toastin .2s ease; max-width: 86%; }

@@ -180,17 +180,29 @@ window.UI = (function () {
     opts = opts || {};
     const root = document.getElementById('modal-root');
     const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <div class="modal-mask"></div>
-      <div class="sheet ${opts.center ? 'center' : ''}">
-        <div class="sheet-head"><h3>${title}</h3><button class="close-x">✕</button></div>
-        <div class="sheet-body">${bodyHtml}</div>
-      </div>`;
+    // V7.3：系统面板一律做成**独立整页**（左上角返回），只有确认/提示框还是居中弹窗。
+    // 这是对标产品最明显的一条界面结构：二级内容各占一页，而不是从底部顶上来一叠抽屉。
+    const isPage = !opts.center;
+    wrap.innerHTML = isPage
+      ? `<div class="page">
+          <div class="page-head"><button class="back-x">‹</button><h3>${title}</h3><span class="page-pad"></span></div>
+          <div class="sheet-body">${bodyHtml}</div>
+        </div>`
+      : `<div class="modal-mask"></div>
+        <div class="sheet center ${opts.sticky ? 'sticky' : ''}">
+          <div class="sheet-head"><h3>${title}</h3><button class="close-x">✕</button></div>
+          <div class="sheet-body">${bodyHtml}</div>
+        </div>`;
     root.appendChild(wrap);
     modalStack.push(wrap);
     wrap._onClose = opts.onClose || null;
-    wrap.querySelector('.close-x').onclick = () => closeModal(wrap);
-    wrap.querySelector('.modal-mask').onclick = () => { if (!opts.sticky) closeModal(wrap); };
+    if (isPage) {
+      wrap.querySelector('.back-x').onclick = () => closeModal(wrap);
+      // 整页也支持安卓/浏览器的返回键：交给 closeModal 统一处理（见 main.js 的 popstate）
+    } else {
+      wrap.querySelector('.close-x').onclick = () => closeModal(wrap);
+      wrap.querySelector('.modal-mask').onclick = () => { if (!opts.sticky) closeModal(wrap); };
+    }
     return wrap;
   }
   function closeModal(wrap) {
@@ -209,7 +221,11 @@ window.UI = (function () {
   function updateModal(w, title, bodyHtml, keepScroll) {
     const sb = w.querySelector('.sheet-body');
     const st = keepScroll === false ? 0 : (sb ? sb.scrollTop : 0);
-    if (title !== undefined) w.querySelector('.sheet-head h3').textContent = title;
+    // 标题在两种形态下位置不同：整页在 .page-head，居中弹窗在 .sheet-head
+    if (title !== undefined) {
+      const th = w.querySelector('.page-head h3') || w.querySelector('.sheet-head h3');
+      if (th) th.textContent = title;
+    }
     if (sb) { sb.innerHTML = bodyHtml; sb.scrollTop = st; }
     return w;
   }
@@ -2774,7 +2790,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V7.2</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V7.3</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -3094,7 +3110,7 @@ window.UI = (function () {
           return `<button class="btn block" data-choice="${i}" ${lack.length ? 'disabled' : ''}>${esc(c.text)}${lack.length ? `（${lack.join('、')}不足）` : ''}</button>`;
         }).join('')}
       </div>
-    `, { sticky: true });
+    `, { sticky: true, center: true });
     w.querySelectorAll('[data-choice]').forEach(b => b.onclick = () => {
       const ch = ev.choices[+b.dataset.choice];
       const eff = ch.effect || {};
