@@ -493,9 +493,11 @@ body {
   border-radius: 50%; background: var(--accent);
 }
 /* V8.6 删掉了没人再用的类：.plaque*（两枚匾额，改成一条主线条）、
-   .hero-num / .hero-bank（大数字主视觉）、.grid-title、.today-card / .today-row（今日卡）、
+   .hero-num / .hero-bank（大数字主视觉）、.today-card / .today-row（今日卡）、
    .status-strip（三格状态）——留着会误导后来的改动，一并清掉。
    （"改了没人用的类"这件事在 LESSONS 里记过：删掉比留着安全。） */
+/* 段内小标题：比 section-title 更轻，用来把"养成"里的「日常」那半张宫格隔开 */
+.grid-title { font-size: var(--fs-sm); color: var(--dim); letter-spacing: 2px; margin: var(--sp3) 2px var(--sp2); }
 
 /* ---------- 「成长」子页：一行一条养成线 ---------- */
 .grow-row { display: flex; align-items: center; gap: var(--sp3); padding: 11px var(--sp3); }

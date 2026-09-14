@@ -658,19 +658,24 @@ window.UI = (function () {
       <div class="hint mt2">离线也算：回来点一次「一键收取」就把挂机、任务、周常、成就、图鉴里攒下的奖励一起领走。</div>
     </div>`;
   }
-  /* 首页入口统一走「分组标题 + 三列纯文字宫格」：名字一行、状态一行，不用图标认路。
+  /* 一块三列纯文字宫格：名字一行、状态一行，不用图标认路。
      没解锁的不铺成一片灰格子（一眼全是"未解锁"等于没信息），收成一行小字。 */
-  function menuGroup(title, sec, list, before) {
+  function tileGrid(list) {
     const open = list.filter(x => !x[3] || C().isUnlocked(x[3]));
     const locked = [];
     list.filter(x => x[3] && !C().isUnlocked(x[3])).forEach(x => locked.push(x[1]));
     if (!open.length) return '';
-    return `<div class="section-title" data-sec="${sec}">${title}</div>
-      ${before || ''}
-      <div class="text-menu">${open.map(tile).join('')}</div>
+    return `<div class="text-menu">${open.map(tile).join('')}</div>
       ${locked.length ? `<div class="hint mt2">还没解锁：${locked.join(' / ')}（跟着关卡进度开，推图就会一个个亮起来）</div>` : ''}`;
   }
-  /* 养成：一条线一个入口（「轮回者 → 成长」子页里是同一批线的总览）。 */
+  function menuGroup(title, sec, list, before) {
+    const grid = tileGrid(list);
+    if (!grid) return '';
+    return `<div class="section-title" data-sec="${sec}">${title}</div>${before || ''}${grid}`;
+  }
+  /* 养成：一条线一个入口（「轮回者 → 成长」子页里是同一批线的总览）。
+     日常类的入口（悬赏 / 每日 / 成就 / 求签 / 招募 / 兑换）也收在这一段里，
+     用一行小字「日常」隔开——首页的「游历」只放游历奇遇本身。 */
   function growBlock() {
     const S = C().S;
     const sect = C().sectInfo();
@@ -684,8 +689,11 @@ window.UI = (function () {
     const gardenBusy = C().gardenState().filter(p => p.plot).length;
     const arena = C().arenaState();
     const mountOwn = C().mountState().own.length;
+    const achDot = C().achievementSummary().list.filter(x => x.done && !x.claimed).length > 0;
+    const signSt = C().signState();
+    const signToday = signSt.canDraw ? null : signSt;
     // 一条入口 = [动作, 名字, 状态文字, 解锁条件(可空), 是否亮红点]
-    const list = [
+    const lines = [
       ['open-bloodline', '血统', S.player.bloodline || '未定（点这里选）'],
       ['open-realm', '境界渡劫', st.hasBloodline ? st.curName : '先选血统'],
       ['open-sect', '主神评级', `Lv.${sect.lv}`],
@@ -701,16 +709,7 @@ window.UI = (function () {
       ['open-reincarn', '转生天赋', `${S.player.reincarnations} 世`, 'reincarn'],
       ['open-codex', '轮回图鉴', `${C().codexState().owned}/${C().codexState().total} 名`, 'recruit'],
     ];
-    return menuGroup('养成', 'grow', list)
-      + '<div class="hint mt2">「轮回者 → 成长」里是同一批养成线的总览，两处点进去是同一个面板。</div>';
-  }
-  /* 游历：出门做的事。「游历奇遇」只有进度条这一个入口，宫格里不再重复放第二个。 */
-  function travelBlock() {
-    const pend = C().pendingTravel();
-    const achDot = C().achievementSummary().list.filter(x => x.done && !x.claimed).length > 0;
-    const signSt = C().signState();
-    const signToday = signSt.canDraw ? null : signSt;
-    const list = [
+    const daily = [
       ['open-bounty', '限时悬赏', '按时重置', null, C().bountyState().list.some(x => x.done && !x.claimed)],
       ['open-tasks', '每日任务', '主线 / 日常 / 周常', 'tasks'],
       ['open-ach', '成就', '长线目标', null, achDot],
@@ -718,7 +717,18 @@ window.UI = (function () {
       ['open-recruit', '轮回者招募', C().freeRecruitAvailable() ? '今日免费 1 抽' : '攒碎片升星', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable()],
       ['open-shop', '兑换大厅', '三档商店', 'shop'],
     ];
-    return menuGroup('游历', 'travel', list, travelStrip());
+    return `<div class="section-title" data-sec="grow">养成</div>
+      ${tileGrid(lines)}
+      <div class="grid-title">日常</div>
+      ${tileGrid(daily)}`
+      + '<div class="hint mt2">「轮回者 → 成长」里是同一批养成线的总览，两处点进去是同一个面板。</div>';
+  }
+  /* 游历：只放「游历奇遇」本身——挂机路上随机冒出来的奇遇，进度条就是它的唯一入口。 */
+  function travelBlock() {
+    const pend = C().pendingTravel();
+    return `<div class="section-title" data-sec="travel">游历</div>
+      ${travelStrip()}
+      <div class="hint mt2">${pend ? '已经有奇遇躺着等领了，点上面那条领走。' : '挂机每 10 分钟出一次，攒着不会丢。'}</div>`;
   }
   /* 设置：玩法指南 / 货币图鉴 / 设置与存档。
      这三样全站只在这里出现一次（顶栏原来那两个图标按钮已经撤掉）。 */
@@ -3452,7 +3462,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.6</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.7</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;

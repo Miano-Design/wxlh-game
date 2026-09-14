@@ -671,6 +671,21 @@ t('首页同一个功能只出现一次（挂机分工不再两处重复）', ()
   if (acts.indexOf('open-idlelines') < 0) throw new Error('缺"派人分工"入口');
   if ((html.match(/data-act="open-idlelines"/g) || []).length !== 1) throw new Error('"派人分工"出现了不止一次');
 });
+t('游历段只放游历奇遇；悬赏 / 每日 / 成就 / 求签 / 招募 / 兑换 都在「养成」段', () => {
+  const html = UI._panels._screens.homeScreen();
+  const iGrow = html.indexOf('data-sec="grow"');
+  const iTravel = html.indexOf('data-sec="travel"');
+  if (iGrow < 0 || iTravel < 0) throw new Error('缺养成段或游历段');
+  if (iGrow > iTravel) throw new Error('养成段排在游历段后面了');
+  ['限时悬赏', '每日任务', '成就', '求签', '轮回者招募', '兑换大厅'].forEach(k => {
+    const i = html.indexOf(k);
+    if (i < 0) throw new Error('首页缺入口：' + k);
+    if (i > iTravel) throw new Error(k + ' 被放进「游历」段了（应该收在「养成」段的日常里）');
+  });
+  const travelSeg = html.slice(iTravel, html.indexOf('data-sec="idle"'));
+  if (travelSeg.indexOf('text-menu') >= 0) throw new Error('「游历」段不该再铺宫格，只留游历奇遇那一条');
+  if (travelSeg.indexOf('游历奇遇') < 0) throw new Error('「游历」段缺游历奇遇条');
+});
 t('顶栏不再重复放"设置 / 指南"图标（首页最后一段是唯一入口）', () => {
   const html = fs.readFileSync('index.html', 'utf8');
   if (html.includes('tb-guide') || html.includes('tb-settings')) throw new Error('顶栏还有设置 / 指南按钮');
