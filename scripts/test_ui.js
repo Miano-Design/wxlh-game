@@ -301,5 +301,85 @@ t('背包里的招募券有"去招募"快捷键', () => {
 });
 t('道具详情-招募券', () => UI._panels.itemDetail('ticket_lim'));
 
+// ---- V8.2：胜利结算自动进下一关（5 秒倒计时） ----
+t('倒计时 5 秒', () => { if (UI.AUTO_NEXT_SEC !== 5) throw new Error('不是 5 秒：' + UI.AUTO_NEXT_SEC); });
+t('胜利时自动目标＝主按钮（下一关）', () => {
+  const acts = [{ label: '↻ 再来一次' }, { label: '› 下一关', primary: true }];
+  if (UI._panels.autoNextIndex(true, acts) !== 1) throw new Error('没选中下一关');
+});
+t('失败时不动（不自动跳）', () => {
+  const acts = [{ label: '› 下一关', primary: true }];
+  if (UI._panels.autoNextIndex(false, acts) !== -1) throw new Error('失败页不该自动跳');
+});
+t('没有下一关时不动', () => {
+  if (UI._panels.autoNextIndex(true, [{ label: '↻ 再来一次' }]) !== -1) throw new Error('无主按钮时不该自动跳');
+});
+t('倒计时按钮文案带秒数', () => {
+  const html = UI._panels.autoNextBtnHtml('› 下一关（生化蜂巢 5/12）', 5);
+  if (!html.includes('下一关')) throw new Error('缺按钮文字');
+  if (!html.includes('5s')) throw new Error('缺秒数');
+  if (!html.includes('auto-cd')) throw new Error('缺倒计时样式钩子');
+});
+t('设置里能关掉自动进下一关', () => {
+  const html = UI._panels.settingsModal().innerHTML;
+  if (!html.includes('通关结算自动进下一关')) throw new Error('缺设置项');
+  if (!html.includes('data-toggle="autoNext"')) throw new Error('缺开关');
+});
+t('新档默认开启自动进下一关', () => { if (Core.S.settings.autoNext !== true) throw new Error('默认没开'); });
+
+// ---- V8.2：药园 / 斗法台 / 法宝三个面板能正常渲染 ----
+t('药园面板能渲染', () => {
+  const html = UI._panels.gardenModal().innerHTML;
+  if (!html.includes('灵田')) throw new Error('缺灵田');
+  if (!html.includes('收获') && !html.includes('收')) throw new Error('缺收获入口');
+});
+t('斗法台面板能渲染', () => {
+  const html = UI._panels.arenaModal().innerHTML;
+  if (!html.includes('斗法台')) throw new Error('缺标题');
+  if (!html.includes('台')) throw new Error('缺台数');
+});
+t('法宝面板能渲染', () => {
+  const html = UI._panels.fabaoModal().innerHTML;
+  if (!html.includes('噬魂珠')) throw new Error('缺法宝');
+  if (!html.includes('异界结晶')) throw new Error('缺价格说明');
+});
+t('首页能进药园/斗法台/法宝', () => {
+  const html = UI._panels._screens.homeScreen();
+  if (!html.includes('open-garden')) throw new Error('缺药园入口');
+  if (!html.includes('open-arena')) throw new Error('缺斗法台入口');
+  if (!html.includes('open-fabao')) throw new Error('缺法宝入口');
+});
+
+// ---- V8.2：坐骑 / 求签两个面板 ----
+t('坐骑面板能渲染', () => {
+  const html = UI._panels.mountModal().innerHTML;
+  if (!html.includes('坐骑')) throw new Error('缺标题');
+  if (!html.includes('铁甲蜥')) throw new Error('缺坐骑');
+  if (!html.includes('全队')) throw new Error('缺"全队生效"说明');
+});
+t('求签面板能渲染', () => {
+  const html = UI._panels.signModal().innerHTML;
+  if (!html.includes('求签')) throw new Error('缺标题');
+  if (!html.includes('大吉')) throw new Error('缺签档');
+  if (!html.includes('摇')) throw new Error('缺摇签按钮');
+});
+t('首页能进坐骑/求签', () => {
+  const html = UI._panels._screens.homeScreen();
+  if (!html.includes('open-mount')) throw new Error('缺坐骑入口');
+  if (!html.includes('open-sign')) throw new Error('缺求签入口');
+});
+t('成长页把新线也列出来了', () => {
+  const html = UI._panels._screens.growScreen();
+  if (!html.includes('坐骑')) throw new Error('成长页缺坐骑');
+  if (!html.includes('求签')) throw new Error('成长页缺求签');
+  if (!html.includes('药园')) throw new Error('成长页缺药园');
+});
+t('玩法指南收录新章节', () => {
+  const html = UI._panels.guideModal().innerHTML;
+  if (!html.includes('药园')) throw new Error('指南缺药园');
+  if (!html.includes('斗法台')) throw new Error('指南缺斗法台');
+  if (!html.includes('法宝')) throw new Error('指南缺法宝');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

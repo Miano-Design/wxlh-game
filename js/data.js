@@ -232,8 +232,71 @@ window.DATA = (function () {
     ['C058', '零', '异能', '念动力', '终极控制', 'UR'],
     ['C059', '楚衍', '策略', '念动力', '精神支配', 'UR', 'hidden'],
     ['C060', '郑遥', '先锋', '狼人', '终极狂战', 'UR', 'hidden'],
+    // ---- 第二梯队（对标 Hero 的 122 名）：到 120 名为止，稀有度按 R/SR/SSR/UR 铺开 ----
+    ['C061', '骆青', '先锋', '狼人', '战士', 'R'],
+    ['C062', '商羽', '策略', '修真', '剑士', 'R'],
+    ['C063', '罗砚', '科技', '科技', '射手', 'R'],
+    ['C064', '钟离夏', '异能', '念动力', '控制', 'R'],
+    ['C065', '孟岐', '支援', '魔法', '治疗', 'R'],
+    ['C066', '裴照', '先锋', '血族', '刺客', 'R'],
+    ['C067', '常凛', '先锋', '科技', '重装', 'R'],
+    ['C068', '费霖', '策略', '魔法', '法师', 'R'],
+    ['C069', '闻笛', '异能', '念动力', '精神控制', 'R'],
+    ['C070', '易川', '支援', '修真', '增益', 'R'],
+    ['C071', '施白', '科技', '科技', '无人机', 'R'],
+    ['C072', '邹玄', '先锋', '狼人', '反击坦克', 'R'],
+    ['C073', '戚晚', '策略', '修真', '法剑', 'SR'],
+    ['C074', '安岐', '先锋', '血族', '吸血', 'SR'],
+    ['C075', '凌肃', '异能', '念动力', '控场', 'SR'],
+    ['C076', '祁越', '科技', '科技', '狙击', 'SR'],
+    ['C077', '席白露', '支援', '魔法', '群体治疗', 'SR'],
+    ['C078', '严冬', '先锋', '狼人', '狂战', 'SR'],
+    ['C079', '慕青梧', '策略', '魔法', '冰法', 'SR'],
+    ['C080', '邵无咎', '异能', '血族', '暗杀', 'SR'],
+    ['C081', '贺兰亭', '先锋', '科技', '近战输出', 'SR'],
+    ['C082', '路蕤', '支援', '念动力', '全能辅助', 'SR'],
+    ['C083', '封朗', '科技', '科技', '重火力', 'SR'],
+    ['C084', '关风雪', '策略', '修真', '法阵', 'SR'],
+    ['C085', '辛夷', '异能', '念动力', '精神爆发', 'SR'],
+    ['C086', '尉迟岸', '先锋', '血族', '战士', 'SR'],
+    ['C087', '卓岚', '支援', '血族', '治疗', 'SR'],
+    ['C088', '郗夜白', '科技', '科技', '能量炮', 'SR'],
+    ['C089', '慎行', '策略', '修真', '增益', 'SR'],
+    ['C090', '席云舒', '异能', '念动力', '控制', 'SR'],
+    ['C091', '楼观雪', '先锋', '修真', '剑修', 'SSR'],
+    ['C092', '长孙烬', '策略', '魔法', '元素大师', 'SSR'],
+    ['C093', '巫马遥', '科技', '科技', '星舰炮手', 'SSR'],
+    ['C094', '公仪霜', '异能', '念动力', '精神支配', 'SSR'],
+    ['C095', '独孤曜', '先锋', '血族', '终极刺客', 'SSR'],
+    ['C096', '南宫霁', '支援', '魔法', '圣愈', 'SSR'],
+    ['C097', '西门屠', '先锋', '狼人', '终极狂战', 'SSR'],
+    ['C098', '夏侯岚', '策略', '修真', '法阵大师', 'SSR'],
+    ['C099', '东方既白', '科技', '科技', '全能战士', 'SSR'],
+    ['C100', '百里昭', '异能', '血族', '刺客', 'SSR'],
+    ['C101', '呼延烈', '先锋', '狼人', '狂战', 'SSR'],
+    ['C102', '慕容雪', '支援', '念动力', '全能辅助', 'SSR'],
+    ['C103', '赫连霄', '策略', '魔法', '爆发法师', 'SSR'],
+    ['C104', '宇文澈', '科技', '科技', '狙击', 'SSR'],
+    ['C105', '完颜肃', '异能', '念动力', '控场', 'SSR'],
+    ['C106', '拓跋雪', '先锋', '血族', '吸血', 'SSR'],
+    ['C107', '令狐照', '策略', '修真', '剑修', 'SSR'],
+    ['C108', '琴酒', '科技', '科技', '重火力', 'SSR'],
+    ['C109', '柳生雪绪', '异能', '血族', '终极刺客', 'UR'],
+    ['C110', '藤原千影', '策略', '修真', '终极剑修', 'UR'],
+    ['C111', '黑田宗一', '先锋', '狼人', '终极狂战', 'UR'],
+    ['C112', '苍井零', '科技', '科技', '星舰炮手', 'UR'],
+    ['C113', '九条凉', '支援', '魔法', '终极治疗', 'UR'],
+    ['C114', '山吹时雨', '异能', '念动力', '终极控制', 'UR'],
+    ['C115', '白河愁', '先锋', '血族', '终极刺客', 'UR'],
+    ['C116', '天草洋吾', '策略', '魔法', '元素大师', 'UR'],
+    ['C117', '零式', '科技', '科技', '全能战士', 'UR', 'hidden'],
+    ['C118', '无相', '异能', '念动力', '精神支配', 'UR', 'hidden'],
+    ['C119', '终焉', '先锋', '狼人', '终极狂战', 'UR', 'hidden'],
+    ['C120', '主神代行者', '策略', '修真', '终极剑修', 'UR', 'hidden'],
   ];
-  const RARITY_TOTAL = { SR: [330, 390], SSR: [440, 500], UR: [540, 610] };
+  // 六维总和区间：给了明确数值的老角色照旧（地图里直接写死），没写的按这里的区间 + 定位权重生成。
+  // N/R 的区间是从老角色的实际数值反推的（N 约 325、R 约 350~380），保证新老角色强度连续。
+  const RARITY_TOTAL = { N: [300, 335], R: [340, 385], SR: [330, 390], SSR: [440, 500], UR: [540, 610] };
 
   const characters = CHAR_TABLE.map(row => {
     const [id, name, faction, bloodline, role, rarity, hiddenOrA, b, c, d, e, f] = row;
@@ -289,6 +352,18 @@ window.DATA = (function () {
       enemies: '冰狼|雪魔|霜冻武士'.split('|'), elite: '冰宫禁卫', unlock: 'W12' },
     { id: 'W14', name: '主神试炼场', theme: 'god', desc: '主神亲自设下的试炼，规则由它书写。', hp: 7000, atk: 600, def: 500, mechanic: '随机规则：每回合变化', boss: '试炼执行者', bossHp: [1125798, 2026437, 3602554],
       enemies: '试炼傀儡|规则执行体|主神幻影'.split('|'), elite: '主神代行者', unlock: 'W13' },
+    { id: 'W15', name: '血月古堡', theme: 'ghost', desc: '每逢血月，古堡的宴会就会重新开始。', hp: 8500, atk: 680, def: 570, mechanic: '吸血：敌人攻击回复自身；血月强化', boss: '血月伯爵', bossHp: [1350958, 2431724, 4323065],
+      enemies: '血仆|蝙蝠群|猎魔人残影'.split('|'), elite: '古堡管家', unlock: 'W14' },
+    { id: 'W16', name: '深海遗迹', theme: 'bio', desc: '海底沉睡着不该被唤醒的东西。', hp: 10200, atk: 770, def: 650, mechanic: '水压：每回合全队掉血；触手缠绕', boss: '深海之主', bossHp: [1621150, 2918069, 5187678],
+      enemies: '深潜者|巨型章鱼|珊瑚傀儡'.split('|'), elite: '遗迹祭司', unlock: 'W15' },
+    { id: 'W17', name: '天网中枢', theme: 'tech', desc: '所有联网的东西，现在只听它一个。', hp: 12200, atk: 870, def: 740, mechanic: '无人机群：群体攻击；电磁干扰', boss: '天网主脑', bossHp: [1945380, 3501683, 6225214],
+      enemies: '哨戒机兵|电磁猎犬|数据幽灵'.split('|'), elite: '核心守卫', unlock: 'W16' },
+    { id: 'W18', name: '灵异病院', theme: 'ghost', desc: '这间医院的病历上，写满了你的名字。', hp: 14600, atk: 980, def: 840, mechanic: '幻觉：概率攻击队友；死亡复活', boss: '院长·白', bossHp: [2334456, 4202019, 7470257],
+      enemies: '无影护士|手术怨灵|病房幻影'.split('|'), elite: '重症监护者', unlock: 'W17' },
+    { id: 'W19', name: '群星坟场', theme: 'tech', desc: '无数文明在这里终结，残骸还在呼吸。', hp: 17500, atk: 1110, def: 960, mechanic: '星骸护盾；轨道扫射', boss: '星骸巨兽', bossHp: [2801347, 5042423, 8964308],
+      enemies: '星舰残魂|虚空掠夺者|机械残骸'.split('|'), elite: '坟场拾荒者', unlock: 'W18' },
+    { id: 'W20', name: '主神王座', theme: 'god', desc: '走到这里的人，才有资格问一句为什么。', hp: 21000, atk: 1250, def: 1090, mechanic: '规则改写：每 3 回合变换；全场压制', boss: '主神·终焉', bossHp: [3361616, 6050908, 10757170],
+      enemies: '王座侍者|终焉使者|另一个你'.split('|'), elite: '王座禁卫', unlock: 'W19' },
   ];
   const DIFFICULTY = [
     { id: 'normal', name: '普通', mult: 1.0, rewardMult: 1.0 },
@@ -431,6 +506,13 @@ window.DATA = (function () {
     exp_m: { name: '中级经验模块', type: 'exp', where: 'character', exp: 2000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+2,000 EXP', src: '主神商店、随机事件、每日/周常奖励' },
     exp_l: { name: '高级经验模块', type: 'exp', where: 'character', exp: 10000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+10,000 EXP', src: '主神商店（通关 W04 后解锁）、精英/Boss 掉落、周常奖励' },
     exp_xl: { name: '超级经验模块', type: 'exp', where: 'character', exp: 50000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+50,000 EXP', src: '主神商店（通关 W07 后解锁）、地狱 Boss 掉落、周常全清奖励' },
+    exp_xxl: { name: '究极经验模块', type: 'exp', where: 'character', exp: 200000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+200,000 EXP', src: '主神商店（通关 W15 后解锁）、W15+ 守关 Boss、周常全清、斗法台高阶' },
+    /* 探索增益的"后三档"：治疗剂管回血，这三支管打出去（对标别人的"丹药"矩阵）。
+       品质越高给得越多，但都只在一次探索里生效，不改变长期数值。 */
+    heal_x: { name: '全效治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 1.0 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队完全恢复生命', src: '主神商店、W10+ 守关 Boss、斗法台、回廊商店' },
+    def_shield: { name: '合金护盾剂', type: 'consumable', where: 'explore', effect: { defPct: 0.20 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队防御 +20%', desc: '副本探索中使用：本次探索全队防御 +20%', src: '主神商店、精英/Boss 掉落、补给箱' },
+    atk_surge: { name: '狂暴催化剂', type: 'consumable', where: 'explore', effect: { atkPct: 0.30 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队攻击 +30%', desc: '副本探索中使用：本次探索全队攻击 +30%', src: '主神商店（通关 W06）、W06+ 精英/Boss' },
+    spd_surge: { name: '超频注射剂', type: 'consumable', where: 'explore', effect: { spdPct: 0.35 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队速度 +35%', desc: '副本探索中使用：本次探索全队速度 +35%', src: '异界商店（通关 W08）、W08+ 精英/Boss' },
     mat_t1: { name: '基础金属', type: 'material', tier: 1, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +0~+4 时消耗（不足可用点数代用）', src: 'W01~W05 精英/Boss、主神商店、故事商店' },
     mat_t2: { name: '强化合金', type: 'material', tier: 2, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +5~+9 时消耗（不足可用点数代用）', src: 'W02~W06 精英/Boss、异界商店' },
     mat_t3: { name: '异界合金', type: 'material', tier: 3, use: '装备强化时自动优先消耗；不够时用点数代用', desc: '强化材料：装备 +10~+14 时消耗（不足可用点数代用）', src: 'W03~W07 精英/Boss、异界商店' },
@@ -487,13 +569,13 @@ window.DATA = (function () {
 
   /* ================= 货币图鉴 ================= */
   const CURRENCY_INFO = {
-    points:       { use: '强化装备、普通招募、背包扩容、主神商店、建筑升级', gain: '挂机、副本战斗、扫荡、任务、分解装备外的主要产出' },
+    points:       { use: '强化装备、普通招募、背包扩容、主神商店、建筑升级、药园播种、驯服坐骑', gain: '挂机、副本战斗、扫荡、任务、分解装备外的主要产出' },
     story:        { use: '故事商店（角色碎片、材料、装备箱）', gain: '挂机每30分钟、副本事件、首通奖励' },
-    otherworld:   { use: '装备强化、异界商店（高阶装备箱）、限定招募（定向出当期 UP）、主神权限投资', gain: '分解装备、副本战斗、扫荡、悬赏' },
+    otherworld:   { use: '装备强化、异界商店（高阶装备箱）、限定招募（定向出当期 UP）、主神权限投资、秘术阁、法宝、高阶坐骑', gain: '分解装备、副本战斗、扫荡、悬赏、斗法台' },
     holy:         { use: '高级招募（SR 起抽、50 抽保底 SSR、优先给还没有的角色）、主神权限投资', gain: '主线任务、首通奖励、登录奖励、限时悬赏' },
     skillChip:    { use: '招募角色技能升级', gain: '副本战斗、扫荡、主神商店兑换' },
     bloodCrystal: { use: '血统选择与升级（主角与招募角色）', gain: 'Boss战、困难/地狱难度、回廊' },
-    corridor:     { use: '回廊商店（稀有道具）', gain: '无限回廊层数奖励' },
+    corridor:     { use: '回廊商店（稀有道具）', gain: '无限回廊层数奖励、斗法台守擂成功' },
     rp:           { use: '转生天赋加点（永久属性）', gain: '转生时按轮回进度结算' },
   };
 
@@ -550,11 +632,12 @@ window.DATA = (function () {
       '转生天赋是永久加成，越早开始攒越划算——但不要为了转生硬堆，先把当前进度打穿。',
       '天赋分四支：永恒之躯（生命/防御/减伤）、无限能源（精神/技能/开场能量）、超维神经（速度/暴击/先制）、主神恩赐（挂机/经验/掉落）。每支点满 6200 转生点，量力而行。',
     ] },
-    { id: 'daily', title: '⑦ 每天必做的四件事', body: [
-      '1. 领挂机收益（挂满越久收益越多，离线也有）。',
-      '2. 领每日免费招募（招募页第一个按钮，一天一次）。',
-      '3. 做完每日任务 + 全部完成奖励（任务面板）。',
-      '4. 扫荡已通关的关卡拿材料（每天 60 次）。',
+    { id: 'daily', title: '⑦ 每天必做的五件事', body: [
+      '1. 先求一签（首页「养成」→「求签」）：签文给当天的挂机加成，先求再挂最划算。',
+      '2. 领挂机收益（挂满越久收益越多，离线也有）。',
+      '3. 领每日免费招募（招募页第一个按钮，一天一次）。',
+      '4. 做完每日任务 + 全部完成奖励（任务面板）。',
+      '5. 扫荡已通关的关卡拿材料（每天 60 次）＋ 斗法台 5 次（结晶与徽记最稳的来源）。',
       '懒得一项项点？点首页「🗓 今日」那块（挂机主视觉下面、主线旁边），里面有「一键收取」：挂机、任务、周常、成就、图鉴里所有已经达成、躺着等点的奖励，一次全收。',
     ] },
     { id: 'recruit', title: '⑨ 三张招募池，花的是三种钱', body: [
@@ -612,6 +695,22 @@ window.DATA = (function () {
       '任务面板有四个页签：主线 / 日常 / 周常 / 成就。',
       '周常每周一自然重置：战斗 100 次、通关 10 次副本、强化 20 次、招募 10 次、领挂机 7 次，全清有额外奖励（含超级经验模块）。',
       '成就是长线目标，分战斗 / 养成 / 收集 / 挑战四类，达成后手动领取奖励；其中回廊层数类成就奖励回廊徽记。',
+    ] },
+    { id: 'garden', title: '⑯ 药园 · 斗法台 · 法宝', body: [
+      '这三条是照着别人的「洞府药园 / 斗法 / 法宝」补的，都不占队伍位置、不用操作，是"等着收菜"型的成长线。',
+      '**药园**：4 块地，花 ◈点数种下灵田，等时间到收强化材料（上品/极品还会额外掉装备箱）。种下去就能去干别的，回来点「一键全收」一次收完——这是点数除了强化、招募之外的第三个出口，也是强化材料不用死刷副本的一条路。',
+      '**斗法台**：单机没有真 PVP，所以做成"镜像擂台"——守擂者按你自己的队伍战力换算，台数越高越强。每天 5 次，赢了升一台拿 ◆异界结晶 + ♜回廊徽记，输了退一台（保底第 1 台，永远不会卡死）。推图推不动的时候，这里是最稳的异界结晶来源。',
+      '**法宝**：装备给的是数值，法宝给的是「效果」——吸血、开场能量、减伤、闪避这类平时很难堆的东西。花 ◆异界结晶买，主角带 1 件，买了自动戴上，随时能换、能摘。它和装备、血统、基因锁互不冲突，是主角的第四条成长线。',
+      '入口：首页「养成」那一组的「药园」「斗法台」「法宝」，点名字就是完整面板。',
+    ] },
+    { id: 'mount', title: '⑰ 坐骑与求签', body: [
+      '**坐骑**和法宝是"一硬一软"的两条主角线：法宝给效果（吸血 / 开场能量 / 减伤），坐骑给**基础数值**（攻击 / 生命 / 防御 / 速度）。',
+      '坐骑有一处和法宝不一样：**它是全队加成，招募角色也吃**。所以资源紧的时候先买坐骑，收益比只加主角一人的东西更划算。',
+      '驯服坐骑要 ◈点数 + 强化材料，高阶坐骑另加 ◆异界结晶——这是点数、材料、结晶三条资源同时有出口的地方，也是背包里囤的材料不会变废的原因。',
+      '同时只骑 1 匹，随时能换；换一匹数字立刻变，不用重练。',
+      '**求签**是每天上线第一件事：摇一签看今天的手气。签文分大吉 / 上吉 / 中吉 / 小吉 / 末吉五档，给**当天的挂机加成**（+6% ~ +30%）和一笔硬通货。',
+      '签文只算当天，隔天自动失效，所以"今天上线先求一签再挂机"是最划算的顺序。摇之前面板上就写着五档各多少概率，不用猜。',
+      '入口：首页「养成」那一组的「坐骑」「求签」。',
     ] },
   ];
 
@@ -842,6 +941,37 @@ window.DATA = (function () {
     { id: 'wuxing', name: '悟性诀', ico: '📘', key: 'expPct',   rate: 0.004, max: 40, base: 14, step: 3, info: '经验获取' },
     { id: 'juyun',  name: '聚运术', ico: '🍀', key: 'dropPct',  rate: 0.003, max: 30, base: 20, step: 4, info: '掉落概率' },
     { id: 'jingxin', name: '静心诀', ico: '🌙', key: 'offlinePct', rate: 0.003, max: 30, base: 20, step: 4, info: '离线效率' },
+    // 补齐到 41 条（对标 KeJi 的 41 条线）：数值都很小，靠"永远还有下一级"撑长线
+    { id: 'xueqi',  name: '血气诀', ico: '🩸', key: 'lifesteal', rate: 0.001, max: 40, base: 22, step: 4, info: '吸血' },
+    { id: 'shouyi', name: '守御术', ico: '⛰', key: 'resPct',    rate: 0.002, max: 40, base: 22, step: 4, info: '减伤' },
+    { id: 'shendu', name: '神读咒', ico: '📖', key: 'spiritPct', rate: 0.004, max: 40, base: 16, step: 3, info: '精神（技能倍率）' },
+    { id: 'tiegu',  name: '铁骨功', ico: '🦴', key: 'defPct',   rate: 0.005, max: 50, base: 12, step: 3, info: '全队防御' },
+    { id: 'liehuo', name: '烈火诀', ico: '🔥', key: 'atkPct',   rate: 0.005, max: 50, base: 12, step: 3, info: '全队攻击' },
+    { id: 'hanshui', name: '寒水诀', ico: '❄', key: 'hpPct',    rate: 0.005, max: 50, base: 12, step: 3, info: '全队生命' },
+    { id: 'leiting', name: '雷霆诀', ico: '⚡', key: 'spdPct',   rate: 0.004, max: 40, base: 15, step: 3, info: '全队速度' },
+    { id: 'wuxingtu', name: '五行图', ico: '☯', key: 'skillPct', rate: 0.004, max: 40, base: 15, step: 3, info: '技能伤害' },
+    { id: 'mingmu', name: '明目术', ico: '👁', key: 'critPct',  rate: 0.002, max: 40, base: 18, step: 4, info: '暴击率' },
+    { id: 'lifa',   name: '力煞诀', ico: '💪', key: 'critDmg',  rate: 0.006, max: 30, base: 24, step: 5, info: '暴击伤害' },
+    { id: 'lingbo', name: '凌波步', ico: '🌊', key: 'evaPct',   rate: 0.002, max: 30, base: 24, step: 5, info: '闪避' },
+    { id: 'bishou', name: '闭守诀', ico: '🛡', key: 'resPct',   rate: 0.003, max: 30, base: 24, step: 5, info: '减伤' },
+    { id: 'xuelian', name: '血炼术', ico: '🧪', key: 'lifesteal', rate: 0.0015, max: 30, base: 26, step: 5, info: '吸血' },
+    { id: 'tianyan', name: '天眼通', ico: '🔭', key: 'critPct', rate: 0.0015, max: 30, base: 26, step: 5, info: '暴击率' },
+    { id: 'dilong', name: '地龙诀', ico: '🐉', key: 'hpPct',    rate: 0.006, max: 30, base: 26, step: 5, info: '全队生命' },
+    { id: 'jinzhong', name: '金钟罩', ico: '🔔', key: 'defPct', rate: 0.006, max: 30, base: 26, step: 5, info: '全队防御' },
+    { id: 'kuangfeng', name: '狂风诀', ico: '🌪', key: 'spdPct', rate: 0.005, max: 30, base: 26, step: 5, info: '全队速度' },
+    { id: 'chixiao', name: '赤霄剑诀', ico: '🗡', key: 'atkPct', rate: 0.007, max: 30, base: 28, step: 6, info: '全队攻击' },
+    { id: 'yuling', name: '御灵诀', ico: '🎋', key: 'skillPct', rate: 0.005, max: 30, base: 28, step: 6, info: '技能伤害' },
+    { id: 'qiankun', name: '乾坤袋', ico: '🎒', key: 'dropPct',  rate: 0.003, max: 25, base: 30, step: 6, info: '掉落概率' },
+    { id: 'julong', name: '聚龙术', ico: '🐲', key: 'idlePct',  rate: 0.005, max: 25, base: 30, step: 6, info: '挂机产出' },
+    { id: 'wudao',  name: '悟道录', ico: '🧘', key: 'expPct',   rate: 0.005, max: 25, base: 30, step: 6, info: '经验获取' },
+    { id: 'xingsu', name: '星宿诀', ico: '🌟', key: 'offlinePct', rate: 0.004, max: 25, base: 32, step: 6, info: '离线效率' },
+    { id: 'shenji', name: '神机术', ico: '⚙', key: 'critDmg',  rate: 0.008, max: 25, base: 32, step: 6, info: '暴击伤害' },
+    { id: 'taixu',  name: '太虚经', ico: '🌌', key: 'spiritPct', rate: 0.006, max: 25, base: 34, step: 7, info: '精神（技能倍率）' },
+    { id: 'jiuzhuan', name: '九转功', ico: '🔄', key: 'hpPct',  rate: 0.008, max: 25, base: 34, step: 7, info: '全队生命' },
+    { id: 'pojun',  name: '破军诀', ico: '⚔', key: 'atkPct',   rate: 0.008, max: 25, base: 34, step: 7, info: '全队攻击' },
+    { id: 'zhenwu', name: '真武诀', ico: '🐢', key: 'defPct',   rate: 0.008, max: 25, base: 34, step: 7, info: '全队防御' },
+    { id: 'daoyin', name: '导引术', ico: '🌬', key: 'idlePct',  rate: 0.006, max: 20, base: 38, step: 8, info: '挂机产出' },
+    { id: 'canghai', name: '沧海诀', ico: '🌊', key: 'resPct',  rate: 0.004, max: 20, base: 38, step: 8, info: '减伤' },
   ];
   const kejiById = id => KEJI.find(k => k.id === id) || null;
   const kejiCost = (k, lv) => k.base + k.step * lv;
@@ -864,10 +994,133 @@ window.DATA = (function () {
     { id: 'tv10', ico: '🐣', name: '兽魂残响',   w: 5,  desc: '一声兽鸣，你从残响里凝出一枚兽魂石。', effect: { item: 'beast_egg' } },
     { id: 'tv11', ico: '🌟', name: '天降机缘',   w: 3,  desc: '天光落下来，这一趟收获格外丰厚。', effect: { points: 8000, holy: 80, otherworld: 120 } },
     { id: 'tv12', ico: '🧧', name: '同道馈赠',   w: 6,  desc: '一位同门托人捎来份礼。', effect: { item: 'ticket_adv' } },
+    // 补齐到 40 种（对标 YouLi 的 601 条池子）：越靠后越稀有，权重越低
+    { id: 'tv13', ico: '🌾', name: '荒田拾穗',   w: 14, desc: '路边的荒田里还留着几株能用的灵植。', effect: { points: 600, item: 'mat_t1' } },
+    { id: 'tv14', ico: '🍲', name: '野灶留食',   w: 12, desc: '有人在这儿生过火，锅里的东西还热着。', effect: { points: 900 } },
+    { id: 'tv15', ico: '🕯', name: '残烛照壁',   w: 10, desc: '墙上的刻痕被烛光一照，是一段吐纳口诀。', effect: { points: 1400, exp: 0 } },
+    { id: 'tv16', ico: '🐍', name: '灵蛇蜕皮',   w: 9,  desc: '一条灵蛇刚蜕完皮，旧皮里还含着灵气。', effect: { item: 'mat_t2' } },
+    { id: 'tv17', ico: '🌫', name: '雾中问路',   w: 9,  desc: '雾气里有人替你指了条近路。', effect: { points: 1600 } },
+    { id: 'tv18', ico: '🏚', name: '废屋搜查',   w: 8,  desc: '一间塌了半边的屋子，柜子还没被人翻过。', effect: { points: 1100, item: 'exp_s' } },
+    { id: 'tv19', ico: '🧭', name: '指路罗盘',   w: 7,  desc: '捡到一只还能转的罗盘，顺手记住了几条矿脉走向。', effect: { points: 2200, item: 'mat_t2' } },
+    { id: 'tv20', ico: '🪨', name: '灵石碎块',   w: 7,  desc: '山体裂缝里嵌着几块灵石碎块。', effect: { otherworld: 60 } },
+    { id: 'tv21', ico: '🧙‍♂️', name: '隐士论道', w: 6,  desc: '一位隐士与你论了半日道。', effect: { points: 2600, skillChip: 8 } },
+    { id: 'tv22', ico: '🌸', name: '花丛小憩',   w: 6,  desc: '在花丛里睡了一觉，醒来神清气爽。', effect: { exp: 0, points: 500, holy: 15 } },
+    { id: 'tv23', ico: '🗡', name: '古战场拾遗', w: 5,  desc: '古战场上还能捡到没锈透的家伙。', effect: { item: 'mat_t3' } },
+    { id: 'tv24', ico: '🧊', name: '寒潭淬体',   w: 5,  desc: '跳进寒潭泡了一炷香，皮肉更结实了。', effect: { points: 3200 } },
+    { id: 'tv25', ico: '📕', name: '藏经残页',   w: 4,  desc: '藏经阁流出来的一页残纸。', effect: { skillChip: 30 } },
+    { id: 'tv26', ico: '💠', name: '异宝微光',   w: 4,  desc: '土里透出一点微光，挖出来是块异宝碎料。', effect: { otherworld: 140 } },
+    { id: 'tv27', ico: '🕊', name: '白鹤引路',   w: 4,  desc: '一只白鹤在前面慢慢飞，把你带到了一处福地。', effect: { holy: 60, points: 2000 } },
+    { id: 'tv28', ico: '⚗️', name: '遗落丹炉', w: 3,  desc: '一尊没坏的丹炉，炉底还留着丹药。', effect: { item: 'exp_m' } },
+    { id: 'tv29', ico: '🎴', name: '赌坊手气',   w: 3,  desc: '路过赌坊顺手玩了一把，居然赢了。', effect: { points: 5200 } },
+    { id: 'tv30', ico: '🐺', name: '狼群围猎',   w: 3,  desc: '一群野狼围上来，被你反过来打了牙祭。', effect: { item: 'beast_egg', points: 1200 } },
+    { id: 'tv31', ico: '🌠', name: '流星夜观',   w: 3,  desc: '一场流星雨，你对着星光把修为理顺了。', effect: { points: 6600, holy: 40 } },
+    { id: 'tv32', ico: '🏯', name: '旧宗门遗址', w: 3,  desc: '一座废弃宗门，库房里还留着东西。', effect: { item: 'box_sr', points: 2400 } },
+    { id: 'tv33', ico: '🧿', name: '古镜照心',   w: 3,  desc: '古镜里照出的是另一个自己，你和他对了一招。', effect: { bloodCrystal: 30, points: 1800 } },
+    { id: 'tv34', ico: '🪶', name: '仙禽遗羽',   w: 2,  desc: '一根仙禽落羽，轻得像没有重量。', effect: { otherworld: 200, holy: 50 } },
+    { id: 'tv35', ico: '🗝', name: '无名钥匙',   w: 2,  desc: '一把没有锁孔的钥匙，你收进了怀里。', effect: { item: 'ticket_lim' } },
+    { id: 'tv36', ico: '🎣', name: '潭底钓宝',   w: 2,  desc: '潭底钓上来一个沉甸甸的箱子。', effect: { item: 'box_ssr', points: 3000 } },
+    { id: 'tv37', ico: '🏔', name: '云顶吐纳',   w: 2,  desc: '在云顶吐纳一场，灵气灌顶。', effect: { holy: 120, points: 4000 } },
+    { id: 'tv38', ico: '🧬', name: '血玉现世',   w: 2,  desc: '地里渗出一块血玉，握在手里发烫。', effect: { bloodCrystal: 80 } },
+    { id: 'tv39', ico: '🌕', name: '月华灌体',   w: 1,  desc: '月华落下来，把你整个人洗了一遍。', effect: { holy: 200, otherworld: 260, points: 6000 } },
+    { id: 'tv40', ico: '🎇', name: '大道显化',   w: 1,  desc: '你眼前晃过一线大道，抓不住，但确实抓到了一把东西。', effect: { item: 'box_ur', holy: 300 } },
   ];
   const TRAVEL_TOTAL_W = TRAVELS.reduce((s, t) => s + t.w, 0);
   // 挂机每满这么久，攒出一次游历（秒）。攒满就停在"待触发"，不会丢。
   const TRAVEL_EVERY_SEC = 600;   // 10 分钟一次
+
+  /* ================= 药园（对标《道友修仙》洞府里的"药园"） =================
+     它的药园是"种下去、等时间、回来收"的挂机副线，产的是炼丹用料。
+     我们做成 4 块地：花 ◈点数播种 → 到点成熟 → 收获得强化材料，另有几率出稀有物。 */
+  const GARDEN_PLOTS = 4;
+  const GARDEN = [
+    { id: 'g1', name: '下品灵田', points: 800,   sec: 600,  out: { item: 'mat_t1', n: 3 }, extra: { item: 'beast_egg', n: 1, p: 0.15 } },
+    { id: 'g2', name: '中品灵田', points: 3200,  sec: 1800, out: { item: 'mat_t2', n: 3 }, extra: { item: 'beast_egg', n: 1, p: 0.25 } },
+    { id: 'g3', name: '上品灵田', points: 12000, sec: 3600, out: { item: 'mat_t3', n: 3 }, extra: { item: 'box_sr', n: 1, p: 0.20 } },
+    { id: 'g4', name: '极品灵田', points: 40000, sec: 7200, out: { item: 'mat_t4', n: 2 }, extra: { item: 'box_ssr', n: 1, p: 0.15 } },
+  ];
+
+  /* ================= 斗法台（对标《道友修仙》的斗法 / Arena） =================
+     单机做不了真 PVP，所以做成"镜像擂台"：守擂者按你自己的队伍战力换算出来，
+     层数越高越强。每天 5 次，赢了升一层并拿 ◆异界结晶 + ♜回廊徽记。 */
+  const ARENA_DAILY = 5;
+  function arenaReward(floor) {
+    const m = Math.pow(1.14, floor - 1);
+    return { otherworld: Math.round(20 * m), corridor: Math.max(1, Math.round(floor * 0.6)) };
+  }
+  // 守擂者：用参考战力反推，保证"永远打得动、也永远有压力"
+  function arenaEnemy(floor, refPower) {
+    const m = Math.pow(1.16, floor - 1);
+    const p = Math.max(200, refPower) * 0.10 * m;         // 单个守擂者的战力基准
+    const mk = (name, k, isBoss) => ({
+      name, hp: Math.round(p * 9 * k), atk: Math.round(p * 0.55 * k),
+      def: Math.round(p * 0.32 * k), spd: 58 + floor * 2 + (isBoss ? 18 : 0),
+      faction: null, eva: 0.04, resPct: 0, isElite: !isBoss, isBoss: !!isBoss,
+    });
+    const list = [mk(`守擂者 ${floor} 号`, 1.0, false)];
+    if (floor >= 3) list.push(mk(`副擂 ${floor} 号`, 0.8, false));
+    if (floor % 5 === 0) list[0] = mk(`擂主 · 第 ${floor} 台`, 1.9, true);
+    return list;
+  }
+
+  /* ================= 法宝（对标《道友修仙》的法宝） =================
+     装备是"数值"，法宝是"效果"：每件法宝给一条特殊效果（开场能量、吸血、减伤…），
+     主角带上 1 件。它对应参考图角色页右侧那排按钮里的"法宝"那一栏。 */
+  const FABAO = [
+    { id: 'fb01', name: '噬魂珠', rarity: 'R',   cost: 800,   eff: { lifesteal: 0.04 },                     desc: '吸血 +4%' },
+    { id: 'fb02', name: '疾风符', rarity: 'R',   cost: 800,   eff: { spdPct: 0.06 },                        desc: '速度 +6%' },
+    { id: 'fb03', name: '玄铁盾', rarity: 'SR',  cost: 3000,  eff: { defPct: 0.10, dmgReduce: 0.03 },       desc: '防御 +10%、减伤 +3%' },
+    { id: 'fb04', name: '聚灵幡', rarity: 'SR',  cost: 3000,  eff: { initEnergy: 25 },                      desc: '开场能量 +25' },
+    { id: 'fb05', name: '破军戟', rarity: 'SR',  cost: 3600,  eff: { atkPct: 0.10, critDmg: 0.15 },        desc: '攻击 +10%、暴击伤害 +15%' },
+    { id: 'fb06', name: '太虚镜', rarity: 'SSR', cost: 12000, eff: { evaPct: 0.08, skillPct: 0.12 },       desc: '闪避 +8%、技能伤害 +12%' },
+    { id: 'fb07', name: '天罡印', rarity: 'SSR', cost: 12000, eff: { atkPct: 0.14, dmgReduce: 0.05 },      desc: '攻击 +14%、减伤 +5%' },
+    { id: 'fb08', name: '轮回盘', rarity: 'UR',  cost: 40000, eff: { atkPct: 0.10, hpPct: 0.10, defPct: 0.10, spdPct: 0.10 }, desc: '全属性 +10%（主角专属）' },
+    // 补齐到 20 件：R 是随手的，SR 是中期目标，SSR/UR 是结晶的主要出口
+    { id: 'fb09', name: '铜镜',   rarity: 'R',   cost: 900,   eff: { defPct: 0.05 },                  desc: '防御 +5%' },
+    { id: 'fb10', name: '木傀儡', rarity: 'R',   cost: 900,   eff: { hpPct: 0.06 },                   desc: '生命 +6%' },
+    { id: 'fb11', name: '铁针囊', rarity: 'R',   cost: 950,   eff: { critPct: 0.02 },                 desc: '暴击率 +2%' },
+    { id: 'fb12', name: '清风扇', rarity: 'R',   cost: 1000,  eff: { skillPct: 0.05 },                desc: '技能伤害 +5%' },
+    { id: 'fb13', name: '镇魂铃', rarity: 'SR',  cost: 2800,  eff: { resPct: 0.04 },                  desc: '减伤 +4%' },
+    { id: 'fb14', name: '离火轮', rarity: 'SR',  cost: 3400,  eff: { atkPct: 0.08, skillPct: 0.06 }, desc: '攻击 +8%、技能伤害 +6%' },
+    { id: 'fb15', name: '冰髓瓶', rarity: 'SR',  cost: 3200,  eff: { hpPct: 0.12, resPct: 0.02 },    desc: '生命 +12%、减伤 +2%' },
+    { id: 'fb16', name: '风雷靴', rarity: 'SR',  cost: 3300,  eff: { spdPct: 0.10, evaPct: 0.04 },   desc: '速度 +10%、闪避 +4%' },
+    { id: 'fb17', name: '血玉环', rarity: 'SSR', cost: 11000, eff: { lifesteal: 0.06, atkPct: 0.06 }, desc: '吸血 +6%、攻击 +6%' },
+    { id: 'fb18', name: '九幽幡', rarity: 'SSR', cost: 13000, eff: { skillPct: 0.16, critDmg: 0.20 }, desc: '技能伤害 +16%、暴击伤害 +20%' },
+    { id: 'fb19', name: '金乌羽', rarity: 'SSR', cost: 13000, eff: { critPct: 0.06, critDmg: 0.25 },  desc: '暴击率 +6%、暴击伤害 +25%' },
+    { id: 'fb20', name: '混沌钟', rarity: 'UR',  cost: 48000, eff: { defPct: 0.15, resPct: 0.08, hpPct: 0.15 }, desc: '防御 +15%、减伤 +8%、生命 +15%' },
+  ];
+  const fabaoById = id => FABAO.find(f => f.id === id) || null;
+
+  /* ================= 坐骑（对标《道友修仙》的坐骑） =================
+     法宝给"效果"，坐骑给"基础数值"：主角骑 1 匹，永久生效、随时能换。
+     对标参考图角色页右侧那排按钮里的"坐骑"那一栏。 */
+  const MOUNTS = [
+    { id: 'mt01', name: '铁甲蜥', rarity: 'N',  cost: { points: 8000 },                                          pct: { hpPct: 0.04 },  desc: '生命 +4%' },
+    { id: 'mt02', name: '疾风狼', rarity: 'N',  cost: { points: 8000 },                                          pct: { spdPct: 0.05 }, desc: '速度 +5%' },
+    { id: 'mt03', name: '玄铁犀', rarity: 'R',  cost: { points: 40000, mat: 'mat_t2', matN: 20 },                 pct: { defPct: 0.08 },  desc: '防御 +8%' },
+    { id: 'mt04', name: '赤焰虎', rarity: 'R',  cost: { points: 40000, mat: 'mat_t2', matN: 20 },                 pct: { atkPct: 0.08 },  desc: '攻击 +8%' },
+    { id: 'mt05', name: '幽影豹', rarity: 'SR', cost: { points: 120000, otherworld: 800, mat: 'mat_t3', matN: 15 }, pct: { spdPct: 0.10, critPct: 0.03 }, desc: '速度 +10%、暴击率 +3%' },
+    { id: 'mt06', name: '雷麟兽', rarity: 'SR', cost: { points: 120000, otherworld: 800, mat: 'mat_t3', matN: 15 }, pct: { atkPct: 0.10, skillPct: 0.08 }, desc: '攻击 +10%、技能伤害 +8%' },
+    { id: 'mt07', name: '太古龙鲸', rarity: 'UR', cost: { points: 300000, otherworld: 6000, mat: 'mat_t5', matN: 10 }, pct: { atkPct: 0.12, hpPct: 0.12, defPct: 0.12, spdPct: 0.12 }, desc: '全属性 +12%' },
+  ];
+  const mountById = id => MOUNTS.find(m => m.id === id) || null;
+  const MOUNT_PCT_NAME = { atkPct: '攻击', hpPct: '生命', defPct: '防御', spdPct: '速度', critPct: '暴击率', skillPct: '技能伤害' };
+
+  /* ================= 求签（对标《道友修仙》的求签 / SignItem） =================
+     每天免费摇一次签，签文分五档（大吉→末吉），给当日的挂机加成 + 一点硬通货。
+     它解决的问题是"每天上线第一件事点哪里"——先求一签，再看今天要干嘛。 */
+  const SIGNS = [
+    { id: 'sg1', tier: '大吉', weight: 4,   text: '紫气东来，今日诸事皆宜。',   gain: { holy: 60, otherworld: 120, bloodCrystal: 6 },  idlePct: 0.30, days: 1 },
+    { id: 'sg2', tier: '上吉', weight: 10,  text: '云开见月，所行皆顺。',       gain: { holy: 40, otherworld: 80, bloodCrystal: 4 },   idlePct: 0.22, days: 1 },
+    { id: 'sg3', tier: '中吉', weight: 22,  text: '平顺之日，稳中有进。',       gain: { holy: 25, otherworld: 50, bloodCrystal: 2 },   idlePct: 0.15, days: 1 },
+    { id: 'sg4', tier: '小吉', weight: 30,  text: '小有收获，宜守不宜攻。',     gain: { holy: 15, otherworld: 30, bloodCrystal: 1 },   idlePct: 0.10, days: 1 },
+    { id: 'sg5', tier: '末吉', weight: 34,  text: '谋事在人，今日宜稳扎稳打。', gain: { holy: 8,  otherworld: 15 },                    idlePct: 0.06, days: 1 },
+  ];
+  function rollSign() {
+    const total = SIGNS.reduce((a, s) => a + s.weight, 0);
+    let r = Math.random() * total;
+    for (const s of SIGNS) { r -= s.weight; if (r <= 0) return s; }
+    return SIGNS[SIGNS.length - 1];
+  }
 
   /* ================= 主神权限（对标《道友修仙》的"洞府"） ================= */
   // 它的洞府是"一次性把高级货币（钻石/灵石）投进去，永久抬高挂机倍率、任务数、副本次数"，
@@ -1151,6 +1404,10 @@ window.DATA = (function () {
       { item: 'heal_l', name: '大型治疗剂', price: 3000, stock: -1, req: { world: 'W03' } },
       { item: 'buff_muscle', name: '肌肉强化剂', price: 1500, stock: -1 },
       { item: 'buff_nerve', name: '神经刺激剂', price: 1500, stock: -1 },
+      { item: 'def_shield', name: '合金护盾剂', price: 2400, stock: -1, req: { world: 'W02' } },
+      { item: 'atk_surge', name: '狂暴催化剂', price: 3600, stock: -1, req: { world: 'W06' } },
+      { item: 'heal_x', name: '全效治疗剂', price: 9000, stock: -1, req: { world: 'W10' } },
+      { item: 'exp_xxl', name: '究极经验模块', price: 160000, stock: -1, req: { world: 'W15' } },
       { item: 'mat_t1', name: '基础金属×10', price: 300, count: 10, stock: -1 },
       { item: 'mat_t4', name: '虚空晶体×5', price: 6000, count: 5, stock: -1, req: { world: 'W04' } },
       { item: 'mat_t5', name: '主神残片×3', price: 15000, count: 3, stock: -1, req: { world: 'W06' } },
@@ -1168,6 +1425,8 @@ window.DATA = (function () {
       { item: 'mat_t4', name: '虚空晶体×5', price: 300, count: 5, stock: -1, req: { world: 'W04' } },
       { item: 'mat_t5', name: '主神残片×3', price: 900, count: 3, stock: -1, req: { world: 'W06' } },
       { item: 'exp_l', name: '高级经验模块', price: 150, stock: -1, req: { world: 'W04' } },
+      { item: 'spd_surge', name: '超频注射剂', price: 260, stock: -1, req: { world: 'W08' } },
+      { item: 'exp_xxl', name: '究极经验模块', price: 4200, stock: -1, req: { world: 'W15' } },
       { item: 'ticket_adv', name: '圣契招募令', price: 120, stock: 2 },
       { item: 'ticket_lim', name: '异界征召令', price: 180, stock: 2 },
     ] },
@@ -1203,6 +1462,8 @@ window.DATA = (function () {
     { id: 'recruit1', name: '招募 1 次', target: 1, reward: { holy: 20 } },
     { id: 'dungeon1', name: '完成 1 次副本', target: 1, reward: { story: 100 } },
     { id: 'item1',    name: '使用 1 个道具', target: 1, reward: { points: 500 } },
+    { id: 'sign1',    name: '求签 1 次', target: 1, reward: { points: 600 } },
+    { id: 'arena1',   name: '斗法台守擂 1 次', target: 1, reward: { otherworld: 40 } },
   ];
   const DAILY_ALL_REWARD = { points: 5000, skillChip: 50, holy: 20, item: 'ticket_normal' };
   // 周常任务：与每日任务共用同一套进度来源（战斗/强化/副本/招募/道具/挂机），按自然周重置
@@ -1442,6 +1703,11 @@ window.DATA = (function () {
     SECT_MAX, SECT_PCT_PER_LV, sectExpNeed, sectBonusPct, SECT_EXP,
     KEJI, KEJI_COIN, kejiById, kejiCost,
     TRAVELS, TRAVEL_TOTAL_W, TRAVEL_EVERY_SEC,
+    GARDEN, GARDEN_PLOTS,
+    ARENA_DAILY, arenaReward, arenaEnemy,
+    FABAO, fabaoById,
+    MOUNTS, mountById, MOUNT_PCT_NAME,
+    SIGNS, rollSign,
     RECRUIT_POOLS, PITY, PITY_UP, recruitUpChar, weekIndex,
     FORMATIONS, pityText,
     AUTHORITY, AUTHORITY_MAX, authorityCost, authorityBonus, AUTHORITY_PER_LV,

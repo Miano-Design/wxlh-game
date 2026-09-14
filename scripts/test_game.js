@@ -1189,5 +1189,152 @@ Core.S.party[1] = 'C021';
   t('每种游历都有文案与效果', D.TRAVELS.every(x => x.name && x.desc && Object.keys(x.effect).length));
 }
 
+// ---- V8.2 药园 / 斗法台 / 法宝（对标《道友修仙》的洞府药园 · 斗法 · 法宝） ----
+{
+  // 药园：播种扣点数、没熟不能收、熟了能收、点数不足种不下
+  Core.newGame();
+  const gs0 = Core.gardenState();
+  t('药园有 4 块地', gs0.length === D.GARDEN_PLOTS);
+  t('药园初始全空', gs0.every(s => !s.plot));
+  const pt0 = Core.S.cur.points;
+  const p1 = Core.plantGarden(0, 'g1');
+  t('药园能播种', p1.ok);
+  t('播种扣点数', Core.S.cur.points === pt0 - D.GARDEN[0].points);
+  t('同一块地不能种两次', !Core.plantGarden(0, 'g1').ok);
+  t('没熟不能收', !Core.harvestGarden(0).ok);
+  Core.S.garden[0].at = Date.now() - 1000;         // 把成熟时间拨到过去
+  const h1 = Core.harvestGarden(0);
+  t('熟了能收', h1.ok);
+  t('收获给到材料', (Core.S.items.mat_t1 || 0) >= D.GARDEN[0].out.n);
+  t('收完地变空', !Core.S.garden[0]);
+  Core.S.cur.points = 0;
+  t('点数不足种不下', !Core.plantGarden(1, 'g1').ok);
+  // 一键收：两块地都熟了才收得动
+  Core.newGame();
+  Core.S.cur.points = 100000;
+  Core.plantGarden(0, 'g1');
+  Core.plantGarden(1, 'g2');
+  t('没熟时一键收无所得', !Core.harvestAllGarden().ok);
+  Core.S.garden.forEach(p => { if (p) p.at = Date.now() - 1000; });
+  const all = Core.harvestAllGarden();
+  t('熟了能一键全收', all.ok && all.list.length === 2);
+  t('每种灵田都有名字/成本/产出', D.GARDEN.every(g => g.name && g.points > 0 && g.sec > 0 && g.out.item));
+
+  // 斗法台：每日 5 次、赢升台拿奖励、输退台保底、次数用完不能打
+  Core.newGame();
+  const a0 = Core.arenaState();
+  t('斗法台初始第 1 台', a0.floor === 1 && a0.used === 0 && a0.cap === D.ARENA_DAILY);
+  t('斗法台每天 5 次', a0.left === D.ARENA_DAILY);
+  t('守擂者按层数生成', a0.enemies.length >= 1 && a0.enemies[0].hp > 0);
+  Core.addCur('otherworld', 0);
+  const ow0 = Core.S.cur.otherworld;
+  const w1 = Core.arenaSettle(true);
+  t('打赢能升台', w1.ok && w1.win && Core.S.arena.floor === 2);
+  t('打赢拿异界结晶', Core.S.cur.otherworld > ow0);
+  const l1 = Core.arenaSettle(false);
+  t('打输退一台', l1.ok && Core.S.arena.floor === 1);
+  t('输也有保底（不会跌破第 1 台）', (() => { Core.arenaSettle(false); return Core.S.arena.floor === 1; })());
+  Core.S.arena.used = D.ARENA_DAILY;
+  t('次数用完不能打', !Core.arenaSettle(true).ok);
+  t('奖励随层数递增', D.arenaReward(10).otherworld > D.arenaReward(1).otherworld);
+  t('台数越高守擂者越强', D.arenaEnemy(10, 100000)[0].hp > D.arenaEnemy(1, 100000)[0].hp);
+
+  // 法宝：买要结晶、买了自动戴上、效果真的进属性、换佩戴立刻变、不能重复买
+  Core.newGame();
+  const fs0 = Core.fabaoState();
+  t('法宝初始一件没有', fs0.own.length === 0 && !fs0.on);
+  t('法宝表 20 件', D.FABAO.length >= 20);
+  t('每件法宝都有名字/价格/效果', D.FABAO.every(f => f.name && f.cost > 0 && Object.keys(f.eff).length));
+  Core.S.cur.otherworld = 0;
+  t('结晶不够买不了', !Core.buyFabao('fb01').ok);
+  Core.addCur('otherworld', 100000);
+  const b1 = Core.buyFabao('fb01');
+  t('结晶够能买法宝', b1.ok && Core.fabaoState().own.includes('fb01'));
+  t('买完自动戴上', Core.fabaoState().on === 'fb01');
+  t('不能重复买同一件', !Core.buyFabao('fb01').ok);
+  const stA = Core.effectivePlayerStats();
+  Core.buyFabao('fb08');
+  Core.wearFabao('fb08');
+  const stB = Core.effectivePlayerStats();
+  t('换佩戴法宝效果立刻变', stB.atk > stA.atk && stB.hp > stA.hp);
+  t('没买的不能戴', !Core.wearFabao('fb20').ok);
+  t('能摘下法宝', Core.wearFabao(null).ok && !Core.fabaoState().on);
+  t('摘下后加成消失', Core.effectivePlayerStats().atk < stB.atk);
+}
+
+// ---- V8.2 坐骑 / 求签（对标《道友修仙》的 Horse · SignItem） ----
+{
+  // 坐骑：全队加成（含招募角色），买要货币 + 材料，两层都要报得清
+  Core.newGame();
+  t('坐骑初始一匹没有', Core.mountState().own.length === 0 && !Core.mountState().on);
+  t('坐骑表 ≥5 匹', D.MOUNTS.length >= 5);
+  t('每匹坐骑都有名字/消耗/加成', D.MOUNTS.every(m => m.name && m.pct && Object.keys(m.pct).length && m.cost.points > 0));
+  Core.S.cur.points = 0;
+  t('点数不够买不了坐骑', !Core.buyMount('mt01').ok);
+  Core.addCur('points', 20000);
+  const mb = Core.buyMount('mt01');
+  t('点数够能驯服坐骑', mb.ok && Core.mountState().own.includes('mt01'));
+  t('买完自动乘骑', Core.mountState().on === 'mt01');
+  t('不能重复驯服同一匹', !Core.buyMount('mt01').ok);
+  Core.addChar('C021');
+  const chrAtk0 = Core.effectiveStats('C021').atk;
+  Core.addCur('points', 100000); Core.addCur('otherworld', 100000);
+  Core.S.items.mat_t2 = 99;
+  t('材料 + 货币都够时能买高阶坐骑', Core.buyMount('mt04').ok);
+  // 换成加攻击的坐骑：招募角色也应该跟着变（坐骑是全队加成，不是主角专属）
+  Core.wearMount('mt04');
+  t('坐骑加成进招募角色（全队生效）', Core.effectiveStats('C021').atk > chrAtk0);
+  t('坐骑加成进主角', Core.effectivePlayerStats().atk > 0);
+  Core.S.items.mat_t2 = 0;
+  t('材料不够时买不了（报缺材料）', (() => { Core.S.cur.points = 9999999; const r = Core.buyMount('mt03'); return !r.ok && /不足/.test(r.msg); })());
+  t('没驯服的不能骑', !Core.wearMount('mt07').ok);
+  t('能下坐骑', Core.wearMount(null).ok && !Core.mountState().on);
+
+  // 求签：每天 1 次、给了真实奖励、当天挂机加成、隔天可再抽
+  Core.newGame();
+  const s0 = Core.signState();
+  t('求签初始可抽', s0.canDraw && s0.drawn === 0);
+  t('五档签文', D.SIGNS.length === 5);
+  t('每档签都有文案/权重/加成', D.SIGNS.every(s => s.tier && s.text && s.weight > 0 && s.idlePct > 0 && Object.keys(s.gain).length));
+  const idle0 = Core.idleRates().pointsPerMin;
+  const d1 = Core.drawSign();
+  t('求签成功', d1.ok && !!d1.sign);
+  t('求签给了硬通货', Object.keys(d1.sign.gain).every(k => (Core.S.cur[k] || 0) > 0));
+  t('当天不能再求', !Core.drawSign().ok && !Core.signState().canDraw);
+  t('签文当天的挂机产出更高', Core.idleRates().pointsPerMin > idle0);
+  t('跨天自动失效、可以再求', (() => { Core.S.sign.date = '2000-01-01'; return Core.signState().canDraw && Core.signIdleMult() === 1; })());
+  t('累计求签数会涨', Core.S.stats.signs >= 1);
+  t('求签会推进每日任务', (Core.S.tasks.daily.sign1 || 0) >= 1);
+  t('每日任务里多了求签与斗法台', D.DAILY_TASKS.some(t2 => t2.id === 'sign1') && D.DAILY_TASKS.some(t2 => t2.id === 'arena1'));
+  t('斗法台会推进每日任务', (() => {
+    Core.newGame();
+    Core.arenaSettle(true);
+    return (Core.S.tasks.daily.arena1 || 0) >= 1;
+  })());
+}
+
+// ---- V8.2 内容扩充：世界 / 道具数量（对标产品是 28 副本、169 道具） ----
+{
+  Core.newGame();
+  t('世界扩到 20 个', D.WORLDS.length === 20);
+  t('每个世界都有解锁链（除第一个）', D.WORLDS.every((w, i) => i === 0 ? w.unlock === null : w.unlock === D.WORLDS[i - 1].id));
+  t('每个世界都有 3 档 Boss 血量', D.WORLDS.every(w => Array.isArray(w.bossHp) && w.bossHp.length === 3 && w.bossHp[0] > 0));
+  // 血量严格递增；攻击允许小幅回落（有几个世界靠机制换强度，不是纯数值爬坡），但不能掉太多
+  t('世界血量单调递增', (() => { for (let i = 1; i < D.WORLDS.length; i++) if (D.WORLDS[i].hp <= D.WORLDS[i - 1].hp) return false; return true; })());
+  t('世界攻击整体向上（允许 ≤20% 回落）', (() => {
+    let mx = 0;
+    for (const w of D.WORLDS) { if (w.atk < mx * 0.8) return false; mx = Math.max(mx, w.atk); }
+    return true;
+  })());
+  t('每个世界都有 3 个杂兵 + 1 个精英', D.WORLDS.every(w => w.enemies.length === 3 && !!w.elite));
+  t('世界主题都在克制映射里', D.WORLDS.every(w => window.Dungeon.THEME_FACTION[w.theme] !== undefined));
+  t('世界套装跟着世界数一起长', Object.keys(D.SETS).length >= D.WORLDS.length);
+  t('道具 ≥38 种', Object.keys(D.ITEMS).length >= 38);
+  t('每种道具都有名字/说明/来源', Object.keys(D.ITEMS).every(k => { const it = D.ITEMS[k]; return it.name && it.desc && it.src && it.use; }));
+  t('新道具都有真实用途', ['heal_x', 'def_shield', 'atk_surge', 'spd_surge', 'exp_xxl'].every(k => {
+    const it = D.ITEMS[k]; return it && (it.effect || it.exp);
+  }));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

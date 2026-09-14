@@ -552,6 +552,8 @@ body {
 .b-result .reward-chip:nth-child(2) { animation-delay: .05s; }
 .b-result .reward-chip:nth-child(3) { animation-delay: .1s; }
 .b-result .reward-chip:nth-child(4) { animation-delay: .15s; }
+/* 结算自动进下一关的倒计时：贴在主按钮文字后面，一眼看到"还剩几秒" */
+.b-result .auto-cd { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: rgba(0,0,0,.28); font-variant-numeric: tabular-nums; }
 .b-result .reward-chip:nth-child(5) { animation-delay: .2s; }
 .b-result .reward-chip:nth-child(n+6) { animation-delay: .25s; }
 @keyframes chipIn { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }

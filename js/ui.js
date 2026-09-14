@@ -36,6 +36,28 @@ window.UI = (function () {
     return parts.length ? parts.join(' · ') : '—';
   }
 
+  // 属性一屏：照参考产品的「【标签】值」纯文字行来做——一行一件事，右对齐，扫一眼看完。
+  // 角色面板与主角面板共用，保证两边显示口径完全一致。
+  function statRows(st) {
+    if (!st) return '';
+    const pc = (v) => Math.round((v || 0) * 100) + '%';
+    const red = Math.min(0.6, (st.resPct || 0) + (st.dmgReduce || 0));
+    const rows = [
+      ['【攻击】', fmt(st.atk)],
+      ['【防御】', fmt(st.def)],
+      ['【生命】', fmt(st.hp)],
+      ['【速度】', fmt(st.spd)],
+      ['【暴击】', pc(st.crit)],
+      ['【暴击伤害】', '×' + (st.critDmg || 2).toFixed(2)],
+      ['【闪避】', pc(st.eva)],
+      ['【吸血】', pc(st.lifesteal)],
+      ['【减伤】', pc(red)],
+      ['【技能加成】', '+' + Math.round(((st.skillMult || 1) - 1) * 100) + '%'],
+    ];
+    return `<div class="card text-rows">${rows.map(([k, v]) =>
+      `<div class="row static"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}</div>`;
+  }
+
   function toast(msg, ms) {
     const root = document.getElementById('toast-root');
     const t = document.createElement('div');
@@ -459,9 +481,24 @@ window.UI = (function () {
         cur: `Lv.${C().sectInfo().lv} / ${D.SECT_MAX}`, desc: '打关卡自动涨的全局评级，每级全队全属性 +0.5%，不用手动点' },
       { act: 'open-keji', unlock: null, ico: '📜', name: '秘术阁',
         cur: `已修 ${D.KEJI.reduce((s, k) => s + C().kejiLv(k.id), 0)} 级`,
-        desc: '12 条百分比长线（战斗 8 条 + 挂机经济 4 条），花 ◆异界结晶，点一下立刻生效' },
+        desc: `${D.KEJI.length} 条百分比长线（战斗 + 挂机经济），花 ◆异界结晶，点一下立刻生效` },
+      { act: 'open-fabao', unlock: null, ico: '🔮', name: '法宝',
+        cur: `已得 ${C().fabaoState().own.length} / ${D.FABAO.length} 件`,
+        desc: '装备给数值、法宝给效果（吸血 / 开场能量 / 减伤），主角同时带 1 件，花 ◆异界结晶买' },
+      { act: 'open-garden', unlock: null, ico: '🌱', name: '药园',
+        cur: `${C().gardenState().filter(p => p.plot).length} / ${D.GARDEN_PLOTS} 块在用`,
+        desc: '花 ◈点数种灵田，到点收强化材料，另有几率出稀有物；离线也计时' },
+      { act: 'open-arena', unlock: null, ico: '🥋', name: '斗法台',
+        cur: `第 ${C().arenaState().floor} 台 · 剩 ${C().arenaState().left} 次`,
+        desc: `每天 ${D.ARENA_DAILY} 次镜像擂台，守擂者按你的战力换算，赢一场升一台拿结晶与徽记` },
+      { act: 'open-mount', unlock: null, ico: '🐎', name: '坐骑',
+        cur: `已驯服 ${C().mountState().own.length} / ${D.MOUNTS.length} 匹`,
+        desc: '花 ◈点数 + 材料驯服，全队（含招募角色）永久加数值；同时只骑 1 匹，随时换' },
+      { act: 'open-sign', unlock: null, ico: '🎋', name: '求签',
+        cur: C().signState().canDraw ? '今日还没求签' : `今日【${C().signState().tier}】`,
+        desc: '每天免费摇一签，签文给当天的挂机加成 + 一笔硬通货，隔天自动失效' },
       { act: 'open-realm', unlock: null, ico: '🌌', name: '境界渡劫',
-        cur: r.realm ? `${D.REALMS[r.realm - 1].full}（第 ${r.realm}/${D.REALMS.length} 阶）` : '凡体（未突破）',
+        cur: r.hasBloodline ? `${r.curName}（第 ${r.realm}/${D.REALM_STAGE_COUNT} 阶）` : '未定血统',
         desc: '36 小阶，每阶全属性永久 +1.4%；失败只扣材料，等级不掉' },
       { act: 'open-genelock', unlock: 'geneLock', ico: '🧬', name: '基因锁',
         cur: S.player.geneLock > 0 ? `${S.player.geneLock} 阶 · ${gl.name}` : '未解锁',
@@ -471,7 +508,7 @@ window.UI = (function () {
       { act: 'open-reincarn', unlock: 'reincarn', ico: '♾', name: '转生天赋',
         cur: `${S.player.reincarnations} 世`, desc: '重置等级与世界，换永久天赋点；四支天赋树越点越强' },
     ];
-    return `<div class="hint mb3">这六条是"长期变强"的线，全部永久生效。点任意一条看细节。</div>
+    return `<div class="hint mb3">这些是"长期变强"的线，全部永久生效。点任意一条看细节。</div>
       ${rows.map(x => {
       const ok = !x.unlock || C().isUnlocked(x.unlock);
       return `<div class="grow-row card plain${ok ? ' tap' : ''}" ${ok ? `data-act="${x.act}"` : `data-locked="${x.unlock}"`}>
@@ -516,6 +553,7 @@ window.UI = (function () {
     const bits = [
       `每日任务 ${t.dailyDone}/${t.dailyTotal}`,
       recruitUnlocked ? `免费招募 ${t.freeRecruit ? '可领' : '已领'}` : '免费招募 未解锁',
+      `求签 ${t.signReady ? '还没求' : '已求'}`,
       btLive.length ? `悬赏 ${formatDuration(Math.floor(btSoon / 1000))}` : '悬赏 已结束',
     ];
     const q = idx < 0 ? null : list[idx];
@@ -656,6 +694,12 @@ window.UI = (function () {
     const gl = S.player.geneLock > 0 ? `${S.player.geneLock} 阶` : '未解锁';
     const beasts = Object.keys(S.beast.owned || {}).length;
     const st = C().realmState();
+    const fbOwn = C().fabaoState().own.length;
+    const gardenBusy = C().gardenState().filter(p => p.plot).length;
+    const arena = C().arenaState();
+    const mountOwn = C().mountState().own.length;
+    const signSt = C().signState();
+    const signToday = signSt.canDraw ? null : signSt;
     // 一条入口 = [动作, 名字, 状态文字, 解锁条件(可空), 是否亮红点]
     const menus = [
       ['今天', [
@@ -667,10 +711,15 @@ window.UI = (function () {
         ['open-ach', '成就', '长线目标', null, achDot],
       ]],
       ['养成', [
-        ['open-bloodline', '血统', S.player.bloodline || '未定（点这里选）'],
-        ['open-realm', '境界渡劫', st.hasBloodline ? st.curName : '先选血统'],
-        ['open-sect', '主神评级', `Lv.${sect.lv}`],
-        ['open-keji', '秘术阁', `${kejiTotal} 级`],
+      ['open-bloodline', '血统', S.player.bloodline || '未定（点这里选）'],
+      ['open-realm', '境界渡劫', st.hasBloodline ? st.curName : '先选血统'],
+      ['open-sect', '主神评级', `Lv.${sect.lv}`],
+      ['open-keji', '秘术阁', `${kejiTotal} 级`],
+      ['open-fabao', '法宝', fbOwn ? `${fbOwn}/${D.FABAO.length} 件` : '去挑一件'],
+      ['open-garden', '药园', `${gardenBusy} 块在用`],
+      ['open-arena', '斗法台', `第 ${arena.floor} 台 · 剩 ${arena.left} 次`],
+      ['open-mount', '坐骑', mountOwn ? `${mountOwn}/${D.MOUNTS.length} 匹` : '去驯一匹'],
+      ['open-sign', '求签', signToday ? `今日【${signToday.tier}】` : '今日还没求'],
         ['open-authority', '主神权限', `Lv.${au.lv}/${au.max}`, 'buildings'],
         ['open-buildings', '基地建设', `合计 Lv.${bLv}`, 'buildings'],
         ['open-genelock', '基因锁', gl, 'geneLock'],
@@ -764,7 +813,7 @@ window.UI = (function () {
         </div>
       </div>`;
     })() : '';
-    return `${resume}<div class="section-title">无限挑战</div>${corridor}<div class="section-title">恐怖世界（14）</div>${worlds}`;
+    return `${resume}<div class="section-title">无限挑战</div>${corridor}<div class="section-title">恐怖世界（${D.WORLDS.length}）</div>${worlds}`;
   }
   function worldDetail() {
     const S = C().S;
@@ -1057,15 +1106,8 @@ window.UI = (function () {
         </div>
       </div>
       <div style="font-size:11px;color:var(--dim);margin-bottom:10px">主角与招募角色成长体系独立：随玩家等级成长、无星级碎片、6 装备槽、血统自选、基因锁每阶全属性额外+3%</div>
-      <button class="btn small block mb3" data-realm-open="1">🌌 境界 · ${S.player.realm ? D.REALMS[S.player.realm - 1].name : '未突破'} · 全属性 +${Math.round(C().realmBonusPct() * 100)}% · 查看渡劫 ›</button>
-      <div class="stat-6">
-        <div class="cell"><div class="v">${fmt(st.atk)}</div><div class="k">攻击</div></div>
-        <div class="cell"><div class="v">${fmt(st.def)}</div><div class="k">防御</div></div>
-        <div class="cell"><div class="v">${fmt(st.hp)}</div><div class="k">生命</div></div>
-        <div class="cell"><div class="v">${fmt(st.spd)}</div><div class="k">速度</div></div>
-        <div class="cell"><div class="v">${Math.round(st.crit * 100)}%</div><div class="k">暴击</div></div>
-        <div class="cell"><div class="v">${Math.round(st.eva * 100)}%</div><div class="k">闪避</div></div>
-      </div>
+      <button class="btn small block mb3" data-realm-open="1">🌌 境界 · ${S.player.realm ? C().realmState().curName : '未突破'} · 全属性 +${Math.round(C().realmBonusPct() * 100)}% · 查看渡劫 ›</button>
+      ${statRows(st)}
       <div class="section-title">六维属性 <span style="color:var(--gold)">可用点数 ${S.player.attrPoints || 0}</span></div>
       <div class="hint mb2">每升 1 级获得 ${D.ATTR_POINTS_PER_LV} 点，每点 +${D.ATTR_POINT_VALUE} 维值</div>
       ${D.ATTR_META.map(a => `
@@ -1282,14 +1324,7 @@ window.UI = (function () {
           <div style="font-size:11px;color:var(--gold);margin-top:2px">碎片 ${c.shards}</div>
         </div>
       </div>
-      <div class="stat-6">
-        <div class="cell"><div class="v">${fmt(st.atk)}</div><div class="k">攻击</div></div>
-        <div class="cell"><div class="v">${fmt(st.def)}</div><div class="k">防御</div></div>
-        <div class="cell"><div class="v">${fmt(st.hp)}</div><div class="k">生命</div></div>
-        <div class="cell"><div class="v">${fmt(st.spd)}</div><div class="k">速度</div></div>
-        <div class="cell"><div class="v">${Math.round(st.crit * 100)}%</div><div class="k">暴击</div></div>
-        <div class="cell"><div class="v">${Math.round(st.eva * 100)}%</div><div class="k">闪避</div></div>
-      </div>
+      ${statRows(st)}
       <div class="section-title">等级 Lv.${c.lv}（EXP ${fmt(c.exp)}）</div>
       <div class="btn-row">
         <button class="btn small" data-lvup="1" ${!cost ? 'disabled' : ''}>升1级<\/button>
@@ -1827,6 +1862,225 @@ window.UI = (function () {
   }
 
   /* ================= 主神权限（对标《道友修仙》的"洞府"） ================= */
+  /* ================= 药园（对标《道友修仙》洞府里的"药园"） ================= */
+  function gardenModal(wrap) {
+    const plots = C().gardenState();
+    const busy = plots.filter(p => p.plot).length;
+    const body = `
+      <div class="card" style="border-color:#e6b64c44">
+        <h3>药园 <span class="sub">${busy} / ${D.GARDEN_PLOTS} 块在用</span></h3>
+        <div class="note">花 ◈点数种下灵田，到点回来收强化材料——这是"点数换材料"的稳定出口，不用一直刷副本。
+          另外有几率出稀有物（兽魂石 / 装备箱）。种下就开始计时，离线也算。</div>
+      </div>
+      ${plots.map(p => `<div class="list-row">
+        <span class="tag">第 ${p.idx + 1} 块</span>
+        <div class="grow">
+          <div class="t1">${p.plot ? p.kind.name : '空地'}</div>
+          <div class="t2">${p.plot
+            ? (p.ready ? '已成熟，可以收了' : `成熟还需 ${formatDuration(Math.ceil(p.leftMs / 1000))}`)
+            : `可种「${p.kind.name}」：◈${fmt(p.kind.points)} · ${Math.round(p.kind.sec / 60)} 分钟`}</div>
+        </div>
+        ${p.plot
+          ? `<button class="btn small ${p.ready ? 'gold' : ''}" data-harvest="${p.idx}" ${p.ready ? '' : 'disabled'}>${p.ready ? '收获' : '未熟'}</button>`
+          : `<button class="btn small" data-plant="${p.kind.id}|${p.idx}">播种</button>`}
+      </div>`).join('')}
+      <div class="btn-row mt3">
+        <button class="btn small ghost" data-harvestall="1">一键收成熟的地</button>
+      </div>`;
+    const w = showPanel(wrap, '药园', body);
+    const redraw = () => { gardenModal(w); renderTopbar(); };
+    w.querySelectorAll('[data-plant]').forEach(b => b.onclick = () => {
+      const [gid, idx] = b.dataset.plant.split('|');
+      const r = C().plantGarden(+idx, gid);
+      toast(r.msg, 2400);
+      if (r.ok) redraw();
+    });
+    w.querySelectorAll('[data-harvest]').forEach(b => b.onclick = () => {
+      const r = C().harvestGarden(+b.dataset.harvest);
+      toast(r.msg, 2600);
+      if (r.ok) { sfx('coin'); redraw(); }
+    });
+    w.querySelector('[data-harvestall]').onclick = () => {
+      const r = C().harvestAllGarden();
+      toast(r.msg, 2600);
+      if (r.ok) { sfx('coin'); redraw(); }
+    };
+    return w;
+  }
+
+  /* ================= 斗法台（对标《道友修仙》的斗法 / Arena） =================
+     单机没有真 PVP，所以守擂者按你自己的队伍战力换算：永远打得动，也永远有压力。 */
+  function arenaModal(wrap) {
+    const st = C().arenaState();
+    const body = `
+      <div class="card" style="border-color:#e6b64c44">
+        <h3>斗法台 <span class="sub">第 ${st.floor} 台 · 历史最高 ${st.best} 台</span></h3>
+        <div class="note">守擂者按你自己的队伍战力换算出来，越往上越强。每天 <b>${st.cap}</b> 次机会，
+          赢了升一台并拿 ◆异界结晶 + ♜回廊徽记，输了退一台（次数照常消耗，不会卡死在第 1 台）。</div>
+        <div class="kv mt2"><span class="k">今日剩余</span><span>${st.left} / ${st.cap}</span></div>
+        <div class="kv"><span class="k">本台奖励</span><span style="color:var(--gold)">◆${fmt(st.reward.otherworld)} · ♜${st.reward.corridor}</span></div>
+        <button class="btn primary block mt3" data-arena="1" ${st.left > 0 ? '' : 'disabled'}>${st.left > 0 ? `挑战第 ${st.floor} 台` : '今日次数已用完'}</button>
+      </div>
+      <div class="card">
+        <h3>本台守擂者</h3>
+        ${st.enemies.map(e => `<div class="list-row">
+          <div class="grow"><div class="t1">${esc(e.name)}${e.isBoss ? ' <span class="tag">擂主</span>' : ''}</div>
+          <div class="t2">HP ${fmt(e.hp)} · 攻 ${fmt(e.atk)} · 防 ${fmt(e.def)} · 速 ${e.spd}</div></div>
+        </div>`).join('')}
+      </div>
+      <div class="hint">打不过就先去推图、强化装备、升评级——守擂者是跟着你的战力一起长的，不会变成死墙。</div>`;
+    const w = showPanel(wrap, '斗法台', body);
+    const btn = w.querySelector('[data-arena]');
+    if (btn) btn.onclick = () => {
+      const cur = C().arenaState();
+      if (cur.left <= 0) { toast('今日斗法次数已用完'); return; }
+      const allies = buildAllies(null, null);
+      if (!allies.length) { toast('没有可出战的成员'); return; }
+      startBattle({
+        title: `斗法台 · 第 ${cur.floor} 台`,
+        allies, enemies: cur.enemies, worldId: null, maxRounds: 40,
+        onEnd(win) {
+          const r = C().arenaSettle(win);
+          refresh(); renderTopbar();
+          return { rewards: [], sub: r.msg || '', after: () => { arenaModal(w); } };
+        },
+      });
+    };
+    return w;
+  }
+
+  /* ================= 法宝（对标《道友修仙》的法宝） ================= */
+  function fabaoModal(wrap) {
+    const st = C().fabaoState();
+    const on = st.on ? D.fabaoById(st.on) : null;
+    const body = `
+      <div class="card" style="border-color:#e6b64c44">
+        <h3>法宝 <span class="sub">已得 ${st.own.length} / ${D.FABAO.length} 件</span></h3>
+        <div class="note">装备给的是数值，法宝给的是<b>效果</b>（吸血 / 开场能量 / 减伤…）。主角同时只带 1 件，
+          随时可以换。买法宝只花 ◆异界结晶——这是高级货币在"抽卡 + 秘术 + 权限"之外的第四个出口。</div>
+        <div class="kv mt2"><span class="k">当前佩戴</span><span style="color:var(--gold)">${on ? `${on.name}（${on.desc}）` : '未佩戴'}</span></div>
+      </div>
+      ${D.FABAO.map(f => {
+        const owned = st.own.includes(f.id), active = st.on === f.id;
+        return `<div class="list-row" style="${owned ? '' : 'opacity:.85'}">
+          <span class="tag rtext-${f.rarity}">${f.rarity}</span>
+          <div class="grow">
+            <div class="t1">${f.name}${active ? ' <span class="tag" style="color:var(--gold);border-color:#e6b64c77">佩戴中</span>' : ''}</div>
+            <div class="t2">${f.desc}</div>
+          </div>
+          ${active ? `<button class="btn small ghost" data-faceoff="1">摘下</button>`
+            : owned ? `<button class="btn small gold" data-fwear="${f.id}">佩戴</button>`
+            : `<button class="btn small" data-fbuy="${f.id}" ${(C().S.cur.otherworld || 0) >= f.cost ? '' : 'disabled'}>◈→◆${fmt(f.cost)}</button>`}
+        </div>`;
+      }).join('')}`;
+    const w = showPanel(wrap, '法宝', body);
+    const redraw = () => { fabaoModal(w); renderTopbar(); };
+    w.querySelectorAll('[data-fbuy]').forEach(b => b.onclick = () => {
+      const r = C().buyFabao(b.dataset.fbuy);
+      toast(r.msg, 2600);
+      if (r.ok) { sfx('coin'); redraw(); }
+    });
+    w.querySelectorAll('[data-fwear]').forEach(b => b.onclick = () => {
+      const r = C().wearFabao(b.dataset.fwear);
+      toast(r.msg);
+      if (r.ok) redraw();
+    });
+    const off = w.querySelector('[data-faceoff]');
+    if (off) off.onclick = () => { C().wearFabao(null); toast('已摘下法宝'); redraw(); };
+    return w;
+  }
+
+  /* ================= 坐骑（对标《道友修仙》的坐骑） =================
+     法宝给"效果"、坐骑给"基础数值"，两者不冲突：一个管机制，一个管面板。 */
+  function mountModal(wrap) {
+    const st = C().mountState();
+    const on = st.on ? D.mountById(st.on) : null;
+    // 消耗文案里带货币图标（是 HTML），所以只能放正文，不能塞进 title 这类属性
+    const costText = m => {
+      const parts = Object.entries(m.cost).filter(([k]) => k !== 'mat' && k !== 'matN')
+        .map(([k, v]) => `${curIcon(k)}${fmt(v)}`);
+      if (m.cost.mat) parts.push(`${(D.ITEMS[m.cost.mat] || {}).name || m.cost.mat}×${m.cost.matN}`);
+      return parts.join(' + ');
+    };
+    const body = `
+      <div class="card" style="border-color:#e6b64c44">
+        <h3>坐骑 <span class="sub">已驯服 ${st.own.length} / ${D.MOUNTS.length} 匹</span></h3>
+        <div class="note">坐骑给的是<b>基础数值</b>（攻击 / 生命 / 防御 / 速度），<b>全队通用，招募角色也吃</b>。
+          同时只骑 1 匹，随时能换；花 ◈点数 + 强化材料驯服，高阶坐骑额外花 ◆异界结晶。</div>
+        <div class="kv mt2"><span class="k">当前乘骑</span><span style="color:var(--gold)">${on ? `${on.name}（${on.desc}）` : '未乘骑'}</span></div>
+      </div>
+      ${D.MOUNTS.map(m => {
+        const owned = st.own.includes(m.id), active = st.on === m.id;
+        const curCost = Object.assign({}, m.cost); delete curCost.mat; delete curCost.matN;
+        const can = C().canAfford(curCost) && (!m.cost.mat || (C().S.items[m.cost.mat] || 0) >= m.cost.matN);
+        return `<div class="list-row" style="${owned ? '' : 'opacity:.85'}">
+          <span class="tag rtext-${m.rarity}">${m.rarity}</span>
+          <div class="grow">
+            <div class="t1">${m.name}${active ? ' <span class="tag" style="color:var(--gold);border-color:#e6b64c77">乘骑中</span>' : ''}</div>
+            <div class="t2">${m.desc}</div>
+            ${owned ? '' : `<div class="t2">驯服需要 ${costText(m)}</div>`}
+          </div>
+          ${active ? `<button class="btn small ghost" data-moff="1">下坐骑</button>`
+            : owned ? `<button class="btn small gold" data-mwear="${m.id}">乘骑</button>`
+            : `<button class="btn small" data-mbuy="${m.id}" ${can ? '' : 'disabled'}>驯服</button>`}
+        </div>`;
+      }).join('')}`;
+    const w = showPanel(wrap, '坐骑', body);
+    const redraw = () => { mountModal(w); renderTopbar(); render(); };
+    w.querySelectorAll('[data-mbuy]').forEach(b => b.onclick = () => {
+      const r = C().buyMount(b.dataset.mbuy);
+      toast(r.msg, 2800);
+      if (r.ok) { sfx('coin'); redraw(); }
+    });
+    w.querySelectorAll('[data-mwear]').forEach(b => b.onclick = () => {
+      const r = C().wearMount(b.dataset.mwear);
+      toast(r.msg);
+      if (r.ok) redraw();
+    });
+    const off = w.querySelector('[data-moff]');
+    if (off) off.onclick = () => { C().wearMount(null); toast('已下坐骑'); redraw(); };
+    return w;
+  }
+
+  /* ================= 求签（对标《道友修仙》的求签） =================
+     每天上线第一件事：摇一签，看今天的挂机加成与手气。签文当天有效。 */
+  function signModal(wrap) {
+    const st = C().signState();
+    const pick = st.pick;
+    const body = `
+      <div class="card" style="border-color:#e6b64c66">
+        <h3>求签 <span class="sub">每天免费 1 次</span></h3>
+        <div class="note">签文分五档（大吉 → 末吉），给<b>当天的挂机加成</b>和一笔硬通货。签文只算当天，
+          隔天自动失效——上线先求一签，再看今天要打哪儿。</div>
+        ${st.canDraw
+          ? `<button class="btn gold block mt3" data-sign-draw="1">🎋 摇 一 签</button>`
+          : `<div class="note mt2" style="color:var(--gold)">今日已求：【${pick ? pick.tier : st.tier}】${pick ? ' ' + pick.text : ''}</div>
+             <div class="hint mt1">今日挂机产出 +${Math.round(st.idlePct * 100)}%，明天可以再求。</div>`}
+        <div class="hint mt2">累计求签 ${st.total} 次 · 每天 0 点重置</div>
+      </div>
+      <div class="card">
+        <h3>五档签文 <span class="sub">能摇到哪一档在摇之前就知道</span></h3>
+        ${D.SIGNS.map(s => `<div class="list-row static">
+          <span class="tag" style="color:var(--gold)">${s.tier}</span>
+          <div class="grow"><div class="t1">${s.text}</div>
+            <div class="t2">挂机 +${Math.round(s.idlePct * 100)}% · ${rewardText(s.gain)}</div></div>
+          <span class="t2">${Math.round(s.weight)}%</span>
+        </div>`).join('')}
+        <div class="hint mt1">权重合计 ${D.SIGNS.reduce((a, s) => a + s.weight, 0)}%，越好的签越难摇到。</div>
+      </div>`;
+    const w = showPanel(wrap, '求签', body);
+    const btn = w.querySelector('[data-sign-draw]');
+    if (btn) btn.onclick = () => {
+      const r = C().drawSign();
+      if (!r.ok) { failToast(r.msg, btn); return; }
+      sfx('level');
+      toast(r.msg, 3200);
+      signModal(w);
+      renderTopbar(); render();
+    };
+    return w;
+  }
+
   /* ================= 血统（境界线跟着血统走） =================
      对标《道友修仙》：境界不是人人相同的公共阶梯，而是跟着你选的路走。
      所以"选血统"被提到开局第一步——没血统就没有境界，也不再显示"凡体"这种占位。 */
@@ -1967,8 +2221,8 @@ window.UI = (function () {
     return w;
   }
   /* ================= 秘术阁（对标《道友修仙》的 KeJi） =================
-     41 条线 × 每级 +0.3% 那种长线，我们收成 12 条主轴，
-     消耗统一走 ◆异界结晶（它的 coinBase 那一路）。 */
+     对标它那套"每条线每级只加一点点、能一路修到顶"的长线，我们做成 42 条
+     （战斗 33 条 + 挂机经济 9 条），消耗统一走 ◆异界结晶（它的 coinBase 那一路）。 */
   function kejiModal(wrap) {
     const S = C().S;
     const coin = S.cur[D.KEJI_COIN] || 0;
@@ -2336,7 +2590,7 @@ window.UI = (function () {
       setTab('home');
       setTimeout(() => {
         protagonistDetail();
-        coachmark('.stat-6', '这是你的属性面板：升级得属性点和技能点，点 +1 分配；选定血统后技能栏会换成那条血统的技能。看完关掉面板，回首页领取奖励。');
+        coachmark('.text-rows', '这是你的属性面板：升级得属性点和技能点，点 +1 分配；选定血统后技能栏会换成那条血统的技能。看完关掉面板，回首页领取奖励。');
       }, 250);
       return;
     }
@@ -2986,6 +3240,10 @@ window.UI = (function () {
           <div class="grow"><div class="t1">大额消费二次确认</div><div class="t2">单笔花费达到 1000 时，先把"花的是哪种货币、还剩多少"报一遍再扣</div></div>
           <button class="btn small ${S.settings.confirmBig !== false ? 'primary' : ''}" data-toggle="confirmBig">${S.settings.confirmBig !== false ? '已开启' : '已关闭'}</button>
         </div>
+        <div class="list-row">
+          <div class="grow"><div class="t1">通关结算自动进下一关</div><div class="t2">胜利结算 ${AUTO_NEXT_SEC} 秒内没做选择，就自动接着打下一关；关掉之后结算页会一直等你点</div></div>
+          <button class="btn small ${S.settings.autoNext !== false ? 'primary' : ''}" data-toggle="autoNext">${S.settings.autoNext !== false ? '已开启' : '已关闭'}</button>
+        </div>
       </div>
       <div class="card">
         <h3>自动分解 <span class="sub">背包满之前就开始省格子</span></h3>
@@ -3013,7 +3271,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.1</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.2</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -3039,7 +3297,8 @@ window.UI = (function () {
       const cur = C().S.settings[k] !== false;
       C().S.settings[k] = !cur;
       C().save();
-      toast(`${k === 'sfx' ? '音效' : '自动战斗'}已${C().S.settings[k] !== false ? '开启' : '关闭'}`);
+      const toggleName = { sfx: '音效', autoBattle: '自动战斗', confirmBig: '大额消费二次确认', autoNext: '结算自动进下一关' }[k] || k;
+      toast(`${toggleName}已${C().S.settings[k] !== false ? '开启' : '关闭'}`);
       if (k === 'sfx' && C().S.settings.sfx !== false) sfx('success');
       settingsModal(w);
     });
@@ -3072,9 +3331,19 @@ window.UI = (function () {
         location.reload();
       });
     };
+    return w;
   }
 
   /* ================= 战斗播放器 ================= */
+  // 胜利结算的自动倒计时：5 秒内没点，就自动走"主按钮"那条（默认就是「下一关」）。
+  // 只对胜利生效，失败页不自动跳；没有主按钮（最后一关打完）时也不自动，避免把人越推越远。
+  const AUTO_NEXT_SEC = 5;
+  function autoNextIndex(win, acts) {
+    if (!win || !acts || !acts.length) return -1;
+    return acts.findIndex(a => a.primary);
+  }
+  // 倒计时文案与按钮拼在一处：测试与界面共用同一份（文案与行为同源）
+  function autoNextBtnHtml(label, sec) { return `${label} <span class="auto-cd">${sec}s</span>`; }
   // opts.mult：整队倍率（回廊印记用）；opts.extra 为额外属性百分比（预留）
   function buildAllies(hpPctMap, extraBuffs, opts) {
     const S = C().S;
@@ -3286,6 +3555,9 @@ window.UI = (function () {
       const outcome = cfg.onEnd(res.win, res, units) || {};
       const rewards = outcome.rewards || [];
       const acts = outcome.actions || [];
+      // 倒计时目标：胜利时优先"主按钮"（默认就是「下一关」）。
+      // 关闭设置里的「结算自动进下一关」后，autoIdx 直接算作 -1，不显示倒计时。
+      const autoIdx = C().S.settings.autoNext !== false ? autoNextIndex(res.win, acts) : -1;
       const panel = document.createElement('div');
       panel.className = 'b-result';
       panel.innerHTML = `
@@ -3293,20 +3565,39 @@ window.UI = (function () {
         <div style="color:var(--dim);font-size:12px">${res.rounds} 回合${outcome.sub ? ' · ' + outcome.sub : ''}</div>
         ${rewards.length ? `<div class="reward-chips">${rewards.map(r => `<span class="reward-chip">${r}</span>`).join('')}</div>` : ''}
         ${acts.length ? `<div class="btn-row" style="max-width:340px;width:100%">
-          ${acts.map((a, i) => `<button class="btn ${a.primary ? 'primary' : ''}" data-bact="${i}">${a.label}</button>`).join('')}
+          ${acts.map((a, i) => `<button class="btn ${a.primary ? 'primary' : ''}" data-bact="${i}">${i === autoIdx ? autoNextBtnHtml(a.label, AUTO_NEXT_SEC) : a.label}</button>`).join('')}
         </div>` : ''}
         <button class="btn ${acts.length ? 'ghost' : 'primary'}" style="min-width:200px" data-close>${res.win ? (acts.length ? '收下奖励并返回' : '收下奖励') : '返回'}</button>`;
       overlay.appendChild(panel);
+      let autoT = null, autoLeft = AUTO_NEXT_SEC;
+      const clearAuto = () => { if (autoT) { clearInterval(autoT); autoT = null; } };
       panel.querySelector('[data-close]').onclick = () => {
+        clearAuto();
         overlay.remove();
         if (outcome.after) outcome.after();
       };
       // 结算页的快捷动作：不回到世界列表也能接着打（推图节奏不断）
       panel.querySelectorAll('[data-bact]').forEach(b => b.onclick = () => {
+        clearAuto();
         const a = acts[+b.dataset.bact];
         overlay.remove();
         if (a && a.run) a.run();
       });
+      // 倒计时：走完自动点一次主按钮（默认「下一关」）。手动点了任意按钮就取消。
+      if (autoIdx >= 0) {
+        const btn = panel.querySelector(`[data-bact="${autoIdx}"]`);
+        autoT = setInterval(() => {
+          autoLeft--;
+          if (autoLeft <= 0) {
+            clearAuto();
+            const auto = acts[autoIdx];
+            overlay.remove();
+            if (auto && auto.run) auto.run();
+            return;
+          }
+          if (btn) btn.innerHTML = autoNextBtnHtml(acts[autoIdx].label, autoLeft);
+        }, 1000);
+      }
     }
     function step() {
       if (finished) return;
@@ -3612,6 +3903,11 @@ window.UI = (function () {
         case 'open-keji': kejiModal(); break;
         case 'open-travel': travelModal(); break;
         case 'open-bloodline': bloodlineModal(); break;
+        case 'open-garden': gardenModal(); break;
+        case 'open-arena': arenaModal(); break;
+        case 'open-fabao': fabaoModal(); break;
+        case 'open-mount': mountModal(); break;
+        case 'open-sign': signModal(); break;
         case 'open-tasks': tasksModal(); break;
         case 'open-genelock': geneLockModal(); break;
         case 'open-reincarn': reincarnModal(); break;
@@ -3982,6 +4278,7 @@ window.UI = (function () {
     },
     get tab() { return curTab; },
     _setTab: setTab,
+    AUTO_NEXT_SEC,
     // 测试用：直接开面板，检查模板与空引用
     _panels: {
       bagModal, itemDetail, currencyModal, guideModal, codexModal, shopModal, tasksModal, settingsModal,
@@ -3990,6 +4287,8 @@ window.UI = (function () {
       beastModal,
       recruitRatesModal, authorityModal, todayModal, travelStrip, plaqueRow, sectModal, kejiModal, travelModal,
       bloodlineModal,
+      autoNextIndex, autoNextBtnHtml,
+      gardenModal, arenaModal, fabaoModal, mountModal, signModal,
       _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen, growScreen },
     },
   };

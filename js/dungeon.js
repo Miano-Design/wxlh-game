@@ -150,7 +150,7 @@ window.Dungeon = (function () {
     }
     // 高阶经验模块：W07 起精英/Boss 掉落，等级曲线调整后需要稳定的高阶经验来源
     if (tier >= 7 && (kind === 'boss' || (kind === 'elite' && Math.random() < 0.3 * dropBoost))) {
-      const expId = tier >= 11 ? 'exp_xl' : 'exp_l';
+      const expId = tier >= 15 ? 'exp_xxl' : tier >= 11 ? 'exp_xl' : 'exp_l';
       const n = kind === 'boss' ? (tier >= 11 ? 1 : 2) : 1;
       if (Core.addItem(expId, n)) got.push({ k: 'item', v: expId, n });
     }
@@ -158,6 +158,18 @@ window.Dungeon = (function () {
     const buffId = Math.random() < 0.5 ? 'buff_muscle' : 'buff_nerve';
     if (kind === 'elite' && Math.random() < Math.min(1, 0.25 * dropBoost)) { if (Core.addItem(buffId)) got.push({ k: 'item', v: buffId, n: 1 }); }
     if (kind === 'boss' && Core.addItem(buffId)) got.push({ k: 'item', v: buffId, n: 1 });
+    // 高阶探索消耗品：世界越深，掉的东西越"打出去"（护盾 / 狂暴 / 超频 / 全效回血）
+    const surgePool = [];
+    if (tier >= 2) surgePool.push('def_shield');
+    if (tier >= 6) surgePool.push('atk_surge');
+    if (tier >= 8) surgePool.push('spd_surge');
+    if (surgePool.length && kind !== 'combat' && Math.random() < Math.min(1, 0.30 * dropBoost)) {
+      const pick = surgePool[Math.floor(Math.random() * surgePool.length)];
+      if (Core.addItem(pick)) got.push({ k: 'item', v: pick, n: 1 });
+    }
+    if (tier >= 10 && kind === 'boss' && Math.random() < Math.min(1, 0.40 * dropBoost)) {
+      if (Core.addItem('heal_x')) got.push({ k: 'item', v: 'heal_x', n: 1 });
+    }
     // 兽魂石：伴生体的唯一稳定来源。Boss 必掉 1~3 颗，精英 30% 掉 1 颗
     if (kind === 'boss') {
       const n = 1 + (Math.random() < 0.5 ? 1 : 0) + (Math.random() < 0.25 ? 1 : 0);
@@ -199,7 +211,9 @@ window.Dungeon = (function () {
       let item = null;
       const chestBoost = Core.graceDropMult ? Core.graceDropMult() : 1;
       if (Math.random() < Math.min(1, 0.45 * chestBoost)) {
-        const pool = stage <= 4 ? ['heal_s', 'heal_m'] : ['heal_m', 'buff_muscle', 'buff_nerve', 'heal_l'];
+        const pool = stage <= 4 ? ['heal_s', 'heal_m']
+          : stage <= 8 ? ['heal_m', 'buff_muscle', 'buff_nerve', 'heal_l']
+          : ['heal_l', 'def_shield', 'atk_surge', 'spd_surge', 'heal_x'];
         const pick = pool[Math.floor(Math.random() * pool.length)];
         if (Core.addItem(pick)) item = pick;
       }

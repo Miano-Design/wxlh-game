@@ -38,6 +38,11 @@ window.Core = (function () {
       sect: { lv: 1, exp: 0 },   // 主神评级（对标"宗门等级"：随关卡推进自动涨的全局长线）
       keji: {},                  // 秘术阁（对标"KeJi"）：id → 等级
       travel: { bankSec: 0, pending: null, got: 0 },   // 挂机游历奇遇（对标"YouLi"）
+      garden: Array(4).fill(null),       // 药园（对标"洞府·药园"）：每块地 null 或 {kind, at}
+      arena: { floor: 1, best: 1, date: '', used: 0 },   // 斗法台（对标"Arena"）
+      fabao: { own: [], on: null },      // 法宝（对标"FaBao"）：own = 已拥有，on = 主角佩戴的那件
+      mount: { own: [], on: null },      // 坐骑（对标"Horse"）：own = 已驯服，on = 当前乘骑的那匹
+      sign: { date: '', tier: '', idlePct: 0, drawn: 0 },   // 求签（对标"SignItem"）：今天的签文与挂机加成
       worlds: {},           // worldId → {unlocked, stages: {normal:[stars×12], hard, hell}}
       corridor: { floor: 1, best: 0 },
       // 保底按池分开记账：高级 / 限定 各自算 SSR / UR / 当期 UP 的累计数
@@ -50,7 +55,7 @@ window.Core = (function () {
       bounty: { start: Date.now(), claimed: {}, list: null },   // 限时悬赏：list 按当前进度生成，本期固定
       beast: { owned: {}, active: null },                       // 伴生体：owned[id] = {lv, soul}；active = 随行的那只
       stats: { battles: 0, wins: 0, bosses: 0, runs: 0, recruits: 0, enhances: 0, bestFloor: 0, profileViews: 0 },
-      settings: { speed: 1, autoSellN: false, autoSellR: false, sfx: true, autoBattle: false },
+      settings: { speed: 1, autoSellN: false, autoSellR: false, sfx: true, autoBattle: false, autoNext: true },
       codex: { chars: [], equipsSeen: 0, claimed: [] },
       achievements: {},       // achId → true（已领取）
       presets: [null, null, null],   // 3 组编队预设（保存队伍成员）
@@ -92,6 +97,11 @@ window.Core = (function () {
     S.sect = Object.assign({ lv: 1, exp: 0 }, S.sect || {});
     S.keji = S.keji || {};
     S.travel = Object.assign({ bankSec: 0, pending: null, got: 0 }, S.travel || {});
+    S.garden = Object.assign(Array(def.garden.length).fill(null), S.garden || {});
+    S.arena = Object.assign({ floor: 1, best: 1, date: '', used: 0 }, S.arena || {});
+    S.fabao = Object.assign({ own: [], on: null }, S.fabao || {});
+    S.mount = Object.assign({ own: [], on: null }, S.mount || {});
+    S.sign = Object.assign({ date: '', tier: '', idlePct: 0, drawn: 0 }, S.sign || {});
     S.recruit = Object.assign(def.recruit, S.recruit || {});
     // 招募保底从"两个散字段"改成"按池记账"；老档把旧计数搬过来，进度不丢
     S.recruit.pity = S.recruit.pity || {};
@@ -573,6 +583,7 @@ window.Core = (function () {
     applyAuthority(pct);                           // 主神权限（满 10 级的全属性加成）
     applySect(pct);                                // 主神评级（全队，随进度自动涨）
     applyKeji(pct);                                // 秘术阁（全队百分比长线）
+    applyMount(pct);                               // 坐骑（全队，含招募角色）
     // 装备
     const eq = S.equipped[charId] || {};
     const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
@@ -652,7 +663,8 @@ window.Core = (function () {
     applyBeast(pct);                               // 随行伴生体（全队加成）
     applyAuthority(pct);                           // 主神权限（满 10 级的全属性加成）
     applySect(pct);                                // 主神评级（对标"宗门等级"：随进度自动涨）
-    applyKeji(pct);                                // 秘术阁（对标"KeJi"：12 条百分比长线）
+    applyKeji(pct);                                // 秘术阁（对标"KeJi"：42 条百分比长线）
+    applyMount(pct);                               // 坐骑（全队，含主角）
     // 境界（渡劫）：每突破一境全属性 +5%，与基因锁/血统/血清并列，属于永久成长
     const rp = realmBonusPct();
     if (rp) { pct.atkPct += rp; pct.hpPct += rp; pct.defPct += rp; pct.spdPct += rp; }
@@ -674,6 +686,9 @@ window.Core = (function () {
       if (e.classSet && e.classSet === 'warrior') psets['class:warrior'] = (psets['class:warrior'] || 0) + 1;
     });
     applySetBonuses(pct, psets);
+    // 法宝：数值类并进百分比区（要放在伤害公式之前），效果类并进战斗额外区
+    const extra = talentCombatExtra();
+    applyFabao(pct, extra);
     if (pct.spiritPct) a.spirit *= (1 + pct.spiritPct);
     const atk = (a.muscle * 1.8 + flat.atk) * (1 + pct.atkPct);
     const def = (a.immune * 1.6 + flat.def) * (1 + pct.defPct);
@@ -686,7 +701,7 @@ window.Core = (function () {
       atk: Math.round(atk), def: Math.round(def), hp: Math.round(hp), spd: Math.round(spd),
       crit, critDmg: 2.0 + pct.critDmg, eva, skillMult,
       lifesteal: pct.lifesteal, resPct: pct.resPct || 0, attrs: a,
-      ...talentCombatExtra(),
+      ...extra,
     };
   }
   function playerPower() {
@@ -1145,7 +1160,7 @@ window.Core = (function () {
     const lv = S.player.level;
     const au = authority();
     const kb = kejiBonus();
-    const coreBonus = (1 + S.buildings.core * 0.02 + (S.player.geneLock >= 1 ? 0.10 : 0) + au.idlePct + kb.idlePct) * graceIdleMult();
+    const coreBonus = (1 + S.buildings.core * 0.02 + (S.player.geneLock >= 1 ? 0.10 : 0) + au.idlePct + kb.idlePct) * graceIdleMult() * signIdleMult();
     return {
       pointsPerMin: (10 + lv * 0.3) * coreBonus,
       expPerMin: (8 + lv * 0.5) * (1 + S.buildings.training * 0.03 + au.expPct + kb.expPct) * graceExpMult(),
@@ -1467,8 +1482,10 @@ window.Core = (function () {
   }
 
   /* ================= 秘术阁（对标《道友修仙》的 KeJi） =================
-     41 条线 × 每级 +0.3% 那种"喂到天荒地老"的长线。我们收成 12 条主轴，
-     消耗统一走 ◆异界结晶（这是它的 coinBase 那一路），让高级货币有第二个出口。 */
+     对标的是它那套"每条线每级只加一点点、但能一路修到顶"的长线（合 550 级）。
+     我们做成 42 条：33 条加战斗（攻/生/防/速/暴击/暴伤/技能/闪避…），9 条加挂机经济
+     （产出/经验/掉落/离线上限…）。消耗统一走 ◆异界结晶（这是它的 coinBase 那一路），
+     让高级货币在"抽卡"之外有第二个出口。 */
   function kejiLv(id) { return (S.keji && S.keji[id]) || 0; }
   function kejiCostOf(id) {
     const k = D.kejiById(id);
@@ -1566,8 +1583,200 @@ window.Core = (function () {
     return parts.join(' · ') || '空手而归';
   }
   function curMeta(id) { return D.CURRENCIES.find(c => c.id === id) || { name: id, icon: '' }; }
+
+  /* ================= 药园（对标《道友修仙》洞府里的"药园"） ================= */
+  // 种下去等时间，回来收材料——给"点数"开一个稳定出口，也给强化材料一条不用刷副本的路。
+  function gardenState() {
+    if (!S.garden) S.garden = Array(D.GARDEN_PLOTS).fill(null);
+    return D.GARDEN.map((g, i) => {
+      const plot = S.garden[i] || null;
+      const leftMs = plot ? Math.max(0, plot.at - Date.now()) : 0;
+      return { idx: i, kind: g, plot, leftMs, ready: !!plot && leftMs <= 0 };
+    });
+  }
+  function plantGarden(idx, gardenId) {
+    const g = D.GARDEN.find(x => x.id === gardenId);
+    if (!g) return { ok: false, msg: '没有这种灵田' };
+    if (S.garden[idx]) return { ok: false, msg: '这块地还种着东西' };
+    if (!canAfford({ points: g.points })) return { ok: false, msg: `◈点数不足（需要 ${fmtNum(g.points)}）` };
+    spend({ points: g.points });
+    S.garden[idx] = { id: g.id, at: Date.now() + g.sec * 1000 };
+    save();
+    return { ok: true, msg: `已种下「${g.name}」，${Math.round(g.sec / 60)} 分钟后可收` };
+  }
+  // 收获一块地；熟了才让收（没熟的提示还剩多久）
+  function harvestGarden(idx) {
+    const p = S.garden[idx];
+    if (!p) return { ok: false, msg: '这块地是空的' };
+    if (Date.now() < p.at) return { ok: false, msg: `还没熟（剩 ${Math.ceil((p.at - Date.now()) / 1000)} 秒）` };
+    const g = D.GARDEN.find(x => x.id === p.id);
+    const got = [`${(D.ITEMS[g.out.item] || {}).name || g.out.item}×${g.out.n}`];
+    addItem(g.out.item, g.out.n);
+    if (g.extra && Math.random() < g.extra.p) {
+      addItem(g.extra.item, g.extra.n);
+      got.push(`稀有 ${(D.ITEMS[g.extra.item] || {}).name || g.extra.item}×${g.extra.n}`);
+    }
+    S.garden[idx] = null;
+    save();
+    return { ok: true, msg: `收获：${got.join(' · ')}`, got };
+  }
+  function harvestAllGarden() {
+    const out = [];
+    gardenState().forEach(s => { if (s.ready) { const r = harvestGarden(s.idx); if (r.ok) out.push(r.msg); } });
+    return { ok: out.length > 0, msg: out.length ? `收了 ${out.length} 块地` : '没有成熟的地', list: out };
+  }
+
+  /* ================= 斗法台（对标《道友修仙》的斗法 / Arena） =================
+     单机没真 PVP，所以守擂者按你自己的队伍战力换算——层数越高越强，每天 5 次。 */
+  function arenaState() {
+    if (!S.arena) S.arena = { floor: 1, best: 1, date: '', used: 0 };
+    if (S.arena.date !== dailyDate()) { S.arena.date = dailyDate(); S.arena.used = 0; }
+    const floor = S.arena.floor;
+    return {
+      floor, best: S.arena.best, used: S.arena.used, cap: D.ARENA_DAILY,
+      left: Math.max(0, D.ARENA_DAILY - S.arena.used),
+      reward: D.arenaReward(floor),
+      enemies: D.arenaEnemy(floor, teamPower()),
+    };
+  }
+  // 打完一台：赢则升台拿奖励，输则退一台（保底第 1 台，不会卡死）
+  function arenaSettle(win) {
+    const st = arenaState();
+    if (st.left <= 0) return { ok: false, msg: '今日斗法次数已用完' };
+    S.arena.used++;
+    task('arena1', 1);          // 每日任务：斗法台守擂 1 次
+    let msg;
+    if (win) {
+      const rw = D.arenaReward(S.arena.floor);
+      Object.entries(rw).forEach(([k, v]) => addCur(k, v));
+      S.arena.floor++;
+      S.arena.best = Math.max(S.arena.best, S.arena.floor);
+      msg = `守擂成功！升到第 ${S.arena.floor} 台 · ◆${rw.otherworld} · ♜${rw.corridor}`;
+    } else {
+      S.arena.floor = Math.max(1, S.arena.floor - 1);
+      msg = '守擂失败，退一台再来（次数照常消耗）';
+    }
+    save();
+    return { ok: true, win, msg, floor: S.arena.floor, left: Math.max(0, D.ARENA_DAILY - S.arena.used) };
+  }
+
+  /* ================= 法宝（对标《道友修仙》的法宝） =================
+     装备给数值，法宝给效果：主角带 1 件，按效果并进属性区 / 战斗额外区。 */
+  function fabaoState() {
+    if (!S.fabao) S.fabao = { own: [], on: null };
+    return {
+      own: S.fabao.own.slice(), on: S.fabao.on,
+      list: D.FABAO.map(f => Object.assign({}, f, { owned: S.fabao.own.includes(f.id), active: S.fabao.on === f.id })),
+    };
+  }
+  function buyFabao(id) {
+    const f = D.fabaoById(id);
+    if (!f) return { ok: false, msg: '没有这件法宝' };
+    if (!S.fabao) S.fabao = { own: [], on: null };
+    if (S.fabao.own.includes(id)) return { ok: false, msg: `已经有「${f.name}」了` };
+    if ((S.cur.otherworld || 0) < f.cost) return { ok: false, msg: `◆异界结晶不足（需要 ${f.cost}）` };
+    addCur('otherworld', -f.cost);
+    S.fabao.own.push(id);
+    if (!S.fabao.on) S.fabao.on = id;
+    save();
+    return { ok: true, msg: `得到法宝「${f.name}」：${f.desc}` };
+  }
+  function wearFabao(id) {
+    if (!S.fabao) S.fabao = { own: [], on: null };
+    if (id && !S.fabao.own.includes(id)) return { ok: false, msg: '还没有这件法宝' };
+    S.fabao.on = id || null;
+    save();
+    return { ok: true, msg: id ? `已佩戴「${D.fabaoById(id).name}」` : '已摘下法宝' };
+  }
+  // 法宝效果：数值类进 pct，战斗额外类进 extra（与转生天赋的额外字段同一处）
+  function applyFabao(pct, extra) {
+    const f = (S.fabao && S.fabao.on) ? D.fabaoById(S.fabao.on) : null;
+    if (!f) return;
+    Object.entries(f.eff).forEach(([k, v]) => {
+      if (k === 'dmgReduce' || k === 'initEnergy') { extra[k] = (extra[k] || 0) + v; return; }
+      pct[k] = (pct[k] || 0) + v;
+    });
+  }
   // 触发时的定时器入口（在线挂机每秒调用）
   function travelTick(dtSec) { travelAccrue(dtSec); }
+
+  /* ================= 坐骑（对标《道友修仙》的坐骑） =================
+     法宝给"效果"、坐骑给"基础数值"：驯服一匹全队（含主角）永久加成，随时能换乘。 */
+  function mountState() {
+    if (!S.mount) S.mount = { own: [], on: null };
+    return {
+      own: S.mount.own.slice(), on: S.mount.on,
+      list: D.MOUNTS.map(m => Object.assign({}, m, { owned: S.mount.own.includes(m.id), active: S.mount.on === m.id })),
+    };
+  }
+  function buyMount(id) {
+    const m = D.mountById(id);
+    if (!m) return { ok: false, msg: '没有这匹坐骑' };
+    if (!S.mount) S.mount = { own: [], on: null };
+    if (S.mount.own.includes(id)) return { ok: false, msg: `已经有「${m.name}」了` };
+    // 货币部分走 canAfford / spend，材料部分走背包（两者口径分开，报错能指明缺哪一样）
+    const curCost = Object.assign({}, m.cost);
+    delete curCost.mat; delete curCost.matN;
+    if (!canAfford(curCost)) {
+      const lack = Object.entries(curCost).filter(([k, v]) => (S.cur[k] || 0) < v)
+        .map(([k, v]) => `${curMeta(k).name} ${fmtNum(v)}`).join(' + ');
+      return { ok: false, msg: `货币不足：需要 ${lack}` };
+    }
+    if (m.cost.mat && (S.items[m.cost.mat] || 0) < m.cost.matN) {
+      return { ok: false, msg: `${(D.ITEMS[m.cost.mat] || {}).name || m.cost.mat}不足（需要 ${m.cost.matN}，现有 ${S.items[m.cost.mat] || 0}）` };
+    }
+    spend(curCost);
+    if (m.cost.mat) removeItem(m.cost.mat, m.cost.matN);
+    S.mount.own.push(id);
+    if (!S.mount.on) S.mount.on = id;
+    save();
+    return { ok: true, msg: `驯服了坐骑「${m.name}」：${m.desc}` };
+  }
+  function wearMount(id) {
+    if (!S.mount) S.mount = { own: [], on: null };
+    if (id && !S.mount.own.includes(id)) return { ok: false, msg: '还没有这匹坐骑' };
+    S.mount.on = id || null;
+    save();
+    return { ok: true, msg: id ? `已乘骑「${D.mountById(id).name}」` : '已下坐骑' };
+  }
+  // 坐骑加成：全队（含主角）通用，所以在两条属性计算路径里都要调用
+  function applyMount(pct) {
+    const m = (S.mount && S.mount.on) ? D.mountById(S.mount.on) : null;
+    if (!m) return;
+    Object.entries(m.pct).forEach(([k, v]) => { pct[k] = (pct[k] || 0) + v; });
+  }
+
+  /* ================= 求签（对标《道友修仙》的求签） =================
+     每天免费摇一次签：签文分五档，给当天的挂机加成 + 一点硬通货。
+     它解决的是"每天上线第一件事点哪里"——先求一签，再看今天要干嘛。 */
+  function signState() {
+    if (!S.sign) S.sign = { date: '', tier: '', idlePct: 0, drawn: 0 };
+    const today = dailyDate();
+    const fresh = S.sign.date === today;
+    return {
+      fresh, drawn: S.sign.drawn || 0,
+      tier: fresh ? S.sign.tier : '', idlePct: fresh ? (S.sign.idlePct || 0) : 0,
+      pick: fresh ? (D.SIGNS.find(s => s.tier === S.sign.tier) || null) : null,
+      canDraw: !fresh,
+      total: (S.stats && S.stats.signs) || 0,
+    };
+  }
+  function drawSign() {
+    const st = signState();
+    if (!st.canDraw) return { ok: false, msg: '今天已经求过签了，明天再来' };
+    const s = D.rollSign();
+    S.sign = { date: dailyDate(), tier: s.tier, idlePct: s.idlePct, drawn: (S.sign.drawn || 0) + 1 };
+    applyRewardObj(s.gain);
+    S.stats.signs = (S.stats.signs || 0) + 1;
+    task('sign1', 1);           // 每日任务：求签 1 次
+    save();
+    return { ok: true, sign: s, msg: `求得【${s.tier}】：${s.text}` };
+  }
+  // 今日签文的挂机加成：只加成当天，隔天自动失效（按日期判定，不做定时器）
+  function signIdleMult() {
+    if (!S.sign || S.sign.date !== dailyDate()) return 1;
+    return 1 + (S.sign.idlePct || 0);
+  }
 
   /* ================= 世界进度 ================= */
   function unlockWorld(id) {
@@ -1750,7 +1959,8 @@ window.Core = (function () {
     }
   }
   // 每日任务的进度同时喂给对应周常（同一套动作，不额外要求玩家改变玩法）
-  const TASK_SRC = { battle5: 'battle', idle1: 'idle', enhance1: 'enhance', recruit1: 'recruit', dungeon1: 'dungeon', item1: 'item' };
+  // 每日任务 → 周常进度来源的映射（新加的求签 / 斗法台不进周常，所以 src 留空）
+  const TASK_SRC = { battle5: 'battle', idle1: 'idle', enhance1: 'enhance', recruit1: 'recruit', dungeon1: 'dungeon', item1: 'item', sign1: null, arena1: null };
   function weeklyTick(src, n) {
     if (!src) return;
     ensureWeekly();
@@ -1912,6 +2122,7 @@ window.Core = (function () {
       dailyDone: daily.filter(x => x.done).length, dailyTotal: daily.length, dailyClaimable,
       weeklyClaimable, achClaimable, codexClaimable,
       freeRecruit: freeRecruitAvailable(), freeRecruitReady: freeRecruitAvailable() && isUnlocked('recruit'),
+      signReady: signState().canDraw,          // 今日还没求签 → 首页给个提醒
       claimable: (idleReady ? 1 : 0) + dailyClaimable + weeklyClaimable + achClaimable + codexClaimable,
     };
   }
@@ -2213,6 +2424,10 @@ window.Core = (function () {
     sectInfo, sectBonusPct, addSectExp,
     kejiLv, kejiCostOf, kejiBonus, kejiUp,
     travelAccrue, travelTick, travelProgress, pendingTravel, claimTravel, rollTravel, rewardTextOf,
+    gardenState, plantGarden, harvestGarden, harvestAllGarden,
+    arenaState, arenaSettle, fabaoState, buyFabao, wearFabao,
+    mountState, buyMount, wearMount, applyMount,
+    signState, drawSign, signIdleMult,
     unlockWorld, worldCleared, stageComplete, stageUnlocked,
     refreshUnlocks, isUnlocked, unlockTip,
     mainQuestState, currentQuest, claimQuest,
