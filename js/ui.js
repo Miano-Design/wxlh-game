@@ -327,16 +327,16 @@ window.UI = (function () {
   // 底部只留 4 格：「队伍 / 角色 / 装备」本质是同一个东西（我的人 + 我的装备），
   // 合并成一个「轮回者」页签用胶囊切子页；腾出来的位置给背包（原来的弹窗是二级入口）。
   const TABS = [
-    { id: 'home', name: '主神空间', ico: '⛩' },
-    { id: 'dungeon', name: '轮回副本', ico: '🌀' },
-    { id: 'roster', name: '轮回者', ico: '👥' },
-    { id: 'bag', name: '背包', ico: '🎒' },
+    { id: 'home', name: '主神空间' },
+    { id: 'dungeon', name: '轮回副本' },
+    { id: 'roster', name: '轮回者' },
+    { id: 'bag', name: '背包' },
   ];
   const ROSTER_TABS = [
-    { id: 'party', name: '队伍', ico: '⚔️' },
-    { id: 'chars', name: '角色', ico: '👥' },
-    { id: 'equip', name: '装备', ico: '🗡' },
-    { id: 'grow', name: '成长', ico: '🌱' },
+    { id: 'party', name: '队伍' },
+    { id: 'chars', name: '角色' },
+    { id: 'equip', name: '装备' },
+    { id: 'grow', name: '成长' },
   ];
   // 旧的三个页签名一律当作「轮回者」的子页，这样任务"前往"、每日跳转、引导高亮都不用改
   const TAB_ALIAS = { party: 'roster', chars: 'roster', equip: 'roster' };
@@ -368,7 +368,7 @@ window.UI = (function () {
       let dot = false;
       if (t.id === 'home') dot = idleClaimable();
       else if (t.id === 'roster') dot = C().isUnlocked('recruit') && C().freeRecruitAvailable();
-      return `<div class="nav-item ${curTab === t.id ? 'active' : ''}" data-tab="${t.id}"><span class="ico">${t.ico}</span>${t.name}${dot ? '<span class="dot"></span>' : ''}</div>`;
+      return `<div class="nav-item ${curTab === t.id ? 'active' : ''}" data-tab="${t.id}">${t.name}${dot ? '<span class="dot"></span>' : ''}</div>`;
     }).join('');
     nav.querySelectorAll('.nav-item').forEach(el => { el.onclick = () => setTab(el.dataset.tab); });
   }
@@ -436,7 +436,7 @@ window.UI = (function () {
   function rosterScreen() {
     const sub = { party: partyScreen, chars: charsScreen, equip: equipScreen, grow: growScreen }[rosterView] || partyScreen;
     return `<div class="pill-tabs mb3">
-        ${ROSTER_TABS.map(t => `<div class="pill ${rosterView === t.id ? 'active' : ''}" data-roster="${t.id}">${t.ico} ${t.name}</div>`).join('')}
+        ${ROSTER_TABS.map(t => `<div class="pill ${rosterView === t.id ? 'active' : ''}" data-roster="${t.id}">${t.name}</div>`).join('')}
       </div>
       ${sub()}`;
   }
@@ -495,13 +495,12 @@ window.UI = (function () {
     const prog = C().travelProgress();
     const pend = C().pendingTravel();
     const left = Math.max(0, Math.round(prog.every - prog.sec));
-    return `<div class="today-strip tap${pend ? ' hot' : ''}" data-act="open-travel">
-      <span class="ts-ico">${pend ? pend.ico : '🚶'}</span>
-      <div class="ts-grow">
-        <div class="ts-t1">游历奇遇${pend ? ' · 有一次在路上' : ''}</div>
-        <div class="ts-t2">${pend ? `${pend.name}：${C().rewardTextOf(pend.effect)}` : `距下一次 ${formatDuration(left)}`}</div>
+    return `<div class="card text-rows" style="padding:4px var(--sp3)">
+      <div class="row" data-act="open-travel">
+        <span class="rk" style="${pend ? 'color:var(--gold)' : ''}">【游历】</span>
+        <span class="rv">${pend ? pend.name + '（待领）' : `距下一次 ${formatDuration(left)}`}</span>
+        <span class="rs">${pend ? C().rewardTextOf(pend.effect) : '挂机每 10 分钟出一次'}</span>
       </div>
-      <span class="ts-go">›</span>
     </div>`;
   }
   /* 首页两枚匾额：主线 + 今日。对标产品把这类"今天该干什么"的信息贴在主视觉旁边，
@@ -522,7 +521,7 @@ window.UI = (function () {
     const q = idx < 0 ? null : list[idx];
     return `<div class="plaque-row">
       <div class="plaque${q && q.done ? ' hot' : ''}">
-        <div class="pq-k">📜 主线 ${idx < 0 ? '已走完' : `第 ${idx + 1}/${list.length} 步`}</div>
+        <div class="pq-k">主线 ${idx < 0 ? '已走完' : `第 ${idx + 1}/${list.length} 步`}</div>
         ${q ? `<div class="pq-n">${q.q.name}</div>
           <div class="pq-s">${rewardText(q.q.reward)}</div>
           <div class="pq-btn">${q.done
@@ -531,7 +530,7 @@ window.UI = (function () {
           : '<div class="pq-n">全部完成</div><div class="pq-s">挑战更高难度与无限回廊</div>'}
       </div>
       <div class="plaque">
-        <div class="pq-k">🗓 今日${t.claimable ? ` · ${t.claimable} 项可收` : ''}</div>
+        <div class="pq-k">今日${t.claimable ? ` · ${t.claimable} 项可收` : ''}</div>
         ${bits.map(b => `<div class="pq-s">${b}</div>`).join('')}
         <div class="pq-btn">
           <button class="btn small ${t.claimable || bt.claimable ? 'gold' : 'ghost'}" data-act="open-today">${t.claimable || bt.claimable ? '去收取 ›' : '看看 ›'}</button>
@@ -581,28 +580,29 @@ window.UI = (function () {
     return w;
   }
   function homeScreen() {
-  // 顶部状态区：对标《道友修仙》主界面最上面那排『境界』『修为』『修龄』——
-  // 玩家一进游戏先看到"我现在是什么境界、多少修为、第几世"，再看到挂机数字。
+  // 顶部状态区：对标参考产品主界面最上面那排文字行【境界】【等级】【修龄】——
+  // 玩家一进游戏先看到"我是什么境界、几级了、第几世"，再看到挂机数字。
   function statusStrip() {
     const S = C().S;
     const st = C().realmState();
     const expNeed = D.EXP_TABLE[S.player.level] || 1;
     const au = C().authorityInfo();
-    return `<div class="status-strip">
-      <div class="ss-cell" data-act="open-realm">
-        <div class="ss-k">境界</div>
-        <div class="ss-v" style="color:var(--gold)">${st.realm ? D.REALMS[st.realm - 1].full : '凡体'}</div>
-        <div class="ss-s">第 ${st.realm} / ${D.REALMS.length} 阶</div>
+    // 参考产品的主界面最上面就是这种【标签】值 的文字行，一行一件事，不做卡片格子
+    return `<div class="card text-rows">
+      <div class="row" data-act="${st.hasBloodline ? 'open-realm' : 'open-bloodline'}">
+        <span class="rk">【境界】</span>
+        <span class="rv" style="color:${st.hasBloodline ? 'var(--gold)' : 'var(--accent)'}">${st.curName || '未定血统'}</span>
+        <span class="rs">${st.hasBloodline ? `第 ${Math.min(st.realm + 1, D.REALM_STAGE_COUNT)} / ${D.REALM_STAGE_COUNT} 阶` : '点这里选血统'}</span>
       </div>
-      <div class="ss-cell" data-protag="1">
-        <div class="ss-k">修为</div>
-        <div class="ss-v">Lv.${S.player.level}</div>
-        <div class="ss-s">EXP ${Math.floor(S.player.exp / expNeed * 100)}%</div>
+      <div class="row" data-protag="1">
+        <span class="rk">【等级】</span>
+        <span class="rv">Lv.${S.player.level}</span>
+        <span class="rs">EXP ${Math.floor(S.player.exp / expNeed * 100)}%</span>
       </div>
-      <div class="ss-cell" data-act="open-authority">
-        <div class="ss-k">轮回</div>
-        <div class="ss-v">${S.player.reincarnations} 世</div>
-        <div class="ss-s">权限 Lv.${au.lv}</div>
+      <div class="row" data-act="open-authority">
+        <span class="rk">【轮回】</span>
+        <span class="rv">${S.player.reincarnations} 世</span>
+        <span class="rs">权限 Lv.${au.lv}</span>
       </div>
     </div>`;
   }
@@ -615,23 +615,25 @@ window.UI = (function () {
     const t0 = C().todayState();
     return `
     ${statusStrip()}
-    <div class="stage">
-      <div class="stage-top">
-        <span class="stage-tag">⏳ 轮回挂机中</span>
-        <span class="stage-sub">EXP ${r.expPerMin.toFixed(1)}/分</span>
+    <div class="card idle-card">
+      <div class="idle-line">
+        <span class="il-k">【挂机】</span>
+        <b class="il-v">◈${r.pointsPerMin.toFixed(1)}/分</b>
+        <span class="il-s">EXP ${r.expPerMin.toFixed(1)}/分 · 离线 ${Math.round(C().offlineEfficiency() * 100)}% · 上限 ${C().offlineCapHours().toFixed(1)}h</span>
       </div>
-      <div class="stage-core">
-        <div class="hero-num">◈${r.pointsPerMin.toFixed(1)}<span class="hero-unit">/分</span></div>
-        <div class="stage-sub">离线效率 ${Math.round(C().offlineEfficiency() * 100)}% · 上限 ${C().offlineCapHours().toFixed(1)}h</div>
+      <div class="idle-line">
+        <span class="il-k">【已挂】</span>
+        <b id="idle-time">${formatDuration(bank.seconds)}</b>
+        <span class="il-k" style="margin-left:auto">【待领】</span>
+        <b class="il-r" id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}${bank.mat ? ` · 材料 ${bank.mat}` : ''}</b>
       </div>
-      <div class="hero-bank">
-        <div class="hb-item"><span class="hb-k">已累积</span><b id="idle-time">${formatDuration(bank.seconds)}</b></div>
-        <div class="hb-item"><span class="hb-k">待领取</span><b id="idle-gains">◈${fmt(bank.points)} · EXP ${fmt(bank.exp)}${bank.otherworld ? ` · ◆${bank.otherworld}` : ''}${bank.story ? ` · ❖${bank.story}` : ''}${bank.mat ? ` · ⚙️${bank.mat}` : ''}</b></div>
+      <div class="idle-line idle-mini">
+        <span class="il-k">【分工】</span>
+        <span class="il-s">${lines.map(l => `${l.line.name} ${l.leaderId ? cname(l.leaderId) : '空'}`).join(' · ')}</span>
       </div>
-      <div class="idle-lines-hint">${lines.map(l => `${l.line.ico}${l.leaderId ? cname(l.leaderId) : '空'}`).join(' · ')}　（点「挂机分工」派人：闭关看精神 / 采集看肌肉 / 探索看神经 / 守卫看免疫）</div>
-      <div class="btn-row mt3">
-        <button class="btn small ghost" data-act="open-idlelines">🧭 挂机分工</button>
-        <button class="btn primary" data-act="claim-all" ${t0.claimable ? '' : 'disabled'}>${t0.claimable ? `⚡ 一键收取（${t0.claimable}）` : '⚡ 一键收取'}</button>
+      <div class="btn-row mt2">
+        <button class="btn small ghost" data-act="open-idlelines">派人分工</button>
+        <button class="btn primary" data-act="claim-all" ${t0.claimable ? '' : 'disabled'}>${t0.claimable ? `一键收取（${t0.claimable}）` : '一键收取'}</button>
       </div>
     </div>
     ${travelStrip()}
@@ -639,41 +641,67 @@ window.UI = (function () {
     ${homeEntries()}
     `;
   }
-  /* 首页入口带：对标《道友修仙》主界面底部那排"印章"入口——图形在上、名字在下，一眼扫完。
-     这是首页最后一块，也是"点哪里去干什么"最直接的答案。
-     养成线（基地/权限/境界/基因锁/转生/伴生体/评级/秘术）在「👥 轮回者 → 🌱 成长」里。 */
+  /* 首页入口：**分组纯文字菜单**。
+     对标产品是纯文字放置游戏——它的入口就是一行行文字，不靠图标认路。
+     我们上一版把功能分散在"首页印章 + 轮回者→成长子页 + 顶栏"，结果找东西要找三个地方；
+     这一版把所有入口一次摊在首页，按「今天 / 养成 / 玩法」分组，一屏扫完。 */
   function homeEntries() {
     const S = C().S;
     const sect = C().sectInfo();
     const kejiTotal = D.KEJI.reduce((s, k) => s + C().kejiLv(k.id), 0);
     const pend = C().pendingTravel();
     const achDot = C().achievementSummary().list.filter(x => x.done && !x.claimed).length > 0;
-    return `<div class="section-title">入口</div>
-    <div class="stamp-grid">
-      ${stampBtn('open-recruit', '✦', '轮回者招募', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable(), null)}
-      ${stampBtn('open-sect', '🏯', '主神评级', null, false, `Lv.${sect.lv}`)}
-      ${stampBtn('open-keji', '📜', '秘术阁', null, false, `${kejiTotal} 级`)}
-      ${stampBtn('open-shop', '🏪', '兑换大厅', 'shop', false, null)}
-      ${stampBtn('open-tasks', '📋', '任务', 'tasks', false, null)}
-      ${stampBtn('open-bounty', '🔥', '限时悬赏', null, C().bountyState().list.some(x => x.done && !x.claimed), null)}
-      ${stampBtn('open-travel', '🚶', '游历奇遇', null, !!pend, pend ? '待领' : null)}
-      ${stampBtn('open-codex', '📕', '轮回图鉴', 'recruit', false, null)}
-      ${stampBtn('open-ach', '🏅', '成就', null, achDot, null)}
-    </div>
-    <div class="hint mt2" style="text-align:center">养成线在「👥 轮回者 → 🌱 成长」里</div>`;
+    const bLv = Object.values(S.buildings).reduce((a, b) => a + b, 0);
+    const au = C().authorityInfo();
+    const gl = S.player.geneLock > 0 ? `${S.player.geneLock} 阶` : '未解锁';
+    const beasts = Object.keys(S.beast.owned || {}).length;
+    const st = C().realmState();
+    // 一条入口 = [动作, 名字, 状态文字, 解锁条件(可空), 是否亮红点]
+    const menus = [
+      ['今天', [
+        ['open-recruit', '轮回者招募', C().freeRecruitAvailable() ? '今日免费' : '攒碎片升星', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable()],
+        ['open-shop', '兑换大厅', '三档商店', 'shop'],
+        ['open-tasks', '任务', '主线 / 日常 / 周常', 'tasks'],
+        ['open-bounty', '限时悬赏', '按时重置', null, C().bountyState().list.some(x => x.done && !x.claimed)],
+        ['open-travel', '游历奇遇', pend ? '有奇遇待领' : '挂机途中触发', null, !!pend],
+        ['open-ach', '成就', '长线目标', null, achDot],
+      ]],
+      ['养成', [
+        ['open-bloodline', '血统', S.player.bloodline || '未定（点这里选）'],
+        ['open-realm', '境界渡劫', st.hasBloodline ? st.curName : '先选血统'],
+        ['open-sect', '主神评级', `Lv.${sect.lv}`],
+        ['open-keji', '秘术阁', `${kejiTotal} 级`],
+        ['open-authority', '主神权限', `Lv.${au.lv}/${au.max}`, 'buildings'],
+        ['open-buildings', '基地建设', `合计 Lv.${bLv}`, 'buildings'],
+        ['open-genelock', '基因锁', gl, 'geneLock'],
+        ['open-beast', '伴生体', beasts ? `${beasts} 只` : '未孵化', 'beast'],
+        ['open-reincarn', '转生天赋', `${S.player.reincarnations} 世`, 'reincarn'],
+        ['open-codex', '轮回图鉴', `${C().codexState().owned}/${C().codexState().total} 名`, 'recruit'],
+      ]],
+      ['其他', [
+        ['open-idlelines', '挂机分工', '派人去四条产线'],
+        ['open-guide', '玩法指南', '分章说明'],
+        ['open-settings', '设置与存档', '存档 / 导出'],
+      ]],
+    ];
+    // 没解锁的不铺成一片灰格子（一眼全是"未解锁"等于没信息），收成一行小字
+    const locked = [];
+    const groups = menus.map(([title, list]) => {
+      const open = list.filter(x => !x[3] || C().isUnlocked(x[3]));
+      list.filter(x => x[3] && !C().isUnlocked(x[3])).forEach(x => locked.push(x[1]));
+      if (!open.length) return '';
+      return `<div class="section-title">${title}</div><div class="text-menu">${open.map(tile).join('')}</div>`;
+    }).join('');
+    return `${groups}
+      ${locked.length ? `<div class="hint mt3">还没解锁：${locked.join(' / ')}（跟着关卡进度开，推图就会一个个亮起来）</div>` : ''}
+      <div class="hint mt1">「轮回者 → 成长」里也有同一批入口的总览。</div>`;
   }
-  // 印章按钮；unlockId 传 null = 永远可用（别拿"有没有解锁记录"当判据）
-  function stampBtn(act, ico, name, unlockId, dot, badge) {
-    if (!unlockId || C().isUnlocked(unlockId)) {
-      return `<button class="stamp" data-act="${act}">
-        <span class="s-ico">${ico}</span><span class="s-name">${name}</span>
-        ${badge ? `<span class="s-badge">${badge}</span>` : ''}
-        ${dot ? '<span class="dot"></span>' : ''}
-      </button>`;
-    }
-    return `<button class="stamp locked" data-locked="${unlockId}">
-      <span class="s-ico">🔒</span><span class="s-name">${name}</span>
-    </button>`;
+  // 纯文字入口块：名字一行、状态一行，不用图标
+  function tile(x) {
+    const [act, name, sub, , dot] = x;
+    return `<button class="tile" data-act="${act}">
+      <span class="tt-name">${name}${dot ? '<i class="tt-dot"></i>' : ''}</span>
+      <span class="tt-sub">${sub || ''}</span></button>`;
   }
   function formatDuration(sec) {
     sec = Math.floor(sec);
@@ -728,7 +756,7 @@ window.UI = (function () {
     const resume = pr && pr.worldId ? (() => {
       const w = D.WORLDS.find(x => x.id === pr.worldId);
       return `<div class="card" style="border-color:#ffd76a88;margin-bottom:10px">
-        <h3>▶ 继续上次探索 <span class="sub">${w ? w.name : pr.worldId} · 第 ${pr.stage}/12 关 · 第 ${Math.min(pr.step + 1, pr.route.steps.length + 1)}/${pr.route.steps.length + 1} 段</span></h3>
+        <h3>继续上次副本 <span class="sub">${w ? w.name : pr.worldId} · 第 ${pr.stage}/12 关 · 第 ${Math.min((pr.wave || 0) + 1, (pr.waves || [1]).length)}/${(pr.waves || [1]).length} 波</span></h3>
         <div class="hint mb2">进度已经保存，随时可以接着打（已获得的奖励不会丢）。</div>
         <div class="btn-row">
           <button class="btn small primary" data-resume-run="1">继续探索</button>
@@ -818,13 +846,13 @@ window.UI = (function () {
 
   /* ---------- 关卡探索 ---------- */
   function startRun(worldId, diff, stageIdx) {
-    const S = C().S;
     // 主角必上阵，无需检查
+    const S = C().S;
     const stage = stageIdx + 1;
-    const route = window.Dungeon.genRoute(worldId, stage);
     run = {
-      worldId, diff, stage, stageIdx, route,
-      step: 0,
+      worldId, diff, stage, stageIdx,
+      waves: window.Dungeon.wavePlan(stage),
+      wave: 0,          // 当前打到第几波（0 起）
       hpPct: {},        // charId → 0~1
       buffs: {},
       kills: 0,
@@ -834,19 +862,16 @@ window.UI = (function () {
     persistRun();
     dungeonView = { page: 'run' };
     render();
+    // 点关卡就直接开打第一波——对标产品的副本没有"先选路线"这一层
+    fightWave();
   }
-  const NODE_META = {
-    combat: { ico: '⚔️', name: '遭遇战' },
-    elite: { ico: '💀', name: '精英伏击' },
-    event: { ico: '❓', name: '随机事件' },
-    chest: { ico: '🎁', name: '补给宝箱' },
-    heal: { ico: '⛺', name: '安全屋' },
-  };
+  // 波次名（纯文字，不用图标）
+  const WAVE_NAME = { combat: '遭遇战', elite: '精英伏击', boss: '守关之战' };
   function runScreen() {
     if (!run) return worldsList();
     const w = D.WORLDS.find(x => x.id === run.worldId);
-    const totalSteps = run.route.steps.length + 1;
-    const prog = Array.from({ length: totalSteps }, (_, i) => `<i class="${i < run.step ? 'done' : ''}"></i>`).join('');
+    const total = run.waves.length;
+    const prog = Array.from({ length: total }, (_, i) => `<i class="${i < run.wave ? 'done' : ''}"></i>`).join('');
     const partyHp = ['@player', ...C().S.party.filter(Boolean)].map(id => {
       const pct = run.hpPct[id] !== undefined ? run.hpPct[id] : 1;
       return `<div style="flex:1"><div style="font-size:10px;color:var(--dim);text-align:center">${cname(id)}</div><div class="bar hp ${pct < 0.35 ? 'low' : ''}"><i style="width:${pct * 100}%"></i></div></div>`;
@@ -867,69 +892,37 @@ window.UI = (function () {
         <div style="font-size:10px;color:var(--dim);margin-top:5px">副本内使用 · 本场探索全程有效</div>
       </div>`
       : `<div style="font-size:10px;color:var(--dim);margin-top:8px">背包里还没有探索用道具（主神商店可买治疗剂 / 强化剂）</div>`;
-    // 路线图全览
-    const mapHtml = `<div class="card" style="padding:10px 14px"><div style="display:flex;align-items:center;gap:4px;overflow-x:auto">
-      ${run.route.steps.map((opts, i) => `
-        <div style="display:flex;flex-direction:column;gap:3px;flex:0 0 auto">
-          ${opts.map(t => `<span style="font-size:${i === run.step ? '17px' : '13px'};opacity:${i < run.step ? '.3' : i === run.step ? '1' : '.55'};filter:${i === run.step ? 'drop-shadow(0 0 4px #d43a4f)' : 'none'}" title="${NODE_META[t].name}">${NODE_META[t].ico}</span>`).join('')}
-        </div>
-        <span style="color:var(--line);flex:0 0 auto">›</span>`).join('')}
-      <span style="font-size:17px;flex:0 0 auto;${run.step >= run.route.steps.length ? 'filter:drop-shadow(0 0 6px #d43a4f)' : 'opacity:.55'}">${run.route.finalKind === 'boss' ? '👹' : '⚔️'}</span>
-    </div></div>`;
-    let body = '';
-    if (run.step < run.route.steps.length) {
-      const opts = run.route.steps[run.step];
-      body = `
-        <div class="section-title">选择前进路线（第 ${run.step + 1}/${totalSteps} 段）</div>
-        <div class="route-step">
-          ${opts.map(t => `<div class="route-node ${t}" data-node="${t}"><div class="nico">${NODE_META[t].ico}</div><div class="nname">${NODE_META[t].name}</div></div>`).join('')}
-        </div>`;
-    } else {
-      const isBoss = run.route.finalKind === 'boss';
-      body = `
-        <div class="section-title">最终区域</div>
-        <div class="route-step"><div class="route-node elite" data-final="1" style="border-color:var(--accent)">
-          <div class="nico">${isBoss ? '👹' : '⚔️'}</div><div class="nname">${isBoss ? w.boss : '区域决战'}</div>
-        </div></div>`;
-    }
+    // 波次列表（纯文字）：打过的划掉，当前的高亮，后面的等着
+    const waveList = run.waves.map((k, i) => {
+      const done = i < run.wave, cur = i === run.wave;
+      const nm = i === total - 1 && k === 'boss' ? `${w.boss}（守关）` : WAVE_NAME[k] || '遭遇战';
+      return `<div class="list-row" style="${done ? 'opacity:.45' : cur ? '' : 'opacity:.6'}">
+        <div class="grow"><div class="t1">第 ${i + 1} / ${total} 波 · ${nm}</div></div>
+        <span class="hint">${done ? '已通过' : cur ? '当前' : '待打'}</span>
+      </div>`;
+    }).join('');
+    const curKind = run.waves[run.wave];
+    const isLast = run.wave === total - 1;
+    const btnLabel = isLast
+      ? (curKind === 'boss' ? `开打 · 守关 ${w.boss}` : curKind === 'elite' ? '开打 · 精英伏击' : '开打 · 最后一波')
+      : `开打 · 第 ${run.wave + 1} 波`;
     return `
       <div class="card">
-        <h3>${WORLD_ICONS[w.theme]} ${w.name} · ${{ normal: '普通', hard: '困难', hell: '地狱' }[run.diff]} ${run.stage}/12</h3>
+        <h3>${w.name} · ${{ normal: '普通', hard: '困难', hell: '地狱' }[run.diff]} · 第 ${run.stage}/12 关 <span class="sub">共 ${total} 波</span></h3>
         <div class="route-progress">${prog}</div>
         <div style="display:flex;gap:6px">${partyHp}</div>
         ${potionBar}
-        ${Object.keys(run.buffs).length ? `<div style="margin-top:8px;font-size:11px;color:var(--green)">探索增益：${Object.entries(run.buffs).map(([k, v]) => `${D.CONSUMABLE_TAG[k] || k}+${Math.round(v * 100)}%`).join(' ')}</div>` : ''}
+        ${Object.keys(run.buffs).length ? `<div style="margin-top:8px;font-size:11px;color:var(--green)">本关增益：${Object.entries(run.buffs).map(([k, v]) => `${D.CONSUMABLE_TAG[k] || k}+${Math.round(v * 100)}%`).join(' ')}</div>` : ''}
+        <div class="hint mt2">血量在波与波之间继承，不会自动回满；要补血就在上面点治疗剂。</div>
       </div>
-      ${mapHtml}
-      ${body}
+      <div class="card"><h3>本关波次</h3>${waveList}</div>
       <div style="height:84px"></div>
-      <div class="run-bar"><button class="btn block" data-act="abandon-run">🚪 撤离副本（已获奖励保留）</button></div>`;
-  }
-
-  /* ---------- 战前侦查 ---------- */
-  function enemyPower(e) { return Math.round(e.atk * 2 + e.def + e.hp * 0.2 + (e.spd || 60) * 3); }
-  function battlePreview(enemies, title, onConfirm) {
-    const allies = buildAllies(run ? run.hpPct : null, run ? run.buffs : null);
-    const myPower = allies.reduce((s, a) => s + Math.round(a.atk * 2 + a.def + a.maxHp * 0.2 + a.spd * 3), 0);
-    const foePower = enemies.reduce((s, e) => s + enemyPower(e), 0);
-    const ratio = myPower / Math.max(1, foePower);
-    const verdict = ratio >= 1.4 ? ['十拿九稳', 'var(--green)'] : ratio >= 0.9 ? ['势均力敌', 'var(--gold)'] : ['凶多吉少', 'var(--accent)'];
-    const w = modal(title, `
-      <div class="kv"><span class="k">我方战力</span><span>${fmt(myPower)}</span></div>
-      <div class="kv"><span class="k">敌方战力</span><span>${fmt(foePower)}</span></div>
-      <div class="kv"><span class="k">胜率预估</span><span style="color:${verdict[1]};font-weight:700">${verdict[0]}</span></div>
-      <div class="section-title">敌方情报</div>
-      ${enemies.map(e => `<div class="list-row">
-        <div class="grow"><div class="t1">${e.isBoss ? '👹 ' : ''}${esc(e.name)}</div>
-        <div class="t2">HP ${fmt(e.hp)} · 攻 ${fmt(e.atk)} · 防 ${fmt(e.def)}${e.faction ? ` · ${e.faction}` : ''}</div></div>
-      </div>`).join('')}
-      <div class="btn-row mt4">
-        <button class="btn ghost" data-cancel>再想想</button>
-        <button class="btn primary" data-fight>⚔️ 出战</button>
-      </div>
-    `, { center: true });
-    w.querySelector('[data-cancel]').onclick = () => closeModal(w);
-    w.querySelector('[data-fight]').onclick = () => { closeModal(w); onConfirm(); };
+      <div class="run-bar">
+        <div class="btn-row">
+          <button class="btn ghost small" data-act="abandon-run">撤离</button>
+          <button class="btn primary" data-wave-fight="1">${btnLabel}</button>
+        </div>
+      </div>`;
   }
 
   /* ---------- 无限回廊 ---------- */
@@ -1083,7 +1076,7 @@ window.UI = (function () {
           <button class="btn small ghost" data-attr="${a.id}" data-n="10" ${(S.player.attrPoints || 0) >= 1 ? '' : 'disabled'}>+10</button>
         </div>`).join('')}
       <div class="section-title">${S.player.bloodline ? S.player.bloodline + '血统技能' : '技能'} <span style="color:var(--gold)">可用技能点 ${S.player.skillPoints || 0}</span></div>
-      <div class="hint mb2">每升 1 级获得 1 点技能点${S.player.bloodline ? '' : '；觉醒血统（Lv.' + D.BLOODLINE_UNLOCK_LV + '）后技能栏将替换为血统技能'}</div>
+      <div class="hint mb2">每升 1 级获得 1 点技能点${S.player.bloodline ? '' : '；选定血统后，技能栏会换成那条血统的技能'}</div>
       ${[P.s1, P.s2, P.ult].map((sk, i) => `
         <div class="skill-row"><div class="sname">${['技能', '技能', '必杀'][i]}·${sk.name} <span class="tag">Lv.${(S.player.skillLv || [1, 1, 1])[i]}/10</span>
           <button class="btn small" data-pskill="${i}" style="float:right" ${(S.player.skillPoints || 0) > 0 && (S.player.skillLv || [1, 1, 1])[i] < 10 ? '' : 'disabled'}>+1</button></div>
@@ -1834,6 +1827,79 @@ window.UI = (function () {
   }
 
   /* ================= 主神权限（对标《道友修仙》的"洞府"） ================= */
+  /* ================= 血统（境界线跟着血统走） =================
+     对标《道友修仙》：境界不是人人相同的公共阶梯，而是跟着你选的路走。
+     所以"选血统"被提到开局第一步——没血统就没有境界，也不再显示"凡体"这种占位。 */
+  function bloodlineModal(wrap, opts) {
+    opts = opts || {};
+    const S = C().S;
+    const cur = S.player.bloodline;
+    if (!cur) {
+      const body = `
+        <div class="card" style="border-color:#e6b64c66">
+          <h3>选择血统 <span class="sub">选定后不可更改</span></h3>
+          <div class="note">血统决定两件事：<b>你走哪一条境界线</b>（血族走血奴→血仆→血卫…，修真走炼气→筑基→金丹…），
+            以及升级血统时主角色吃到的属性方向。选完立刻生效，境界线从第 1 境·初期 开始算。</div>
+        </div>
+        ${Object.entries(D.BLOODLINES).map(([id, bl]) => `
+          <div class="card">
+            <h3>${id} <span class="sub">${bl.desc}</span></h3>
+            <div class="kv"><span class="k">境界线</span><span>${bl.realms.join(' → ')}</span></div>
+            <div class="hint">每大境分初期 / 中期 / 后期 / 大圆满，共 ${D.REALM_STAGE_COUNT} 阶。</div>
+            <button class="btn gold block mt3" data-pbl="${id}">觉醒 ${id} 血统</button>
+          </div>`).join('')}`;
+      const w = opts.first ? modal('选择血统', body, { center: true, sticky: true }) : modal('血统', body);
+      w.querySelectorAll('[data-pbl]').forEach(b => b.onclick = () => {
+        const id = b.dataset.pbl;
+        confirmBox('确认血统', `选择「${id}」后不可更改，境界线将从「${D.realmName(id, 0)}」开始。确定吗？`, () => {
+          const r = C().choosePlayerBloodline(id);
+          toast(r.msg, 2800);
+          if (!r.ok) return;
+          closeModal(w);
+          render(); renderTopbar();
+        });
+      });
+      return w;
+    }
+    const st = C().realmState();
+    const chain = C().realmChainOf();
+    const groups = (D.BLOODLINES[cur].realms || []).map((mj, mi) => {
+      const cells = chain.filter(c => c.major === mi).map(c => {
+        const done = c.idx < st.realm, curS = c.idx === st.realm;
+        return `<span class="step-chip ${done ? 'done' : curS ? 'cur' : ''}" data-step="${c.idx}"
+          title="Lv.${D.REALMS[c.idx].lv} · 成功率 ${Math.round(D.REALMS[c.idx].rate * 100)}%">
+          <b>${D.REALM_TIERS[c.tier]}</b><i>${done ? '已成' : curS ? '当前' : 'Lv.' + D.REALMS[c.idx].lv}</i></span>`;
+      }).join('');
+      return `<div class="card" style="margin-bottom:8px">
+        <h3>${mi + 1}. ${mj}</h3><div class="step-row">${cells}</div></div>`;
+    }).join('');
+    const body = `
+      <div class="card" style="border-color:#e6b64c66">
+        <h3>${cur}血统 <span class="sub">Lv.${S.player.bloodlineLv} / ${D.BLOODLINE_MAX}</span></h3>
+        <div class="note">${D.BLOODLINES[cur].desc}</div>
+        <div class="kv mt2"><span class="k">当前境界</span><span style="color:var(--gold)">${st.curName}（第 ${Math.min(st.realm + 1, D.REALM_STAGE_COUNT)} / ${D.REALM_STAGE_COUNT} 阶）</span></div>
+        <div class="kv"><span class="k">境界加成</span><span style="color:var(--gold)">+${(st.bonusPct * 100).toFixed(1)}%</span></div>
+      </div>
+      <div class="card">
+        <h3>血统升级</h3>
+        <div class="kv"><span class="k">资源</span><span>血统结晶 ${fmt(S.cur.bloodCrystal || 0)} · ◈${fmt(S.cur.points)}</span></div>
+        <div class="btn-row mt2">
+          <button class="btn small" data-bloodup="1">升 1 级（${S.player.bloodlineLv >= D.BLOODLINE_MAX ? '已满' : '消耗随等级涨'}）</button>
+          <button class="btn small ghost" data-act="open-realm">看境界 · 渡劫</button>
+        </div>
+      </div>
+      <div class="section-title">境界线 · ${D.BLOODLINES[cur].realms.length} 大境 × ${D.REALM_TIERS.length} 小阶</div>
+      ${groups}`;
+    const w = showPanel(wrap, `${cur}血统 · 境界线`, body);
+    const up = w.querySelector('[data-bloodup]');
+    if (up) up.onclick = () => {
+      const r = C().upgradePlayerBloodline();
+      toast(r.msg, 2200);
+      if (r.ok) { bloodlineModal(w); renderTopbar(); }
+    };
+    return w;
+  }
+
   /* ================= 主神评级（对标《道友修仙》的“宗门等级”） =================
      它那条线是 321 级、随主线推进自动涨、每级抬全队属性。我们照机制做，
      强调一句：**不用手动点**——打关卡、打赢战斗、挂机都会涨，满了自动升。
@@ -2195,16 +2261,26 @@ window.UI = (function () {
   function realmModal(wrap) {
     const S = C().S;
     const st = C().realmState();
+    if (!st.hasBloodline) {
+      return showPanel(wrap, '境界 · 渡劫', `
+        <div class="card" style="border-color:#e6b64c66">
+          <h3>还没有境界线</h3>
+          <div class="note">境界不是人人相同的公共阶梯——它跟着你的血统走（血族走血奴→血仆→血卫…，修真走炼气→筑基→金丹…）。
+            先选定一种血统，境界线才会开启。</div>
+          <button class="btn gold block mt3" data-act="open-bloodline">去选血统</button>
+        </div>`);
+    }
     // 36 小阶按"大境界"分组展示：每个大境界一行，行内 4 个小阶（初期/中期/后期/大圆满）——
-    // 对标《道友修仙》把境界写成"大境界 + 小阶"的写法，一眼看得到自己走到哪一格、离下一格差多少。
-    const groups = D.REALM_MAJORS.map((mj, mi) => {
+    // 大境界名取自当前血统（D.BLOODLINES[x].realms），不再是所有人共用一套名字。
+    const majors = D.BLOODLINES[st.bloodline].realms;
+    const groups = majors.map((mj, mi) => {
       const base = mi * D.REALM_TIERS.length;
       const cells = D.REALM_TIERS.map((tier, ti) => {
         const gi = base + ti;
         const r = D.REALMS[gi];
         const done = gi < st.realm, cur = gi === st.realm;
         return `<span class="step-chip ${done ? 'done' : cur ? 'cur' : ''}" data-step="${gi}" title="Lv.${r.lv} · 成功率 ${Math.round(r.rate * 100)}% · ◈${fmt(r.cost.points)} + 材料×${r.cost.matN}">
-          <b>${tier}</b><i>Lv.${r.lv}</i></span>`;
+          <b>${tier}</b><i>${done ? '已成' : cur ? '当前' : 'Lv.' + r.lv}</i></span>`;
       }).join('');
       const doneN = D.REALM_TIERS.filter((t, ti) => base + ti < st.realm).length;
       return `<div class="card" style="margin-bottom:8px;${doneN === 4 ? '' : doneN ? 'border-color:#ffd76a77' : 'opacity:.62'}">
@@ -2214,7 +2290,7 @@ window.UI = (function () {
     }).join('');
     const body = `
       <div class="card">
-        <h3>境界 <span class="sub">第 ${st.realm} / ${D.REALMS.length} 阶${st.realm ? ` · ${D.REALMS[st.realm - 1].full}` : ''}</span></h3>
+        <h3>${st.bloodline} · ${st.curName} <span class="sub">第 ${Math.min(st.realm + 1, D.REALM_STAGE_COUNT)} / ${D.REALM_STAGE_COUNT} 阶</span></h3>
         <div class="note">
           每突破一小阶，主角全属性永久 <b style="color:var(--gold)">+${(D.REALM_PCT * 100).toFixed(1)}%</b>。
           当前加成：<b style="color:var(--gold)">+${(st.bonusPct * 100).toFixed(1)}%</b>（满 ${D.REALMS.length} 阶合计 +${(D.REALMS.length * D.REALM_PCT * 100).toFixed(1)}%）<br>
@@ -2222,14 +2298,14 @@ window.UI = (function () {
         </div>
       </div>
       ${st.next ? `<div class="card" style="border-color:#ffd76a66">
-        <h3>下一阶 · ${st.nextName} <span class="sub">成功率 ${Math.round(st.rate * 100)}%</span></h3>
+        <h3>下一阶 · ${st.nextName || '—'} <span class="sub">成功率 ${Math.round(st.rate * 100)}%</span></h3>
         <div class="kv"><span class="k">等级要求</span><span style="color:${st.levelOk ? 'var(--green)' : 'var(--accent)'}">Lv.${st.next.lv}（当前 Lv.${S.player.level}）</span></div>
         <div class="kv"><span class="k">渡劫材料</span><span style="color:${st.haveMat >= st.matN ? 'var(--green)' : 'var(--accent)'}">${D.ITEMS[st.matItem].name} ${st.haveMat} / ${st.matN}</span></div>
         <div class="kv"><span class="k">点数</span><span style="color:${(S.cur.points || 0) >= st.points ? 'var(--green)' : 'var(--accent)'}">◈${fmt(st.points)}</span></div>
         <button class="btn primary block" style="margin-top:10px" data-realm="1" ${st.levelOk && st.haveMat >= st.matN && (S.cur.points || 0) >= st.points ? '' : 'disabled'}>⚡ 渡劫（成功率 ${Math.round(st.rate * 100)}%）</button>
         <div class="hint mt1">失败也会扣掉上面的材料与点数——这就是"渡"字的分量，但等级永远不掉。</div>
-      </div>` : '<div class="card"><h3>已至渡劫大圆满</h3><div class="note">当前境界已是终点。</div></div>'}
-      <div class="section-title">境界一览 · ${D.REALM_MAJORS.length} 大境 × ${D.REALM_TIERS.length} 小阶</div>
+      </div>` : '<div class="card"><h3>已至大圆满</h3><div class="note">当前境界已是这条血统的终点。</div></div>'}
+      <div class="section-title">${st.bloodline}境界线 · ${majors.length} 大境 × ${D.REALM_TIERS.length} 小阶</div>
       ${groups}`;
     const w = showPanel(wrap, '境界 · 渡劫', body);
     const go = w.querySelector('[data-realm]');
@@ -2244,8 +2320,9 @@ window.UI = (function () {
     // 点某一小阶：跳出这一阶的具体要求
     w.querySelectorAll('[data-step]').forEach(el => el.onclick = () => {
       const i = +el.dataset.step, r = D.REALMS[i];
-      if (i < st.realm) { toast(`「${r.full}」已突破`, 1800); return; }
-      toast(`「${r.full}」需要 Lv.${r.lv} · 成功率 ${Math.round(r.rate * 100)}% · ◈${fmt(r.cost.points)} + 材料×${r.cost.matN}`, 3200);
+      const nm = D.realmName(st.bloodline, i);
+      if (i < st.realm) { toast(`「${nm}」已突破`, 1800); return; }
+      toast(`「${nm}」需要 Lv.${r.lv} · 成功率 ${Math.round(r.rate * 100)}% · ◈${fmt(r.cost.points)} + 材料×${r.cost.matN}`, 3200);
     });
     return w;
   }
@@ -2259,7 +2336,7 @@ window.UI = (function () {
       setTab('home');
       setTimeout(() => {
         protagonistDetail();
-        coachmark('.stat-6', '这是你的属性面板：升级得属性点和技能点，点 +1 分配；Lv.10 觉醒血统后解锁血统技能。看完关掉面板，回首页领取奖励。');
+        coachmark('.stat-6', '这是你的属性面板：升级得属性点和技能点，点 +1 分配；选定血统后技能栏会换成那条血统的技能。看完关掉面板，回首页领取奖励。');
       }, 250);
       return;
     }
@@ -2316,7 +2393,7 @@ window.UI = (function () {
     setTab('dungeon');
     dungeonView = { page: 'world', worldId: worldOf, diff: 'normal' };
     render();
-    if (qid === 'q01b') coachmark('[data-stage="0"]', '点击第 1 关进入探索，途中遭遇敌人会自动战斗，完成后即可回来领取奖励。');
+    if (qid === 'q01b') coachmark('[data-stage="0"]', '点第 1 关就直接开打——通关会一场接一场地打，打完最后一波才算过关。');
   }
   // 日常任务的"去完成"
   function gotoDaily(key) {
@@ -2936,7 +3013,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.0</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.1</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -3314,7 +3391,7 @@ window.UI = (function () {
     const enemies = premadeEnemies || Dun.makeEnemies(run.worldId, run.diff, run.stage, kind);
     const w = D.WORLDS.find(x => x.id === run.worldId);
     startBattle({
-      title: `${w.name} · ${kind === 'elite' ? '精英伏击' : '遭遇战'}`,
+      title: `${w.name} 第 ${run.stage}/12 关 · 第 ${run.wave + 1}/${run.waves.length} 波 · ${WAVE_NAME[kind] || '遭遇战'}`,
       allies, enemies, worldId: run.worldId,
       onEnd(win, res, units) {
         if (!win) {
@@ -3340,11 +3417,45 @@ window.UI = (function () {
       },
     });
   }
+  // 打当前这一波：最后一波走结算波（精英 / 守关 Boss），中间波只给普通战斗掉落
+  function fightWave() {
+    if (!run) return;
+    if (run.wave >= run.waves.length) return;
+    if (run.wave === run.waves.length - 1) return doFinalBattle();
+    return doNodeBattle(run.waves[run.wave], () => afterWave());
+  }
+  /* 一波打完：推进到下一波。中间小概率插一次"途中遭遇"或"补给箱"——
+     对标产品的副本里也有随机事件，但它不拦路：出现就出现，不影响你一路打过去。 */
+  function afterWave() {
+    if (!run) return;
+    const Dun = window.Dungeon;
+    run.wave++;
+    persistRun();
+    const moreToGo = run.wave < run.waves.length;
+    const roll = Math.random();
+    if (moreToGo && roll < Dun.WAVE_EVENT_CHANCE) {
+      const ev = D.EVENTS[Math.floor(Math.random() * D.EVENTS.length)];
+      showEvent(ev, () => { refresh(); render(); });
+      return;
+    }
+    if (moreToGo && roll < Dun.WAVE_EVENT_CHANCE + Dun.WAVE_CHEST_CHANCE) {
+      const r = Dun.nodeReward('chest', run.worldId, run.diff, run.stage);
+      const chips = [`◈+${fmt(r.points)}`];
+      if (r.equip) chips.push(`<span class="rtext-${r.equip.rarity}">装备 ${r.equip.name}</span>`);
+      if (r.sold) chips.push(`结晶 +${r.gain}（自动分解）`);
+      if (r.item) chips.push(D.ITEMS[r.item].name);
+      refresh(); renderTopbar();
+      lootPanel('途中补给箱', chips.map(c => `<span class="reward-chip">${c}</span>`).join(''), () => { refresh(); render(); });
+      return;
+    }
+    refresh();
+    render();
+  }
   function doFinalBattle(premadeEnemies) {
     const Dun = window.Dungeon;
     // 先把这一轮的关卡坐标记下来：endRun 之后 run 会被清空
     const wid = run.worldId, df = run.diff, si = run.stageIdx;
-    const kind = run.route.finalKind;
+    const kind = run.waves[run.waves.length - 1];
     const allies = buildAllies(run.hpPct, run.buffs);
     if (!allies.length) { toast('全队重伤，探索失败'); endRun(false); return; }
     const enemies = premadeEnemies || Dun.makeEnemies(run.worldId, run.diff, run.stage, kind);
@@ -3500,6 +3611,7 @@ window.UI = (function () {
         case 'open-sect': sectModal(); break;
         case 'open-keji': kejiModal(); break;
         case 'open-travel': travelModal(); break;
+        case 'open-bloodline': bloodlineModal(); break;
         case 'open-tasks': tasksModal(); break;
         case 'open-genelock': geneLockModal(); break;
         case 'open-reincarn': reincarnModal(); break;
@@ -3579,41 +3691,9 @@ window.UI = (function () {
     root.querySelectorAll('[data-stage]').forEach(el => el.onclick = () => {
       startRun(dungeonView.worldId, dungeonView.diff, +el.dataset.stage);
     });
-    root.querySelectorAll('[data-node]').forEach(el => el.onclick = () => {
-      const type = el.dataset.node;
-      if (!run) return;
-      if (type === 'combat' || type === 'elite') {
-        const enemies = window.Dungeon.makeEnemies(run.worldId, run.diff, run.stage, type);
-        battlePreview(enemies, type === 'elite' ? '精英伏击 · 敌情' : '遭遇战 · 敌情', () => {
-          doNodeBattle(type, () => { run.step++; persistRun(); render(); }, enemies);
-        });
-      } else if (type === 'event') {
-        const ev = run.route.events[run.step % run.route.events.length];
-        showEvent(ev, () => { run.step++; persistRun(); render(); });
-      } else if (type === 'chest') {
-        const r = window.Dungeon.nodeReward('chest', run.worldId, run.diff, run.stage);
-        const chips = [`◈+${fmt(r.points)}`];
-        if (r.equip) chips.push(`<span class="rtext-${r.equip.rarity}">🗡${r.equip.name}</span>`);
-        if (r.sold) chips.push(`◆+${r.gain}(自动分解)`);
-        if (r.item) chips.push(`🎒${D.ITEMS[r.item].name}`);
-        modal('补给宝箱', `<div class="reward-chips" style="margin:10px 0">${chips.map(c => `<span class="reward-chip">${c}</span>`).join('')}</div>`, { center: true });
-        run.step++;
-        persistRun();
-        render(); refresh();
-      } else if (type === 'heal') {
-        Object.keys(run.hpPct).forEach(id => { run.hpPct[id] = Math.min(1, run.hpPct[id] + 0.3); });
-        toast('全队恢复 30% 生命');
-        run.step++;
-        persistRun();
-        render();
-      }
-    });
-    root.querySelectorAll('[data-final]').forEach(el => el.onclick = () => {
-      const enemies = window.Dungeon.makeEnemies(run.worldId, run.diff, run.stage, run.route.finalKind);
-      const w = D.WORLDS.find(x => x.id === run.worldId);
-      battlePreview(enemies, run.route.finalKind === 'boss' ? `👹 ${w.boss} · 敌情` : '区域决战 · 敌情', () => {
-        doFinalBattle(enemies);
-      });
+    root.querySelectorAll('[data-wave-fight]').forEach(el => el.onclick = () => {
+      if (!run || el.disabled) return;
+      fightWave();
     });
     root.querySelectorAll('[data-potion]').forEach(el => el.onclick = () => {
       if (!run) return;
@@ -3638,14 +3718,14 @@ window.UI = (function () {
     });
     root.querySelectorAll('[data-resume-run]').forEach(el => el.onclick = () => {
       const pr = C().S.pendingRun;
-      if (!pr || !pr.route) { toast('没有可继续的探索'); return; }
+      if (!pr || !pr.waves) { toast('没有可继续的副本'); return; }
       run = pr;
       dungeonView = { page: 'run' };
-      toast('已继续上次的探索');
+      toast('已继续上次的副本');
       render();
     });
     root.querySelectorAll('[data-drop-run]').forEach(el => el.onclick = () => {
-      confirmBox('放弃这一轮', '确定放弃上次未打完的探索？已获得的奖励保留。', () => {
+      confirmBox('放弃这一轮', '确定放弃上次没打完的副本？已获得的奖励保留。', () => {
         run = null;
         C().clearPendingRun();
         render();
@@ -3825,11 +3905,11 @@ window.UI = (function () {
         ♾ 挑战无限回廊，寻找离开的方法<br><br>
         新手补给已发放：◈50,000 · ✦1,000 · 经验模块×20 · 治疗剂×10<br><br>
         <b style="color:var(--gold)">上手就三件事：</b><br>
-        ① 点首页挂机主视觉下面的「🗓 今日」那块，进去点「一键收取」，把挂机、任务、成就、悬赏能领的一次全领；<br>
-        ② 点「轮回副本」打进第 1 关，通关后解锁招募；<br>
-        ③ 招募里每天有一次<b>免费</b>，别忘了领。<br><br>
+        ① 先在「选择血统」里挑一条路——境界线跟着血统走，选定不能改；<br>
+        ② 点首页「今日」那块进去点「一键收取」，把挂机、任务、成就、悬赏能领的一次全领；<br>
+        ③ 点「轮回副本」选第 1 关，点进去就直接开打，通关后解锁招募；招募里每天有一次<b>免费</b>，别忘了领。<br><br>
         三张招募池花的是<b>三种不同的货币</b>：◈点数抽普通（攒碎片）、✦圣洁晶石抽高级（补图鉴）、◆异界结晶抽限定（定向出当期 UP）。<br>
-        随时可以在主神空间点「❓ 玩法指南」看完整说明（货币、套装、挂机分工、限时悬赏、渡劫、回廊、周常都在里面）。<br><br>
+        右上角的「指南」里有完整说明（货币、套装、挂机分工、副本打法、血统与境界、限时悬赏、回廊、周常都在里面）。<br><br>
         <b>如果下一场轮回真的会死，你会带谁进去？</b>
       </div>
       <button class="btn primary block mt4" data-start>签订轮回契约</button>
@@ -3855,6 +3935,8 @@ window.UI = (function () {
       closeModal(w);
       refresh(); render();
       toast(`欢迎你，${C().S.player.name}`, 2500);
+      // 名字定完紧接着选血统：境界线跟着血统走，所以这一步不能拖到 Lv.10
+      if (!C().S.player.bloodline) setTimeout(() => bloodlineModal(null, { first: true }), 500);
     };
     w.querySelector('[data-confirm]').onclick = confirmName;
     input.onkeydown = ev => { if (ev.key === 'Enter') confirmName(); };
@@ -3879,6 +3961,7 @@ window.UI = (function () {
     render, refresh, toast, modal, closeModal,
     sfx,
     showOfflineGains, showLoginReward, showTutorial, showCharCreate,
+    showBloodlinePick: () => bloodlineModal(null, { first: true }),
     tickIdle() {
       if (curTab !== 'home') return;
       const timeEl = document.getElementById('idle-time');
@@ -3906,6 +3989,7 @@ window.UI = (function () {
       idleLinesModal, pickIdleLeader, bountyModal, realmModal,
       beastModal,
       recruitRatesModal, authorityModal, todayModal, travelStrip, plaqueRow, sectModal, kejiModal, travelModal,
+      bloodlineModal,
       _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen, growScreen },
     },
   };

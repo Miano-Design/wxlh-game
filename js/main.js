@@ -12,6 +12,8 @@
       Core.ensureDaily();
       UI.init();
       if (!Core.S.player.name) UI.showCharCreate();
+      // 老档 / 中途退出的档：还没选血统的，进游戏先补这一步（境界线依赖血统）
+      else if (!Core.S.player.bloodline) UI.showBloodlinePick();
       // 离线收益结算
       const gains = Core.settleOffline();
       if (gains && (gains.cheat || gains.seconds >= 300)) UI.showOfflineGains(gains);

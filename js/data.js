@@ -59,7 +59,7 @@ window.DATA = (function () {
   ];
   const ATTR_POINTS_PER_LV = 3;   // 每升 1 级获得的属性点
   const ATTR_POINT_VALUE = 2;     // 每点属性点增加的六维值
-  const BLOODLINE_UNLOCK_LV = 10; // 主角觉醒血统所需等级
+  const BLOODLINE_UNLOCK_LV = 1;  // 开局第一件事就是选血统（境界线跟着血统走，所以不能拖到 Lv.10）
 
   /* ================= 背包容量 ================= */
   const BAG_BASE_CAP = 100;
@@ -509,8 +509,10 @@ window.DATA = (function () {
   /* ================= 玩法指南（设置页 ❓ 入口） ================= */
   const GUIDE_CHAPTERS = [
     { id: 'flow', title: '① 一场轮回怎么打', body: [
-      '主线→推荐路线：主神空间领挂机 → 轮回副本选世界 → 选关卡 → 途中三步路线（遭遇战 / 精英 / 事件 / 宝箱 / 安全屋）→ 最终区 Boss 战 → 拿奖励回主神空间。',
-      '副本里队伍血量会一路继承，不会自动回满：注意界面顶部的血条，安全屋和事件都能回血。',
+      '主线→推荐路线：主神空间领挂机 → 轮回副本选世界 → 选关卡 → **直接开打** → 拿奖励回主神空间。没有"先选路线"这一层。',
+      '每关是 1~3 波连续战斗：1~4 关 1 波、5~8 关 2 波、9~12 关 3 波；第 4/8 关最后一波是精英，第 12 关是守关 Boss。点关卡就自动开打第一波，之后点底部按钮打下一波。',
+      '队伍血量在波与波之间继承，不会自动回满：注意界面上方的血条，随时点治疗剂补血。全队重伤就算失败，已拿到的奖励不会丢。',
+      '途中还会小概率冒一次随机遭遇或补给箱——出现就出现，不拦路，你只管一路打过去。',
       '打不过就不要硬上：先回主神空间领挂机收益、用经验模块喂角色、强化装备，再回来。',
     ] },
     { id: 'party', title: '② 队伍与站位', body: [
@@ -537,7 +539,7 @@ window.DATA = (function () {
       '高级货币除了抽卡，还有一条长线出口——「🔑 主神权限」（见第 ⑬ 章）：投进去就永久生效，转生也不清空。',
     ] },
     { id: 'gene', title: '⑤ 血统与基因锁', body: [
-      '招募角色的血统是固定的；主角在 Lv.10 可以自选一次血统，选完不能改。',
+      '招募角色的血统是固定的；主角开局就选一次血统，选完不能改——因为**境界线跟着血统走**（见第 ⑮ 章）。',
       '血统升级消耗血统结晶 + 点数，提升幅度很大，是中期主要成长线。',
       '基因锁 5 阶，靠通关进度 + 玩家等级 + 血统结晶解锁，每阶全队属性加成。',
     ] },
@@ -589,7 +591,15 @@ window.DATA = (function () {
       '**主神评级**（对标宗门等级）：不用你点。打关卡首通 +12/+26/+48（普通/困难/地狱），重复刷减半，每打赢一场 +2，挂机每分钟 +1.2。升一级全队（含主角）全属性 +0.5%，永久生效、转生保留。等价于"推图顺便变强"。',
       '**秘术阁**（对标 KeJi）：12 条线，每条每级只加 0.2%~0.5%，但可以一直修到顶（合 550 级）。前 8 条加战斗（攻/生/防/速/暴击/暴伤/技能/闪避），后 4 条加挂机经济（产出/经验/掉落/离线效率）。升级只花 ◆异界结晶——这是给高级货币的第二条长线出口，抽卡之外的钱有地方放。',
       '**游历奇遇**（对标 YouLi）：挂机每累计 10 分钟，路上就会冒一次随机奇遇（在线、离线都算），共 12 种，有捡材料、遇前辈、挖矿脉、得招募令等。攒满会挂在首页，**不会过期丢东西**，回来点一下就行。',
-      '入口：首页印章入口带的「🏯 主神评级」「📜 秘术阁」「🚶 游历奇遇」，评级和秘术也在「👥 轮回者 → 🌱 成长」里。',
+      '入口：首页「养成」那一组里的「主神评级」「秘术阁」「游历奇遇」，点名字就是完整面板。',
+    ] },
+    { id: 'bloodline', title: '⑮ 血统与境界线：换了血统就换了一套境界', body: [
+      '境界不是一条所有人共用的阶梯，而是**跟着血统走**：选了血族，你就是血奴→血仆→血卫→血将→血侯→血王→血皇→血帝→血祖；选了修真，才是炼气→筑基→金丹→元婴→化神→炼虚→合体→大乘→渡劫。',
+      '每条血统都是 9 大境 × 4 小阶（初期 / 中期 / 后期 / 大圆满），合计 36 阶。**第 1 阶就是这条线的第 1 境·初期**，不存在"凡体"这种还没入门的占位。',
+      '血统在开局就选（不可更改），所以境界线从进游戏那一刻就确定；选完之后，境界页显示的就是你这条线的全部 36 格。',
+      '突破要两样东西：等级到线（每阶要求不同等级）+ 渡劫材料与点数。成功后主角全属性永久 +1.4%，满 36 阶合计 +50.4%。',
+      '渡劫可能失败：失败只扣材料与点数，**等级不掉**，所以永远有下一次。',
+      '入口：首页「养成」组的「血统」和「境界渡劫」，或者顶部状态区第一行的「【境界】」。',
     ] },
     { id: 'beast', title: '⑫ 伴生体与五行克制', body: [
       '伴生体是第二条养成线（对标灵兽驯宠）：上阵 1 只，给**全队**加属性，主角也吃。',
@@ -702,13 +712,42 @@ window.DATA = (function () {
     },
   };
 
+  /* 血统 = 主角的修炼路线，同时也是境界线的来源。
+     对标《道友修仙》：境界不是一条人人相同的公共阶梯，而是跟着你的路走——
+     练剑的是炼气→筑基→金丹…，血族走的是血奴→血仆→血卫…。
+     所以每条血统自带 9 个大境，每大境 4 小阶（初期/中期/后期/大圆满），合计 36 阶。
+     起点不再是"凡体"：第 1 阶就是这条血统的第 1 境·初期。 */
   const BLOODLINES = {
-    '血族':  { desc: '吸血、暴击。每级：攻击+1.2%、吸血+0.4%', atkPct: 0.012, lifesteal: 0.004 },
-    '狼人':  { desc: '生命、近战。每级：生命+1.5%、防御+0.8%', hpPct: 0.015, defPct: 0.008 },
-    '修真':  { desc: '增益、剑术。每级：全属性+0.6%', allPct: 0.006 },
-    '魔法':  { desc: '元素、爆发。每级：技能伤害+1.5%', skillPct: 0.015 },
-    '科技':  { desc: '远程、炮台。每级：攻击+0.9%、暴击+0.5%', atkPct: 0.009, critPct: 0.005 },
-    '念动力': { desc: '控制、精神。每级：速度+1%、精神+1%', spdPct: 0.01, spiritPct: 0.01 },
+    '血族': {
+      desc: '吸血、暴击。每级：攻击+1.2%、吸血+0.4%',
+      atkPct: 0.012, lifesteal: 0.004,
+      realms: ['血奴', '血仆', '血卫', '血将', '血侯', '血王', '血皇', '血帝', '血祖'],
+    },
+    '狼人': {
+      desc: '生命、近战。每级：生命+1.5%、防御+0.8%',
+      hpPct: 0.015, defPct: 0.008,
+      realms: ['兽崽', '幼狼', '灰狼', '铁狼', '狼将', '狼王', '月狼', '天狼', '狼神'],
+    },
+    '修真': {
+      desc: '增益、剑术。每级：全属性+0.6%',
+      allPct: 0.006,
+      realms: ['炼气', '筑基', '金丹', '元婴', '化神', '炼虚', '合体', '大乘', '渡劫'],
+    },
+    '魔法': {
+      desc: '元素、爆发。每级：技能伤害+1.5%',
+      skillPct: 0.015,
+      realms: ['学徒', '施法者', '大法师', '贤者', '贤主', '奥术师', '大奥术师', '圣贤', '秘神'],
+    },
+    '科技': {
+      desc: '远程、炮台。每级：攻击+0.9%、暴击+0.5%',
+      atkPct: 0.009, critPct: 0.005,
+      realms: ['改造体', '义体兵', '战术体', '装甲体', '指挥官', '歼星体', '超维体', '主脑', '神机'],
+    },
+    '念动力': {
+      desc: '控制、精神。每级：速度+1%、精神+1%',
+      spdPct: 0.01, spiritPct: 0.01,
+      realms: ['感应者', '念动者', '心灵使', '精神师', '念动师', '心灵主', '虚空者', '超感者', '念神'],
+    },
   };
   const BLOODLINE_MAX = 30;
   const bloodlineCost = lv => ({ bloodCrystal: 10 + lv * 5, points: 2000 * (lv + 1) });
@@ -1004,7 +1043,24 @@ window.DATA = (function () {
   // 单阶加成从 +5% 降到 +1.4%：36 阶 × 1.4% ≈ +50.4%，总量与旧的 10 境 × 5% 基本对齐，
   // 但"变强的出口"从 10 个变成 36 个。老存档按「旧第 N 境 = 新第 4N 阶」迁移（见 core.migrate）。
   const REALM_TIERS = ['初期', '中期', '后期', '大圆满'];
-  const REALM_MAJORS = ['炼气', '筑基', '金丹', '元婴', '化神', '炼虚', '合体', '大乘', '渡劫'];
+  // 大境名跟着血统走（见 BLOODLINES[x].realms）；这里保留"修真"那一套作为默认与旧档兼容
+  const REALM_MAJORS = BLOODLINES['修真'].realms;
+  const REALM_STAGE_COUNT = REALM_MAJORS.length * REALM_TIERS.length;   // 36 小阶
+  // 主角在当前血统下的境界名：'血将后期' / '筑基初期' …
+  // 没选血统时返回 null——调用处一律先让玩家选血统，不再有"凡体"这种占位写法。
+  function realmName(bloodlineId, stageIdx) {
+    const bl = BLOODLINES[bloodlineId];
+    if (!bl || stageIdx < 0 || stageIdx >= REALM_STAGE_COUNT) return null;
+    return bl.realms[Math.floor(stageIdx / REALM_TIERS.length)] + REALM_TIERS[stageIdx % REALM_TIERS.length];
+  }
+  // 某条血统的 36 阶全览（境界页用来整条展示）
+  function realmChain(bloodlineId) {
+    const out = [];
+    for (let i = 0; i < REALM_STAGE_COUNT; i++) {
+      out.push({ idx: i, major: Math.floor(i / REALM_TIERS.length), tier: i % REALM_TIERS.length, name: realmName(bloodlineId, i) });
+    }
+    return out;
+  }
   const REALM_STEP = (100 - 10) / (REALM_MAJORS.length * REALM_TIERS.length - 1);   // ≈2.57 级一阶
   // 单阶消耗按等级平滑放大，保证 lv10→100 的累计消耗与旧表同量级（旧表累计 ≈388 万点 / 504 材料）
   const realmCost = lv => Math.round(1980 * Math.pow(lv / 10, 2.19));
@@ -1017,7 +1073,8 @@ window.DATA = (function () {
         out.push({
           name: mj,
           step: tier,
-          full: mj + tier,                       // 完整写法，界面直接用
+          full: mj + tier,                       // 完整写法（默认为修真那条线；其余血统用 realmName()）
+          major: mi, tierIdx: ti,
           lv,
           rate: +(0.95 - i * (0.95 - 0.52) / (REALM_MAJORS.length * REALM_TIERS.length - 1)).toFixed(3),
           cost: { points: realmCost(lv), matN: Math.round(1 + lv * 0.235) },
@@ -1389,7 +1446,7 @@ window.DATA = (function () {
     FORMATIONS, pityText,
     AUTHORITY, AUTHORITY_MAX, authorityCost, authorityBonus, AUTHORITY_PER_LV,
     IDLE_LINES, IDLE_LINE_ATTR_DIV, IDLE_MAT_PER_MIN,
-    makeBounties, REALMS, REALM_PCT, REALM_TIERS, REALM_MAJORS,
+    makeBounties, REALMS, REALM_PCT, REALM_TIERS, REALM_MAJORS, REALM_STAGE_COUNT, realmName, realmChain,
     ELEMENTS, ELEMENT_ICON, ELEMENT_COUNTER, ELEMENT_BONUS, ELEMENT_PENALTY, worldElement,
     BEASTS, beastById, beastDesc, beastPctAt, BEAST_PCT_NAME, BEAST_RARITY_RATE,
     BEAST_EGG_ITEM, BEAST_EGG_COST, BEAST_MAX_LV, BEAST_SOUL_PER_LV, BEAST_LV_PCT,

@@ -95,9 +95,12 @@ const bossEnemies = Dungeon.makeEnemies('W01', 'normal', 12, 'boss');
 const bossRes = Battle.run({ allies, enemies: bossEnemies, worldId: 'W01', maxRounds: 50 });
 t('Boss战正常结束', typeof bossRes.win === 'boolean' && bossRes.frames.some(f => f.type === 'end'));
 
-// 8. 路线生成
-const route = Dungeon.genRoute('W01', 5);
-t('路线3步', route.steps.length === 3 && route.steps.every(s => s.length === 2));
+// 8. 副本波次（V8.1：点进去就打，不再选路线）
+t('第 1 关只有 1 波', Dungeon.wavePlan(1).length === 1);
+t('第 5 关 2 波，最后一波仍是普通战斗', Dungeon.wavePlan(5).length === 2 && Dungeon.wavePlan(5)[1] === 'combat');
+t('第 12 关 3 波、最后一波是 Boss', Dungeon.wavePlan(12).length === 3 && Dungeon.wavePlan(12)[2] === 'boss');
+t('第 8 关最后一波是精英', Dungeon.wavePlan(8)[Dungeon.wavePlan(8).length - 1] === 'elite');
+t('每关最后一波类型跟着关卡走', [1, 2, 3, 5, 6, 7, 9, 10, 11].every(s => Dungeon.finalKind(s) === 'combat'));
 
 // 9. 关卡通关结算
 const sc = Core.stageComplete('W01', 'normal', 0, 3);
@@ -208,12 +211,14 @@ Core.S.party[1] = 'C021';
   t('点数不足不能分配', !Core.allocateAttr('nerve', 1).ok);
 }
 
-// 19. 血统等级门槛
+// 19. 血统：开局可觉醒（境界线跟着血统走），觉醒后不可更改
 {
   Core.S.player.level = 1; Core.S.player.bloodline = null; Core.S.player.bloodlineLv = 0;
-  t('Lv.1 不能觉醒血统', !Core.choosePlayerBloodline('狼人').ok);
-  Core.S.player.level = D.BLOODLINE_UNLOCK_LV;
-  t('Lv.20 可觉醒血统', Core.choosePlayerBloodline('狼人').ok);
+  t('Lv.1 就能觉醒血统', Core.choosePlayerBloodline('狼人').ok);
+  t('血统选定后不可更改', !Core.choosePlayerBloodline('血族').ok);
+  t('狼人有自己的境界线', Core.realmState().curName === '兽崽初期' && D.BLOODLINES['狼人'].realms[0] === '兽崽');
+  t('每条血统都是 9 大境 × 4 小阶', Object.values(D.BLOODLINES).every(b => b.realms.length === 9) && D.REALM_STAGE_COUNT === 36);
+  t('血统不存在会被拒', !Core.choosePlayerBloodline('不存在的血统').ok);
 }
 
 // 20. 新建角色（多主角）
@@ -677,7 +682,7 @@ Core.S.party[1] = 'C021';
 {
   Core.newGame(); Core.setPlayerName('续命');
   t('默认没有未完成副本', Core.S.pendingRun === null);
-  Core.setPendingRun({ worldId: 'W01', diff: 'normal', stage: 3, step: 1, hpPct: { '@player': 0.5 }, buffs: {}, route: { steps: [[], [], []], events: [], finalKind: 'combat' } });
+  Core.setPendingRun({ worldId: 'W01', diff: 'normal', stage: 3, wave: 1, hpPct: { '@player': 0.5 }, buffs: {}, waves: ['combat'] });
   const json = Core.exportSave();
   Core.importSave(json);
   t('副本进度写进存档并能读回', !!Core.S.pendingRun && Core.S.pendingRun.stage === 3 && Core.S.pendingRun.hpPct['@player'] === 0.5);
@@ -860,6 +865,10 @@ Core.S.party[1] = 'C021';
   Core.S.items.mat_t1 = 100;
   t('等级不够不能渡劫', Core.attemptRealm().ok === false);
   Core.S.player.level = 10;
+  // V8.1：血统改成开局就选，但"没血统就没有境界线"——所以这里先补上血统
+  t('没选血统不能渡劫', Core.attemptRealm().ok === false);
+  t('Lv.1 就能选血统（境界线跟着血统走）', Core.choosePlayerBloodline('修真').ok);
+  t('选完血统境界线从第 1 境开始', Core.realmState().curName === '炼气初期' && Core.realmState().hasBloodline);
   const atk0 = Core.effectivePlayerStats().atk;
   // 用 D.REALMS 里的真实消耗做断言，不写死数值：境界改成 36 小阶之后，
   // 单阶消耗本来就会跟着表走（旧版用例把 6/10 这样的快照值当常量，改表必假报警）

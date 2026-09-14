@@ -62,9 +62,9 @@ body {
 #topbar .genelock { font-size: var(--fs-sm); color: var(--accent); }
 #topbar .tb-spacer { flex: 1; }
 .tb-icon {
-  width: 34px; height: 34px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  min-width: 44px; height: 34px; padding: 0 10px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel);
-  color: var(--text2); font-size: 15px; cursor: pointer; position: relative; font-family: inherit;
+  color: var(--text2); font-size: var(--fs-md); cursor: pointer; position: relative; font-family: inherit;
 }
 .tb-icon:active { background: var(--panel3); }
 #curbar { display: flex; gap: 6px; overflow-x: auto; padding: 2px var(--sp3) var(--sp2); scrollbar-width: none; }
@@ -380,34 +380,28 @@ body {
 .corridor-hero { text-align: center; padding: 20px 0 8px; }
 .corridor-hero .floor-num { font-size: 44px; font-weight: 800; color: var(--accent); text-shadow: 0 0 30px #d43a4f55; }
 
-/* ---------- 主视觉区（首页唯一的"画面"） ---------- */
-/* 对标产品的主界面中间是一块世界画面，两侧才是信息面板。我们没有美术图，
-   就用"近黑底 + 金色描边 + 一圈极淡的星尘"来当画面，把最大的数字放在正中间。
-   全页只有这一块允许用金色描边，层级才立得住。 */
-.stage {
-  position: relative; overflow: hidden;
-  border: 1px solid #e6b64c44; border-radius: var(--radius);
-  background:
-    radial-gradient(120% 90% at 50% 0%, #1b2436 0%, #10151f 55%, #0b0f16 100%),
-    var(--panel);
-  box-shadow: inset 0 1px 0 #ffffff0f, 0 6px 22px #00000059;
-  padding: var(--sp3) var(--sp3) var(--sp4); margin-bottom: var(--sp2);
+/* ---------- 文字行（对标参考图：`【标签】值` 一行一项，右对齐） ---------- */
+/* 参考产品整屏就是这种行：左边【境界】右边 练气初期，没有任何图标。
+   我们的状态区 / 挂机区 / 属性区统一用它，一行一件事，扫一眼就看完。 */
+.text-rows { margin: 0; }
+.text-rows .row {
+  display: flex; align-items: baseline; gap: var(--sp2);
+  padding: 7px 0; border-bottom: 1px dashed var(--line-soft); cursor: pointer;
 }
-.stage::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
-  background-image:
-    radial-gradient(1px 1px at 18% 22%, #ffffff55, transparent),
-    radial-gradient(1px 1px at 72% 14%, #ffffff40, transparent),
-    radial-gradient(1px 1px at 44% 62%, #ffffff33, transparent),
-    radial-gradient(1px 1px at 86% 74%, #ffffff2e, transparent),
-    radial-gradient(1px 1px at 8% 82%, #ffffff26, transparent);
-}
-.stage > * { position: relative; z-index: 1; }
-.stage-top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp2); }
-.stage-tag { font-size: var(--fs-sm); color: var(--text2); letter-spacing: 1px; }
-.stage-sub { font-size: var(--fs-sm); color: var(--dim); line-height: 1.6; }
-.stage-core { text-align: center; padding: var(--sp3) 0 var(--sp2); }
-.stage-core .hero-num { font-size: 38px; }
+.text-rows .row:last-child { border-bottom: none; }
+.text-rows .row .rk { color: var(--dim); font-size: var(--fs-md); flex: 0 0 auto; }
+.text-rows .row .rv { margin-left: auto; text-align: right; font-size: var(--fs-lg); font-weight: 600; white-space: nowrap; }
+.text-rows .row .rs { color: var(--dim); font-size: var(--fs-sm); }
+.text-rows .row.static { cursor: default; }
+
+/* ---------- 挂机区：压成三行文字，不再是一块大画面 ---------- */
+.idle-card { padding: 4px var(--sp3) var(--sp3); }
+.idle-line { display: flex; align-items: baseline; gap: var(--sp2); padding: 6px 0; border-bottom: 1px dashed var(--line-soft); }
+.idle-line:last-of-type { border-bottom: none; }
+.idle-line .il-k { color: var(--dim); font-size: var(--fs-md); flex: 0 0 auto; }
+.idle-line .il-v { color: var(--gold); font-weight: 700; font-size: var(--fs-1); }
+.idle-line .il-s { color: var(--dim); font-size: var(--fs-sm); min-width: 0; }
+.idle-line .il-r { margin-left: auto; text-align: right; white-space: nowrap; font-size: var(--fs-md); }
 
 /* ---------- 两枚匾额（主线 / 今日） ---------- */
 /* 这一排替代了原来"一整张主线卡 + 一条今日条"的竖排，首页因此少掉近半屏。 */
@@ -423,22 +417,22 @@ body {
 .plaque .pq-btn { margin-top: auto; padding-top: var(--sp2); }
 .plaque .pq-btn .btn { width: 100%; }
 
-/* ---------- 首页入口带（对标主界面底部那排"印章"） ---------- */
-.stamp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp2); }
-.stamp {
-  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 5px; min-height: 78px; padding: 10px 6px; cursor: pointer; font-family: inherit;
-  background: linear-gradient(180deg, var(--panel2), var(--panel));
-  border: 1px solid var(--line2); border-radius: var(--radius); color: var(--text);
-  box-shadow: inset 0 1px 0 #ffffff0d;
+/* ---------- 首页入口：纯文字方块（对标参考图的功能按钮） ---------- */
+/* 参考产品的按钮就是一个描边方块里写两个字：挂机 / 挑战 / 收取 / 排序 / 图鉴。
+   没有图标，靠文字认路。三级字号：名字 13px > 状态 10px。 */
+.text-menu { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 54px; padding: 8px 6px; cursor: pointer; font-family: inherit;
+  background: var(--panel); border: 1px solid var(--line2); border-radius: 6px; color: var(--text);
 }
-.stamp:active { background: var(--panel3); transform: scale(.97); }
-.stamp .s-ico { font-size: 22px; line-height: 1; }
-.stamp .s-name { font-size: var(--fs-md); font-weight: 600; color: var(--text2); }
-.stamp.locked { opacity: .48; }
-.stamp .s-badge {
-  position: absolute; top: 5px; right: 6px; font-size: var(--fs-xs);
-  color: var(--gold); border: 1px solid #e6b64c55; border-radius: var(--radius-sm); padding: 0 4px;
+.tile:active { background: var(--panel3); }
+.tile .tt-name { font-size: var(--fs-lg); font-weight: 600; }
+.tile .tt-sub { font-size: var(--fs-xs); color: var(--dim); min-height: 12px; }
+.tile.locked { opacity: .45; }
+.tt-dot {
+  display: inline-block; width: 6px; height: 6px; margin-left: 4px; vertical-align: 1px;
+  border-radius: 50%; background: var(--accent);
 }
 .hero-num { font-size: 32px; font-weight: 800; color: var(--gold); line-height: 1.1; letter-spacing: -.5px; }
 .hero-num .hero-unit { font-size: var(--fs-md); font-weight: 600; color: var(--dim); margin-left: 3px; }
@@ -461,22 +455,6 @@ body {
 
 /* 首页「更多」小字行已取消（V7.1）：系统入口一律走三列宫格，低频入口收到顶栏图标里。
    对应样式一并删掉，避免留下没人用的类把后来的改动带偏。 */
-
-/* ---------- 首页「今日」横条 ---------- */
-/* 对标产品的主界面只把"每日"做成一个很小的入口，不占正文；四行详情点开再看 */
-.today-strip {
-  display: flex; align-items: center; gap: var(--sp3);
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 10px var(--sp3); margin-bottom: var(--sp2);
-  box-shadow: inset 0 1px 0 #ffffff08;
-}
-.today-strip.hot { border-color: #e6b64c55; }
-.today-strip .ts-ico { font-size: 19px; flex: 0 0 auto; opacity: .9; }
-.today-strip .ts-grow { flex: 1; min-width: 0; }
-.today-strip .ts-t1 { font-size: var(--fs-lg); font-weight: 600; }
-.today-strip .ts-t2 { font-size: var(--fs-sm); color: var(--dim); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.today-strip .ts-go { color: var(--dim); font-size: 18px; flex: 0 0 auto; }
-.today-strip.hot .ts-t1 { color: var(--gold); }
 
 /* ---------- 「成长」子页：一行一条养成线 ---------- */
 .grow-row { display: flex; align-items: center; gap: var(--sp3); padding: 11px var(--sp3); }

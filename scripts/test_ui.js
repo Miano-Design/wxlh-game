@@ -86,10 +86,11 @@ t('队伍页含主角', () => {
   const html = byId['view'].innerHTML;
   if (!html.includes('主角')) throw new Error('缺少主角位');
 });
-t('锁定功能按钮显示', () => {
+t('没解锁的入口收成一行小字（不铺灰格子）', () => {
   UI._setTab('home');
   const html = byId['view'].innerHTML;
-  if (!html.includes('🔒')) throw new Error('应有锁定按钮');
+  if (!html.includes('还没解锁')) throw new Error('缺未解锁汇总行');
+  if (html.includes('data-locked')) throw new Error('首页不该再铺灰格子入口');
 });
 t('GM 面板函数存在', () => {
   Core.addCur('holy', 100);
@@ -197,15 +198,23 @@ t('今日卡含一键收取 / 悬赏 / 免费招募', () => {
     if (html.indexOf(k) < 0) throw new Error('今日卡缺少：' + k);
   });
 });
-// ---- V8.0：首页改「主视觉 + 印章入口带」，并新增评级 / 秘术 / 游历三个面板 ----
-t('首页有主视觉区（stage）', () => {
+// ---- V8.x：首页改「纯文字」（参考图风格）＋ 新增评级 / 秘术 / 游历 / 血统面板 ----
+t('首页不再用大图标卡片（纯文字）', () => {
   const html = UI._panels._screens.homeScreen();
-  if (html.indexOf('class="stage"') < 0) throw new Error('缺主视觉区');
+  if (html.indexOf('class="stage"') >= 0) throw new Error('大主视觉块还在');
+  if (html.indexOf('stamp-grid') >= 0 || html.indexOf('feat-grid') >= 0) throw new Error('旧宫格还在');
+  if (html.indexOf('s-ico') >= 0) throw new Error('入口还在用图标');
 });
-t('首页入口带换成印章（旧宫格已下线）', () => {
+t('首页入口是纯文字方块菜单', () => {
   const html = UI._panels._screens.homeScreen();
-  if (html.indexOf('stamp-grid') < 0) throw new Error('缺印章入口带');
-  if (html.indexOf('feat-grid') >= 0) throw new Error('旧宫格还在');
+  if (html.indexOf('text-menu') < 0) throw new Error('缺文字菜单');
+  if (html.indexOf('tile') < 0) throw new Error('缺文字入口块');
+});
+t('首页功能入口一屏摊开（今天/养成都能直接找到）', () => {
+  const html = UI._panels._screens.homeScreen();
+  ['主神评级', '秘术阁', '血统', '境界渡劫', '基地建设', '伴生体', '转生天赋', '游历奇遇'].forEach(k => {
+    if (html.indexOf(k) < 0) throw new Error('首页缺入口：' + k);
+  });
 });
 t('首页两枚匾额：主线 + 今日', () => {
   const html = UI._panels._screens.homeScreen();
@@ -219,6 +228,12 @@ t('首页有游历奇遇条', () => {
 panel('主神评级', () => UI._panels.sectModal());
 panel('秘术阁', () => UI._panels.kejiModal());
 panel('游历奇遇', () => UI._panels.travelModal());
+panel('血统（未选）', () => UI._panels.bloodlineModal());
+panel('血统（已选）', () => {
+  Core.S.player.bloodline = null;
+  Core.choosePlayerBloodline('血族');
+  return UI._panels.bloodlineModal();
+});
 
 t('背包卡片带快捷批量按钮', () => {
   const html = UI._panels._screens.bagScreen();
@@ -235,10 +250,10 @@ t('悬赏面板写明"过期作废"', () => {
 
 
 // ---- V7.0 世界观移植：券 / 概率公示 / 主神权限 / 阵型 / 顶部状态区 ----
-t('首页有顶部状态区（境界/修为/轮回）', () => {
+t('首页顶部是【标签】值 文字行（境界/等级/轮回）', () => {
   const html = UI._panels._screens.homeScreen();
-  if (!/境界/.test(html) || !/修为/.test(html) || !/轮回/.test(html)) throw new Error('缺状态栏三栏');
-  if (!html.includes('status-strip')) throw new Error('缺 status-strip');
+  if (!/境界/.test(html) || !/等级/.test(html) || !/轮回/.test(html)) throw new Error('缺状态行');
+  if (!html.includes('text-rows')) throw new Error('缺文字行容器');
 });
 t('主神权限入口在「轮回者 → 成长」子页', () => {
   const html = UI._panels._screens.growScreen();
@@ -271,9 +286,10 @@ t('队伍页显示阵型与具名阵列表', () => {
   if (!html.includes('五行归元阵')) throw new Error('缺具名阵');
   if (!html.includes('万能补位')) throw new Error('缺主角补位说明');
 });
-t('境界面板显示大境 × 小阶', () => {
+t('境界面板显示大境 × 小阶（跟着当前血统）', () => {
   const html = UI._panels.realmModal().innerHTML;
-  if (!html.includes('炼气')) throw new Error('缺大境名');
+  const major = D.BLOODLINES[Core.S.player.bloodline].realms[0];
+  if (!html.includes(major)) throw new Error('缺当前血统的大境名：' + major);
   if (!html.includes('大圆满')) throw new Error('缺小阶名');
   if (!html.includes('36')) throw new Error('缺总阶数');
 });

@@ -168,24 +168,23 @@ window.Dungeon = (function () {
     return { rewards: r, got };
   }
 
-  // 关卡路线：3 步选择 + 最终战
-  const NODE_TYPES = ['combat', 'elite', 'event', 'chest', 'heal'];
-  function genRoute(worldId, stage) {
-    const steps = [];
-    const stepCount = 3;
-    for (let i = 0; i < stepCount; i++) {
-      const opts = [];
-      while (opts.length < 2) {
-        let t = NODE_TYPES[Math.floor(Math.random() * NODE_TYPES.length)];
-        if (stage <= 2 && t === 'elite') t = 'combat';
-        if (opts.includes(t)) continue;
-        opts.push(t);
-      }
-      steps.push(opts);
-    }
-    const events = D.EVENTS.slice().sort(() => Math.random() - 0.5).slice(0, 3);
-    return { steps, events, finalKind: stage === 12 ? 'boss' : stage % 4 === 0 ? 'elite' : 'combat' };
+  /* 关卡 = 一场接一场的连续战斗（对标《道友修仙》的副本：点进去就打，不再让人选路线）。
+     波数随关卡推进：1~4 关 1 波、5~8 关 2 波、9~12 关 3 波。
+     最后一波才是"结算波"：第 4/8 关是精英、第 12 关是守关 Boss，其余是区域决战。
+     波与波之间血量继承——这是"连打"的重量所在，也是治疗剂 / 强化剂仍然有用的地方。 */
+  function finalKind(stage) {
+    return stage === 12 ? 'boss' : stage % 4 === 0 ? 'elite' : 'combat';
   }
+  function wavePlan(stage) {
+    const n = stage <= 4 ? 1 : stage <= 8 ? 2 : 3;
+    const out = [];
+    for (let i = 0; i < n - 1; i++) out.push('combat');
+    out.push(finalKind(stage));
+    return out;
+  }
+  // 波与波之间的插曲概率（补给箱 / 随机遭遇），写在一处方便调
+  const WAVE_EVENT_CHANCE = 0.28;
+  const WAVE_CHEST_CHANCE = 0.24;
 
   // 宝箱节点奖励
   function nodeReward(type, worldId, diff, stage) {
@@ -228,5 +227,5 @@ window.Dungeon = (function () {
     return { ok: true, total, count: n, capped: n < times };
   }
 
-  return { makeEnemies, battleRewards, grantRewards, genRoute, nodeReward, sweep, diffMult, stageMult, THEME_FACTION };
+  return { makeEnemies, battleRewards, grantRewards, finalKind, wavePlan, nodeReward, sweep, diffMult, stageMult, THEME_FACTION, WAVE_EVENT_CHANCE, WAVE_CHEST_CHANCE };
 })();

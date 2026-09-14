@@ -699,8 +699,10 @@ window.Core = (function () {
     if (S.player.level < D.BLOODLINE_UNLOCK_LV) return { ok: false, msg: `主角 Lv.${D.BLOODLINE_UNLOCK_LV} 才能觉醒血统（当前 Lv.${S.player.level}）` };
     S.player.bloodline = id;
     save();
-    return { ok: true, msg: `已觉醒${id}血统` };
+    return { ok: true, msg: `已觉醒${id}血统，境界线开启：${D.realmName(id, 0)} 起` };
   }
+  // 当前血统的 36 阶全览（境界页整条展示用）
+  function realmChainOf(bloodlineId) { return D.realmChain(bloodlineId || S.player.bloodline); }
   function upgradePlayerBloodline() {
     if (!S.player.bloodline) return { ok: false, msg: '尚未选择血统' };
     if (S.player.bloodlineLv >= D.BLOODLINE_MAX) return { ok: false, msg: '血统已满级' };
@@ -2117,7 +2119,11 @@ window.Core = (function () {
     const matItem = 'mat_t' + tier;
     return {
       realm, next,
-      nextName: next ? (next.full || next.name) : null,   // 「炼气初期」这样的完整写法
+      // 境界名跟着血统走：'血将后期' / '筑基初期' …（没选血统时为空，界面上先引导选血统）
+      bloodline: S.player.bloodline || null,
+      hasBloodline: !!S.player.bloodline,
+      curName: D.realmName(S.player.bloodline, Math.min(realm, D.REALM_STAGE_COUNT - 1)),
+      nextName: next ? D.realmName(S.player.bloodline, realm + 1) : null,
       bonusPct: realm * D.REALM_PCT,
       levelOk: next ? S.player.level >= next.lv : false,
       matItem, matN: next ? next.cost.matN : 0,
@@ -2129,6 +2135,7 @@ window.Core = (function () {
   function realmBonusPct() { return (S.player.realm || 0) * D.REALM_PCT; }
   function attemptRealm() {
     const st = realmState();
+    if (!st.hasBloodline) return { ok: false, msg: '先选定血统——境界线跟着血统走，没血统就没有境界' };
     if (!st.next) return { ok: false, msg: '已经到达最终境界' };
     if (!st.levelOk) return { ok: false, msg: `先升到 Lv.${st.next.lv}（当前 Lv.${S.player.level}）` };
     if (st.haveMat < st.matN) {
@@ -2216,7 +2223,7 @@ window.Core = (function () {
     ensureWeekly, weeklyState, claimWeekly, claimAllWeekly, weekKey,
     achievementState, achievementSummary, claimAchievement,
     todayState, claimEverything, nextStage,
-    bountyState, claimBounty, renewBounties, realmState, realmBonusPct, attemptRealm, pityView, pityOf,
+    bountyState, claimBounty, renewBounties, realmState, realmBonusPct, attemptRealm, realmChainOf, pityView, pityOf,
     beastState, hatchBeast, setActiveBeast, beastLevelUp, beastPct, activeBeastElem, elementMultiplier,
     setPendingRun, clearPendingRun, corridorMarks, corridorMarkBonus,
     canReincarnate, reincarnate, buyTalent,
