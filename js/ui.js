@@ -198,6 +198,12 @@ window.UI = (function () {
 
   /* ================= 弹窗 ================= */
   let modalStack = [];
+  /* 图标一律用矢量（SVG）画，**不用字符、也不用多根 CSS 线拼**：
+     字符会因字体不同而偏；CSS 拼的线在奇数尺寸 / 非整数像素比（手机常见 2.6x、3x）下，
+     两条线会各自落在半个像素上，看起来就是"叉歪了"。
+     SVG 的坐标是对称的（两个图形都以 12,12 为中心），任何机型任何缩放都在正中。 */
+  const ICON_CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7 17 17M17 7 7 17"/></svg>';
+  const ICON_BACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 5 8.5 12l7 7"/></svg>';
   function modal(title, bodyHtml, opts) {
     opts = opts || {};
     const root = document.getElementById('modal-root');
@@ -207,12 +213,12 @@ window.UI = (function () {
     const isPage = !opts.center;
     wrap.innerHTML = isPage
       ? `<div class="page">
-          <div class="page-head"><button class="back-x" aria-label="返回"><i></i></button><h3>${title}</h3><span class="page-pad"></span></div>
+          <div class="page-head"><button class="back-x" aria-label="返回">${ICON_BACK}</button><h3>${title}</h3><span class="page-pad"></span></div>
           <div class="sheet-body">${bodyHtml}</div>
         </div>`
       : `<div class="modal-mask"></div>
         <div class="sheet center ${opts.sticky ? 'sticky' : ''}">
-          <div class="sheet-head"><h3>${title}</h3><button class="close-x" aria-label="关闭"><i></i></button></div>
+          <div class="sheet-head"><h3>${title}</h3><button class="close-x" aria-label="关闭">${ICON_CLOSE}</button></div>
           <div class="sheet-body">${bodyHtml}</div>
         </div>`;
     root.appendChild(wrap);
@@ -3445,7 +3451,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.3</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.5</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;

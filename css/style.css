@@ -254,9 +254,10 @@ body {
 .sheet .sheet-body { overflow-y: auto; padding: var(--sp3) var(--sp4) var(--sp4); -webkit-overflow-scrolling: touch; }
 .sheet .close-x { width: 34px; height: 34px; flex: 0 0 auto; border-radius: var(--radius-sm); border: 1px solid var(--line2); background: var(--panel); color: var(--dim); font-size: 15px; cursor: pointer; }
 .sheet .close-x:active { background: var(--panel3); }
-/* 图标按钮（关闭 × / 返回 ‹）里的图形一律用 CSS 画，**不要用字符**：
-   ✕ 和 ‹ 在不同手机上会落到不同字体，行高与字面框都不一样，所以只有手机看着是偏的。
-   CSS 画的图形靠 translate(-50%,-50%) 落在正中心，任何机型都一样；
+/* 图标按钮（关闭 × / 返回 ‹）里的图形一律用**矢量 SVG**画：
+   ① 不用字符——✕ / ‹ 在不同手机落到不同字体，行高与字面框都不一样，所以只有手机看着偏；
+   ② 也不用多根 CSS 线拼——在 2.6x / 3x 这类非整数像素比下，两根线会各自落在半像素上，还是会"歪"。
+   SVG 里两个图形的坐标都以 12,12 为中心，所以任何机型、任何缩放下都在正中。
    另外用伪元素把点击热区撑到 ≥44px（本项目"热区 ≥44px"的规则，原来只有 34/40px）。 */
 .sheet .close-x, .back-x {
   display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1;
@@ -264,13 +265,11 @@ body {
   touch-action: manipulation; -webkit-user-select: none; user-select: none; position: relative;
 }
 .sheet .close-x::after { content: ''; position: absolute; inset: -5px; border-radius: inherit; }
-.sheet .close-x i { display: block; position: relative; width: 13px; height: 13px; }
-.sheet .close-x i::before, .sheet .close-x i::after {
-  content: ''; position: absolute; left: 50%; top: 50%; width: 13px; height: 1.6px;
-  border-radius: 2px; background: currentColor;
+.sheet .close-x svg { display: block; width: 16px; height: 16px; }
+.back-x svg { display: block; width: 18px; height: 18px; }
+.sheet .close-x svg path, .back-x svg path {
+  fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
 }
-.sheet .close-x i::before { transform: translate(-50%, -50%) rotate(45deg); }
-.sheet .close-x i::after { transform: translate(-50%, -50%) rotate(-45deg); }
 .sheet.center { top: 50%; bottom: auto; transform: translate(-50%, -50%); border-radius: 18px; border: 1px solid var(--line); max-height: 80%; animation: pop .18s ease; width: 92%; }
 @keyframes pop { from { transform: translate(-50%, -50%) scale(.92); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
 
@@ -306,12 +305,6 @@ body {
 }
 .back-x:active { background: var(--panel3); }
 .back-x::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; }
-/* 返回箭头也画出来：正方形只留左、下两条边，再转 45° 就是一个 ‹ */
-.back-x i {
-  display: block; width: 10px; height: 10px;
-  border-left: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor;
-  transform: translateX(2px) rotate(45deg);
-}
 .page-pad { width: 40px; flex: 0 0 auto; }
 .page .sheet-body {
   flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;

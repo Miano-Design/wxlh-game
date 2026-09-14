@@ -610,17 +610,26 @@ t('站位：Esc / 取消按钮能把手里的格子放回去', () => {
 });
 
 // ---- V8.3.1：手机端图标与热区（关闭 × / 返回 ‹ 都是 CSS 画的，不用字符） ----
-t('图标按钮里的图形是 CSS 画的，不是 ✕ / ‹ 字符', () => {
+t('图标按钮里的图形是矢量 SVG，不是 ✕ / ‹ 字符', () => {
   const css = fs.readFileSync('css/style.css', 'utf8');
-  if (!css.includes('.close-x i::before')) throw new Error('关闭按钮没有 CSS 画的 X');
-  if (!css.includes('.back-x i')) throw new Error('返回按钮没有 CSS 画的箭头');
+  if (!css.includes('.close-x svg path')) throw new Error('关闭按钮没有 SVG 的 X');
+  if (!css.includes('.back-x svg')) throw new Error('返回按钮没有 SVG 的箭头');
   if (!/\.close-x[^{]*\{[^}]*appearance:\s*none/.test(css)) throw new Error('关闭按钮没有清掉系统默认外观');
   const w = UI.modal('测试', '<div>x</div>', { center: true });
   const page = UI.modal('测试页', '<div>x</div>');
-  if (!w.innerHTML.includes('<button class="close-x"') || !w.innerHTML.includes('<i></i>')) throw new Error('居中弹窗的关闭按钮结构不对');
+  if (!w.innerHTML.includes('<button class="close-x"') || !w.innerHTML.includes('<svg')) throw new Error('居中弹窗的关闭按钮结构不对');
+  if (!page.innerHTML.includes('<svg')) throw new Error('返回按钮没有 SVG');
   if (w.innerHTML.includes('✕')) throw new Error('关闭按钮还在用 ✕ 字符');
   if (page.innerHTML.includes('‹')) throw new Error('返回按钮还在用 ‹ 字符');
   UI.closeModal(w); UI.closeModal(page);
+});
+t('图标坐标是对称的（X 与箭头都以 12,12 为中心）', () => {
+  const src = fs.readFileSync('js/ui.js', 'utf8');
+  const close = src.match(/ICON_CLOSE = '([^']+)'/);
+  const back = src.match(/ICON_BACK = '([^']+)'/);
+  if (!close || !back) throw new Error('图标常量缺了');
+  if (!close[1].includes('M7 7 17 17') || !close[1].includes('17 7 7 17')) throw new Error('X 的两个笔画不对称');
+  if (!back[1].includes('M15.5 5 8.5 12l7 7')) throw new Error('返回箭头不是以 12 为中心');
 });
 t('移动端热区：图标按钮都补到 ≥44px', () => {
   const css = fs.readFileSync('css/style.css', 'utf8');
@@ -636,6 +645,59 @@ t('移动端全局兜底：按钮去系统外观 + 去掉 300ms 点击延迟', (
   const css = fs.readFileSync('css/style.css', 'utf8');
   if (!css.includes('touch-action: manipulation')) throw new Error('缺 touch-action: manipulation');
   if (!/button,\s*input,\s*select,\s*textarea\s*\{[^}]*appearance:\s*none/.test(css)) throw new Error('缺按钮外观重置');
+});
+
+// ---- 装机（PWA）：手机能加到主屏、断网能玩，且资源都带版本号 ----
+t('index.html 引用的资源都带版本号（否则手机会一直用旧缓存）', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  const refs = [...html.matchAll(/(?:src|href)="((?:js|css)\/[^"]+)"/g)].map(m => m[1]);
+  if (refs.length < 7) throw new Error('资源引用数量不对：' + refs.length);
+  refs.forEach(u => { if (!u.includes('?v=')) throw new Error('这个资源没带版本号：' + u); });
+});
+t('index.html 挂了 manifest 与主屏图标', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  if (!html.includes('rel="manifest"')) throw new Error('缺 manifest');
+  if (!html.includes('rel="apple-touch-icon"')) throw new Error('缺 iOS 主屏图标');
+  if (!html.includes('rel="icon"')) throw new Error('缺 favicon');
+  if (!html.includes('apple-mobile-web-app-title')) throw new Error('缺 iOS 主屏名称');
+  if (!html.includes('serviceWorker')) throw new Error('没有注册 Service Worker');
+});
+t('manifest 合法且字段齐全', () => {
+  const m = JSON.parse(fs.readFileSync('manifest.webmanifest', 'utf8'));
+  if (m.name !== '无限轮回' || !m.short_name) throw new Error('名字不对');
+  if (m.display !== 'standalone') throw new Error('不是独立窗口（加到主屏会带上浏览器地址栏）');
+  if (!m.start_url || !m.scope) throw new Error('缺 start_url / scope');
+  if (!Array.isArray(m.icons) || m.icons.length < 2) throw new Error('图标不够');
+  m.icons.forEach(i => { if (!fs.existsSync(i.src)) throw new Error('图标文件不存在：' + i.src); });
+  if (!fs.existsSync('icons/icon-180.png')) throw new Error('缺 iOS 用的 180 图标');
+});
+t('Service Worker 的预缓存清单＝index.html 真正引用的文件', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  const sw = fs.readFileSync('sw.js', 'utf8');
+  const refs = [...html.matchAll(/(?:src|href)="((?:js|css)\/[^"]+)"/g)].map(m => m[1]);
+  // sw.js 里是 './路径?v=' + V 拼出来的，所以按同样的写法核对
+  refs.forEach(u => {
+    const path = u.split('?')[0];
+    if (!sw.includes(`'./${path}?v='`)) throw new Error('SW 没缓存这个文件：' + path);
+  });
+  if (!sw.includes('./index.html')) throw new Error('SW 没缓存首页');
+  if (!sw.includes("self.addEventListener('fetch'")) throw new Error('SW 没有 fetch 处理（断网打不开）');
+  if (!sw.includes('skipWaiting')) throw new Error('SW 不会自动接管新版本');
+});
+t('sw.js 的版本号与 index.html 的资源版本号一致', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  const sw = fs.readFileSync('sw.js', 'utf8');
+  const htmlV = (html.match(/\?v=([\d.]+)/) || [])[1];
+  const swV = (sw.match(/const V = '([\d.]+)'/) || [])[1];
+  if (!htmlV || htmlV !== swV) throw new Error(`版本号不一致：index=${htmlV} sw=${swV}`);
+});
+t('设置页显示的版本号也跟着一起走（三处同源）', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  const ui = fs.readFileSync('js/ui.js', 'utf8');
+  const htmlV = (html.match(/\?v=([\d.]+)/) || [])[1];
+  const shown = (ui.match(/data-ver>无限轮回 V([\d.]+)</) || [])[1];
+  if (!shown) throw new Error('设置页没有版本号');
+  if (shown !== htmlV) throw new Error(`设置页写的是 V${shown}，资源版本是 V${htmlV}`);
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
