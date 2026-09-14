@@ -1,7 +1,7 @@
 {
-  "name": "无限轮回",
-  "short_name": "无限轮回",
-  "description": "主神空间 + 恐怖副本的单机放置 Roguelite",
+  "name": "残域",
+  "short_name": "残域",
+  "description": "灯阁 + 恐怖副本的单机放置 Roguelite",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

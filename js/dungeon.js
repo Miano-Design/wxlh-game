@@ -1,4 +1,4 @@
-/* 《无限轮回》副本/关卡/回廊：敌人编成、路线生成、奖励 */
+/* 《残域》副本/关卡/深井：敌人编成、路线生成、奖励 */
 window.Dungeon = (function () {
   const D = window.DATA;
   const THEME_FACTION = { bio: '先锋', ghost: '异能', mystic: '策略', tech: '科技', god: null };
@@ -105,7 +105,7 @@ window.Dungeon = (function () {
     if (r.otherworld) { Core.addCur('otherworld', r.otherworld); got.push({ k: 'otherworld', v: r.otherworld }); }
     if (r.skillChip) { Core.addCur('skillChip', r.skillChip); got.push({ k: 'skillChip', v: r.skillChip }); }
     if (r.bloodCrystal) { Core.addCur('bloodCrystal', r.bloodCrystal); got.push({ k: 'bloodCrystal', v: r.bloodCrystal }); }
-    // 天赋「主神恩赐」的掉落加成：装备掉落率、材料掉落率、宝箱补给率统一按比例提高
+    // 天赋「灯阁恩赐」的掉落加成：装备掉落率、材料掉落率、宝箱补给率统一按比例提高
     const dropBoost = Core.graceDropMult ? Core.graceDropMult() : 1;
     if (Math.random() < Math.min(1, r.equipChance * dropBoost)) {
       const cap = D.stageDropCap(stage);
@@ -130,6 +130,15 @@ window.Dungeon = (function () {
     if (kind === 'elite' && Math.random() < Math.min(1, 0.35 * dropBoost)) { if (Core.addItem(matId)) got.push({ k: 'item', v: matId, n: 1 }); }
     if (kind === 'boss') { const n = 1 + (Math.random() < 0.5 ? 1 : 0); if (Core.addItem(matId, n)) got.push({ k: 'item', v: matId, n }); }
     if (kind === 'combat' && Math.random() < Math.min(1, 0.08 * dropBoost)) { if (Core.addItem(matId)) got.push({ k: 'item', v: matId, n: 1 }); }
+    /* 治疗剂：副本里唯一的补血手段。
+       V8.9 撤掉"途中补给箱"之后，这条来源必须自己产——不然"波间血量继承"就只剩挨打，
+       越是深层越缺药。所以把它挂在每一波战斗上：普通战小概率、精英中概率、Boss 必掉。 */
+    const healPool = stage <= 4 ? ['heal_s', 'heal_m'] : stage <= 8 ? ['heal_m', 'heal_l'] : ['heal_l', 'heal_x'];
+    const healChance = kind === 'boss' ? 1 : kind === 'elite' ? 0.40 : 0.20;
+    if (Math.random() < Math.min(1, healChance * dropBoost)) {
+      const pickHeal = healPool[Math.floor(Math.random() * healPool.length)];
+      if (Core.addItem(pickHeal)) got.push({ k: 'item', v: pickHeal, n: 1 });
+    }
     // 招募券掉落（对标《道友修仙》的"招徒卷"：券是玩法里会掉的，不是只能在商店买）。
     // 这样"打副本 → 掉券 → 去招募"自己就是一条循环，不必先攒够一大笔货币才敢点招募。
     if (kind === 'boss' && Math.random() < Math.min(1, 0.50 * dropBoost)) {
@@ -194,7 +203,8 @@ window.Dungeon = (function () {
     out.push(finalKind(stage));
     return out;
   }
-  // 波与波之间的插曲概率（补给箱 / 随机遭遇），写在一处方便调
+  // 波与波之间的插曲概率（补给箱 / 随机遭遇）。
+  // ⚠️ V8.9 起副本改成一口气打到底，这两个概率**已经没人用**了（保留常量只是留个调参位）。
   const WAVE_EVENT_CHANCE = 0.28;
   const WAVE_CHEST_CHANCE = 0.24;
 

@@ -1,4 +1,4 @@
-/* 《无限轮回》UI 层 */
+/* 《残域》UI 层 */
 window.UI = (function () {
   const D = window.DATA;
   const C = () => window.Core;
@@ -38,7 +38,7 @@ window.UI = (function () {
 
   // 属性一屏：照参考产品的「【标签】值」纯文字行来做——一行一件事，右对齐，扫一眼看完。
   // 角色面板与主角面板共用，保证两边显示口径完全一致。
-  /* 属性数值面板：两列一屏列全（装备 / 血统 / 境界 / 基因锁都已经算进来）。
+  /* 属性数值面板：两列一屏列全（装备 / 血统 / 境界 / 铭刻都已经算进来）。
      角色卡与主角卡共用同一个出口，保证两处显示的数值口径完全一致。 */
   function statGrid(st, foot) {
     if (!st) return '';
@@ -164,7 +164,7 @@ window.UI = (function () {
   }
 
   // 3) 防连点：同一个小按钮 300ms 内只吃一次点击（连点会重复扣资源的那种）
-  const GUARD_SEL = 'button, .nav-item, .pill, [data-act], [data-stage], [data-node], [data-final], [data-world],'
+  const GUARD_SEL = 'button, .nav-item, .pill, [data-act], [data-stage], [data-world],'
     + ' [data-char], [data-item], [data-quick], [data-pick], [data-target], [data-serumtarget], [data-eq], [data-eqd],'
     + ' [data-buy], [data-refine], [data-pull1], [data-pull10], [data-free], [data-sstage], [data-stimes], [data-potion],'
     + ' [data-attr], [data-lvup], [data-roster], [data-cur], [data-claim], [data-mclaim], [data-ach], [data-codex]';
@@ -234,7 +234,11 @@ window.UI = (function () {
   }
 
   /* ================= 弹窗 ================= */
-  let modalStack = [];
+ let modalStack = [];
+  // 每画一次面板 +1。用来判断"这一层到底有没有被收掉"：
+  // 返回按钮的回调要么把同一个面板重画一层（updateModal）、要么关掉它；
+  // 两样都没做，就说明回调漏了收尾——见 lootPanel 的兜底。
+  let modalDrawSeq = 0;
   /* 图标一律用矢量（SVG）画，**不用字符、也不用多根 CSS 线拼**：
      字符会因字体不同而偏；CSS 拼的线在奇数尺寸 / 非整数像素比（手机常见 2.6x、3x）下，
      两条线会各自落在半个像素上，看起来就是"叉歪了"。
@@ -260,6 +264,7 @@ window.UI = (function () {
         </div>`;
     root.appendChild(wrap);
     modalStack.push(wrap);
+    wrap._drawSeq = ++modalDrawSeq;
     wrap._onClose = opts.onClose || null;
     if (isPage) {
       wrap.querySelector('.back-x').onclick = () => closeModal(wrap);
@@ -292,6 +297,7 @@ window.UI = (function () {
       if (th) th.textContent = title;
     }
     if (sb) { sb.innerHTML = bodyHtml; sb.scrollTop = st; }
+    w._drawSeq = ++modalDrawSeq;
     return w;
   }
   // 有 wrap 就原地刷新，没有就新建弹窗；返回弹窗元素
@@ -393,11 +399,11 @@ window.UI = (function () {
 
   /* ================= 顶栏 / 导航 ================= */
   // 底部只留 4 格：「队伍 / 角色 / 装备」本质是同一个东西（我的人 + 我的装备），
-  // 合并成一个「轮回者」页签用胶囊切子页；腾出来的位置给背包（原来的弹窗是二级入口）。
+  // 合并成一个「记名者」页签用胶囊切子页；腾出来的位置给背包（原来的弹窗是二级入口）。
   const TABS = [
-    { id: 'home', name: '主神空间' },
-    { id: 'dungeon', name: '轮回副本' },
-    { id: 'roster', name: '轮回者' },
+    { id: 'home', name: '灯阁' },
+    { id: 'dungeon', name: '残域' },
+    { id: 'roster', name: '记名者' },
     { id: 'bag', name: '背包' },
   ];
   const ROSTER_TABS = [
@@ -406,7 +412,7 @@ window.UI = (function () {
     { id: 'equip', name: '装备' },
     { id: 'grow', name: '成长' },
   ];
-  // 旧的三个页签名一律当作「轮回者」的子页，这样任务"前往"、每日跳转、引导高亮都不用改
+  // 旧的三个页签名一律当作「记名者」的子页，这样任务"前往"、每日跳转、引导高亮都不用改
   const TAB_ALIAS = { party: 'roster', chars: 'roster', equip: 'roster' };
   let curTab = 'home';
   let rosterView = 'party';
@@ -416,7 +422,7 @@ window.UI = (function () {
     const S = C().S;
     document.getElementById('tb-name').textContent = S.player.name;
     document.getElementById('tb-lv').textContent = 'Lv.' + S.player.level;
-    document.getElementById('tb-gene').textContent = S.player.geneLock > 0 ? `基因锁·${D.GENE_LOCKS[S.player.geneLock - 1].name}` : '';
+    document.getElementById('tb-gene').textContent = S.player.geneLock > 0 ? `铭刻·${D.GENE_LOCKS[S.player.geneLock - 1].name}` : '';
     const bar = document.getElementById('curbar');
     const main = D.CURRENCIES.filter(c => ['points', 'holy', 'otherworld'].includes(c.id));
     // 只保留三种主力货币 + 一个入口；其余货币在图鉴里看（顶栏放太多会盖过正文）
@@ -478,7 +484,7 @@ window.UI = (function () {
   }
   function refresh() { renderTopbar(); renderNavbar(); }
   function setTab(id) {
-    // 旧页签名（party / chars / equip）都落到「轮回者」，并顺手把子页切过去
+    // 旧页签名（party / chars / equip）都落到「记名者」，并顺手把子页切过去
     const sub = (id === 'party' || id === 'chars' || id === 'equip') ? id : null;
     curTab = TAB_ALIAS[id] || id;
     if (sub) rosterView = sub;
@@ -508,7 +514,7 @@ window.UI = (function () {
       if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, y);
     } else if (keepScroll && scrollY > 0 && typeof window.scrollTo === 'function') window.scrollTo(0, scrollY);
   }
-  // 「轮回者」= 队伍编成 / 角色图鉴 / 装备仓库，三个子页共用一条顶部胶囊
+  // 「记名者」= 队伍编成 / 角色图鉴 / 装备仓库，三个子页共用一条顶部胶囊
   function rosterScreen() {
     const sub = { party: partyScreen, chars: charsScreen, equip: equipScreen, grow: growScreen }[rosterView] || partyScreen;
     return `<div class="pill-tabs mb3">
@@ -529,9 +535,9 @@ window.UI = (function () {
     const rows = [
       { act: 'open-buildings', unlock: 'buildings', ico: '🏗', name: '基地建设',
         cur: `五栋合计 Lv.${bLv}`, desc: '花 ◈点数，永久提升挂机产出 / 经验 / 离线上限 / 强化折扣' },
-      { act: 'open-authority', unlock: 'buildings', ico: '🔑', name: '主神权限',
+      { act: 'open-authority', unlock: 'buildings', ico: '🔑', name: '灯阁权限',
         cur: `Lv.${au.lv} / ${au.max}`, desc: '花 ✦圣洁晶石 + ◆异界结晶，永久提升挂机产出、离线效率、每日扫荡次数' },
-      { act: 'open-sect', unlock: null, ico: '🏯', name: '主神评级',
+      { act: 'open-sect', unlock: null, ico: '🏯', name: '灯阁评级',
         cur: `Lv.${C().sectInfo().lv} / ${D.SECT_MAX}`, desc: '打关卡自动涨的全局评级，每级全队全属性 +0.5%，不用手动点' },
       { act: 'open-keji', unlock: null, ico: '📜', name: '秘术阁',
         cur: `已修 ${D.KEJI.reduce((s, k) => s + C().kejiLv(k.id), 0)} 级`,
@@ -554,7 +560,7 @@ window.UI = (function () {
       { act: 'open-realm', unlock: null, ico: '🌌', name: '境界渡劫',
         cur: r.hasBloodline ? `${r.curName}（第 ${r.realm}/${D.REALM_STAGE_COUNT} 阶）` : '未定血统',
         desc: '36 小阶，每阶全属性永久 +1.4%；失败只扣材料，等级不掉' },
-      { act: 'open-genelock', unlock: 'geneLock', ico: '🧬', name: '基因锁',
+      { act: 'open-genelock', unlock: 'geneLock', ico: '🧬', name: '铭刻',
         cur: S.player.geneLock > 0 ? `${S.player.geneLock} 阶 · ${gl.name}` : '未解锁',
         desc: '五阶全队加成，靠通关进度 + 玩家等级 + 血统结晶解锁' },
       { act: 'open-beast', unlock: 'beast', ico: '🐾', name: '伴生体',
@@ -576,7 +582,7 @@ window.UI = (function () {
     }).join('')}`;
   }
 
-  /* ================= 主神空间 ================= */
+  /* ================= 灯阁 ================= */
   /* 游历奇遇条（对标参考产品的游历事件）：挂满一段时间会亮起来，
      没有待领的奇遇时显示进度，有的时候就变成一条"点一下领走"的金条。
      它就是「游历奇遇」这一项**唯一**的入口——宫格里不再重复放第二个。 */
@@ -600,7 +606,7 @@ window.UI = (function () {
     const q = idx < 0 ? null : list[idx];
     if (!q) return `<div class="card" data-sec="quest">
       <div class="list-row" style="border:none;padding:0">
-        <div class="grow"><div class="t1">主线 · 已走完</div><div class="t2">挑战更高难度与无限回廊</div></div>
+        <div class="grow"><div class="t1">主线 · 已走完</div><div class="t2">挑战更高难度与深井</div></div>
       </div>
     </div>`;
     return `<div class="card" data-sec="quest">
@@ -710,7 +716,7 @@ window.UI = (function () {
     if (!grid) return '';
     return `<div class="section-title" data-sec="${sec}">${title}</div>${before || ''}${grid}`;
   }
-  /* 养成：一条线一个入口（「轮回者 → 成长」子页里是同一批线的总览）。
+  /* 养成：一条线一个入口（「记名者 → 成长」子页里是同一批线的总览）。
      日常类的入口（悬赏 / 每日 / 成就 / 求签 / 招募 / 兑换）也收在这一段里，
      用一行小字「日常」隔开——首页的「游历」只放游历奇遇本身。 */
   function growBlock() {
@@ -730,32 +736,32 @@ window.UI = (function () {
     const signToday = signSt.canDraw ? null : signSt;
     // 一条入口 = [动作, 名字, 状态文字, 解锁条件(可空), 是否亮红点]
     const lines = [
-      ['open-sect', '主神评级', `Lv.${sect.lv}`],
+      ['open-sect', '灯阁评级', `Lv.${sect.lv}`],
       ['open-keji', '秘术阁', `${kejiTotal} 级`],
       ['open-fabao', '法宝', fbOwn ? `${fbOwn}/${D.FABAO.length} 件` : '去挑一件'],
       ['open-garden', '药园', `${gardenBusy} 块在用`],
       ['open-arena', '斗法台', `第 ${arena.floor} 台 · 剩 ${arena.left} 次`],
       ['open-mount', '坐骑', mountOwn ? `${mountOwn}/${D.MOUNTS.length} 匹` : '去驯一匹'],
-      ['open-authority', '主神权限', `Lv.${au.lv}/${au.max}`, 'buildings'],
+      ['open-authority', '灯阁权限', `Lv.${au.lv}/${au.max}`, 'buildings'],
       ['open-buildings', '基地建设', `合计 Lv.${bLv}`, 'buildings'],
-      ['open-genelock', '基因锁', gl, 'geneLock'],
+      ['open-genelock', '铭刻', gl, 'geneLock'],
       ['open-beast', '伴生体', beasts ? `${beasts} 只` : '未孵化', 'beast'],
       ['open-reincarn', '转生天赋', `${S.player.reincarnations} 世`, 'reincarn'],
-      ['open-codex', '轮回图鉴', `${C().codexState().owned}/${C().codexState().total} 名`, 'recruit'],
+      ['open-codex', '记名录', `${C().codexState().owned}/${C().codexState().total} 名`, 'recruit'],
     ];
     const daily = [
       ['open-bounty', '限时悬赏', '按时重置', null, C().bountyState().list.some(x => x.done && !x.claimed)],
       ['open-tasks', '每日任务', '主线 / 日常 / 周常', 'tasks'],
       ['open-ach', '成就', '长线目标', null, achDot],
       ['open-sign', '求签', signToday ? `今日【${signToday.tier}】` : '今日还没求'],
-      ['open-recruit', '轮回者招募', C().freeRecruitAvailable() ? '今日免费 1 抽' : '攒碎片升星', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable()],
+      ['open-recruit', '记名者招募', C().freeRecruitAvailable() ? '今日免费 1 抽' : '攒碎片升星', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable()],
       ['open-shop', '兑换大厅', '三档商店', 'shop'],
     ];
     return `<div class="section-title" data-sec="grow">养成</div>
       ${tileGrid(lines)}
       <div class="grid-title">日常</div>
       ${tileGrid(daily)}`
-      + '<div class="hint mt2">血统与境界属于角色自身：点上面【主角】那张卡，在里面选血统 / 渡劫。这里与「轮回者 → 成长」是同一批养成线的总览。</div>';
+      + '<div class="hint mt2">血统与境界属于角色自身：点上面【主角】那张卡，在里面选血统 / 渡劫。这里与「记名者 → 成长」是同一批养成线的总览。</div>';
   }
   /* 游历：只放「游历奇遇」本身——挂机路上随机冒出来的奇遇，进度条就是它的唯一入口。 */
   function travelBlock() {
@@ -789,7 +795,7 @@ window.UI = (function () {
     return `${s}秒`;
   }
 
-  /* ================= 轮回副本 ================= */
+  /* ================= 残域 ================= */
   const WORLD_ICONS = { bio: '🧟', ghost: '👻', mystic: '🏺', tech: '🛰', god: '👁' };
   let dungeonView = { page: 'worlds' };
   let run = null;   // 进行中的关卡
@@ -809,7 +815,7 @@ window.UI = (function () {
       <div class="card world-card ${corridorLocked ? 'locked' : ''}" data-act="open-corridor" style="cursor:pointer;border-color:#8be9e955;${corridorLocked ? 'opacity:.55' : ''}">
         <div class="world-ico">♾</div>
         <div class="grow">
-          <div class="t1">无限回廊 <span class="tag">终局挑战</span></div>
+          <div class="t1">深井 <span class="tag">终局挑战</span></div>
           <div class="t2">${corridorLocked ? '🔒 ' + C().unlockTip('corridor') : `当前第 ${S.corridor.floor} 层 · 历史最高 ${S.corridor.best} 层`}</div>
         </div>
         <span style="color:var(--dim)">›</span>
@@ -842,7 +848,7 @@ window.UI = (function () {
         </div>
       </div>`;
     })() : '';
-    return `${resume}<div class="section-title">无限挑战</div>${corridor}<div class="section-title">恐怖世界（${D.WORLDS.length}）</div>${worlds}`;
+    return `${resume}<div class="section-title">深井挑战</div>${corridor}<div class="section-title">残域（${D.WORLDS.length}）</div>${worlds}`;
   }
   function worldDetail() {
     const S = C().S;
@@ -944,31 +950,75 @@ window.UI = (function () {
   }
   // 波次名（纯文字，不用图标）
   const WAVE_NAME = { combat: '遭遇战', elite: '精英伏击', boss: '守关之战' };
+  // 队伍血条：探索界面与"波间结算页"共用（自动推进时玩家就靠它看血线）
+  function partyHpHtml() {
+    return C().S.party.filter(Boolean).map(id => {
+      const pct = run && run.hpPct[id] !== undefined ? run.hpPct[id] : 1;
+      return `<div style="flex:1;min-width:0"><div style="font-size:10px;color:var(--dim);text-align:center">${cname(id)}</div><div class="bar hp ${pct < 0.35 ? 'low' : ''}"><i style="width:${pct * 100}%"></i></div></div>`;
+    }).join('');
+  }
+  // 探索中可用的消耗品：治疗剂（回血）与强化剂（本次探索增益）
+  function potionBarHtml() {
+    const items = C().S.items;
+    const list = Object.keys(D.ITEMS).filter(k => {
+      const it = D.ITEMS[k];
+      return it.type === 'consumable' && it.where === 'explore' && (items[k] || 0) > 0;
+    });
+    if (!list.length) return '';
+    const heal = list.filter(k => (D.ITEMS[k].effect || {}).healPct);
+    const buff = list.filter(k => !(D.ITEMS[k].effect || {}).healPct);
+    const btn = id => `<button class="btn small" data-potion="${id}">${(D.ITEMS[id].effect || {}).healPct ? '🧪' : '💉'} ${D.ITEMS[id].name} ×${items[id]}</button>`;
+    return `<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">${heal.concat(buff).map(btn).join('')}</div>`;
+  }
+  // 用一支探索消耗品。返回是否真的用掉了（由调用方决定要不要重画）
+  function usePotion(id) {
+    if (!run) return false;
+    const eff = (D.ITEMS[id] || {}).effect || {};
+    if (!C().removeItem(id)) { toast('道具不足'); return false; }
+    const parts = [];
+    if (eff.healPct) {
+      Object.keys(run.hpPct).forEach(cid => { run.hpPct[cid] = Math.min(1, run.hpPct[cid] + eff.healPct); });
+      parts.push(`全队恢复 ${Math.round(eff.healPct * 100)}% 生命`);
+    }
+    ['atkPct', 'spdPct', 'defPct'].forEach(k => {
+      if (!eff[k]) return;
+      run.buffs[k] = (run.buffs[k] || 0) + eff[k];
+      parts.push(`${D.CONSUMABLE_TAG[k] || k}+${Math.round(eff[k] * 100)}%`);
+    });
+    C().task('item1', 1);
+    C().save();
+    toast(`${eff.healPct ? '🧪' : '💉'} ${D.ITEMS[id].name}：${parts.join(' · ')}`);
+    persistRun();
+    return true;
+  }
+  function bindPotionButtons(root, after) {
+    root.querySelectorAll('[data-potion]').forEach(el => el.onclick = () => {
+      if (usePotion(el.dataset.potion) && after) after();
+    });
+  }
+  // 波间结算页上的"血条 + 药剂"：自动推进时玩家就在这一格里补血 / 上增益
+  function waveExtraInner() {
+    const potions = potionBarHtml();
+    return `<div style="display:flex;gap:6px;margin:0 0 8px">${partyHpHtml()}</div>`
+      + (potions || '<div style="font-size:10px;color:var(--dim);text-align:center">背包里没有探索用道具（灯阁市集可买治疗剂 / 强化剂）</div>');
+  }
+  function waveExtraHtml() {
+    return `<div data-waveextra style="width:100%;max-width:340px">${waveExtraInner()}</div>`;
+  }
+  // 下一波叫什么（结算页按钮上写出来，别让玩家猜还剩几波）
+  function nextWaveLabel() {
+    if (!run) return '继续';
+    const n = run.wave + 2;   // run.wave 是 0 起的当前波，还没 +1
+    return n >= run.waves.length ? `继续 · 最后一波` : `继续 · 第 ${n} 波`;
+  }
   function runScreen() {
     if (!run) return worldsList();
     const w = D.WORLDS.find(x => x.id === run.worldId);
     const total = run.waves.length;
     const prog = Array.from({ length: total }, (_, i) => `<i class="${i < run.wave ? 'done' : ''}"></i>`).join('');
-    const partyHp = C().S.party.filter(Boolean).map(id => {
-      const pct = run.hpPct[id] !== undefined ? run.hpPct[id] : 1;
-      return `<div style="flex:1"><div style="font-size:10px;color:var(--dim);text-align:center">${cname(id)}</div><div class="bar hp ${pct < 0.35 ? 'low' : ''}"><i style="width:${pct * 100}%"></i></div></div>`;
-    }).join('');
-    // 探索中可用的消耗品：治疗剂（回血）与强化剂（本次探索增益）
-    const bagItems = C().S.items;
-    const consumables = Object.keys(D.ITEMS).filter(k => {
-      const it = D.ITEMS[k];
-      return it.type === 'consumable' && it.where === 'explore' && (bagItems[k] || 0) > 0;
-    });
-    const healList = consumables.filter(k => (D.ITEMS[k].effect || {}).healPct);
-    const buffList = consumables.filter(k => !(D.ITEMS[k].effect || {}).healPct);
-    const potionBtn = id => `<button class="btn small" data-potion="${id}">${(D.ITEMS[id].effect || {}).healPct ? '🧪' : '💉'} ${D.ITEMS[id].name} ×${bagItems[id]}</button>`;
-    const potionBar = (healList.length || buffList.length) ? `
-      <div class="mt2">
-        ${healList.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${healList.map(potionBtn).join('')}</div>` : ''}
-        ${buffList.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${buffList.map(potionBtn).join('')}</div>` : ''}
-        <div style="font-size:10px;color:var(--dim);margin-top:5px">副本内使用 · 本场探索全程有效</div>
-      </div>`
-      : `<div style="font-size:10px;color:var(--dim);margin-top:8px">背包里还没有探索用道具（主神商店可买治疗剂 / 强化剂）</div>`;
+    const potionBar = potionBarHtml()
+      ? `<div class="mt2">${potionBarHtml()}<div style="font-size:10px;color:var(--dim);margin-top:5px">副本内使用 · 本场探索全程有效</div></div>`
+      : `<div style="font-size:10px;color:var(--dim);margin-top:8px">背包里还没有探索用道具（灯阁市集可买治疗剂 / 强化剂）</div>`;
     // 波次列表（纯文字）：打过的划掉，当前的高亮，后面的等着
     const waveList = run.waves.map((k, i) => {
       const done = i < run.wave, cur = i === run.wave;
@@ -978,31 +1028,26 @@ window.UI = (function () {
         <span class="hint">${done ? '已通过' : cur ? '当前' : '待打'}</span>
       </div>`;
     }).join('');
-    const curKind = run.waves[run.wave];
-    const isLast = run.wave === total - 1;
-    const btnLabel = isLast
-      ? (curKind === 'boss' ? `开打 · 守关 ${w.boss}` : curKind === 'elite' ? '开打 · 精英伏击' : '开打 · 最后一波')
-      : `开打 · 第 ${run.wave + 1} 波`;
     return `
       <div class="card">
         <h3>${w.name} · ${{ normal: '普通', hard: '困难', hell: '地狱' }[run.diff]} · 第 ${run.stage}/12 关 <span class="sub">共 ${total} 波</span></h3>
         <div class="route-progress">${prog}</div>
-        <div style="display:flex;gap:6px">${partyHp}</div>
+        <div style="display:flex;gap:6px">${partyHpHtml()}</div>
         ${potionBar}
         ${Object.keys(run.buffs).length ? `<div style="margin-top:8px;font-size:11px;color:var(--green)">本关增益：${Object.entries(run.buffs).map(([k, v]) => `${D.CONSUMABLE_TAG[k] || k}+${Math.round(v * 100)}%`).join(' ')}</div>` : ''}
-        <div class="hint mt2">血量在波与波之间继承，不会自动回满；要补血就在上面点治疗剂。</div>
+        <div class="hint mt2">进关之后一口气打到最后一波，中间自动推进、不插别的东西；血量波间继承不会自动回满，血线低了就在结算页或这里点治疗剂。</div>
       </div>
       <div class="card"><h3>本关波次</h3>${waveList}</div>
       <div style="height:84px"></div>
       <div class="run-bar">
         <div class="btn-row">
           <button class="btn ghost small" data-act="abandon-run">撤离</button>
-          <button class="btn primary" data-wave-fight="1">${btnLabel}</button>
+          <button class="btn primary" data-wave-fight="1">继续探索</button>
         </div>
       </div>`;
   }
 
-  /* ---------- 无限回廊 ---------- */
+  /* ---------- 深井 ---------- */
   function corridorScreen() {
     const S = C().S;
     const e = D.corridorEnemy(S.corridor.floor);
@@ -1010,15 +1055,15 @@ window.UI = (function () {
     return `
       <button class="btn ghost small mb2" data-act="back-worlds">‹ 返回</button>
       <div class="corridor-hero">
-        <div class="note">无限回廊</div>
+        <div class="note">深井</div>
         <div class="floor-num">${S.corridor.floor}</div>
         <div class="note">历史最高 ${S.corridor.best} 层</div>
       </div>
       <div class="card">
-        <h3>♜ 回廊印记 <span class="sub">${C().corridorMarks()}/${D.CORRIDOR_MARK_CAP} 枚</span></h3>
+        <h3>♜ 深井印记 <span class="sub">${C().corridorMarks()}/${D.CORRIDOR_MARK_CAP} 枚</span></h3>
         <div class="note">
-          历史最高层每 ${D.CORRIDOR_MARK_STEP} 层积 1 枚，每枚在回廊内给全队 <b style="color:var(--gold)">+1.5%</b> 全属性。
-          当前回廊内加成：<b style="color:var(--gold)">+${Math.round(C().corridorMarkBonus() * 100)}%</b>
+          历史最高层每 ${D.CORRIDOR_MARK_STEP} 层积 1 枚，每枚在深井内给全队 <b style="color:var(--gold)">+1.5%</b> 全属性。
+          当前深井内加成：<b style="color:var(--gold)">+${Math.round(C().corridorMarkBonus() * 100)}%</b>
         </div>
       </div>
       <div class="card">
@@ -1028,7 +1073,7 @@ window.UI = (function () {
         <div class="kv"><span class="k">通关奖励</span><span>◈${rw.points} · ❖${rw.story} · ♜${rw.corridor}${rw.bloodCrystal ? ` · ❥${rw.bloodCrystal}` : ''}</span></div>
       </div>
       <button class="btn primary block" data-act="fight-corridor">⚔️ 挑战本层</button>
-      <button class="btn block mt2" data-act="open-corridor-shop">🏪 回廊商店（♜${fmt(S.cur.corridor)}）</button>
+      <button class="btn block mt2" data-act="open-corridor-shop">🏪 深井商店（♜${fmt(S.cur.corridor)}）</button>
     `;
   }
 
@@ -1179,7 +1224,7 @@ window.UI = (function () {
       const grabCls = grabbed === String(i) ? ' grabbing' : '';
       if (!id) {
         const freeHint = grabbed !== null && grabbed !== String(i) ? '放这里' : '＋ 上阵';
-        return `<div class="pslot${grabCls}" data-pos="${i}" data-slot="${i}"><span class="pos-tag">${pos}</span><div style="text-align:center;color:var(--dim);padding-top:34px;font-size:12px">${freeHint}</div></div>`;
+        return `<div class="pslot${grabCls}" data-pos="${i}"><span class="pos-tag">${pos}</span><div style="text-align:center;color:var(--dim);padding-top:34px;font-size:12px">${freeHint}</div></div>`;
       }
       if (id === '@player') {
         return `<div class="pslot filled protag-slot${grabCls}" data-pos="${i}" data-protag="1">
@@ -1191,7 +1236,7 @@ window.UI = (function () {
       }
       const ch = D.charById[id];
       const c = S.chars[id];
-      return `<div class="pslot filled rarity-${ch.rarity}${grabCls}" data-pos="${i}" data-slot="${i}">
+      return `<div class="pslot filled rarity-${ch.rarity}${grabCls}" data-pos="${i}">
         <span class="pos-tag">${pos}</span>
         ${charAvatar(id, 40)}
         <div class="pname">${cname(id)}</div>
@@ -1292,9 +1337,9 @@ window.UI = (function () {
         <div style="display:flex;gap:12px;align-items:center">
           ${charAvatar('@player', 56)}
           <div class="grow" style="min-width:0">
-            <div><b>${cname('@player')}</b> <span class="tag" style="color:var(--gold);border-color:var(--gold)">轮回者本人</span></div>
+            <div><b>${cname('@player')}</b> <span class="tag" style="color:var(--gold);border-color:var(--gold)">记名者本人</span></div>
             <div class="hint mt1">Lv.${S.player.level}（玩家等级）· ${S.player.bloodline ? S.player.bloodline + '血统 Lv.' + S.player.bloodlineLv : '未选血统'}</div>
-            <div class="hint">基因锁 ${gl > 0 ? D.GENE_LOCKS[gl - 1].name : '未解锁'} · 六维待分 ${S.player.attrPoints || 0} 点</div>
+            <div class="hint">铭刻 ${gl > 0 ? D.GENE_LOCKS[gl - 1].name : '未解锁'} · 六维待分 ${S.player.attrPoints || 0} 点</div>
           </div>
           <div style="text-align:right;flex:0 0 auto">
             <div style="font-size:20px;font-weight:700;color:var(--gold)">${fmt(C().playerPower())}</div>
@@ -1327,7 +1372,7 @@ window.UI = (function () {
         <div class="skill-row"><div class="sname">被动·${P.passive.name}</div><div class="sdesc">${P.passive.desc}</div></div>
       </div>
       ${equipCard('@player', D.PLAYER_SLOTS, 'player')}
-      <div class="card">
+      <div class="card" data-card="blood">
         <h3>🩸 血统 <span class="sub">${S.player.bloodline ? 'Lv.' + S.player.bloodlineLv + ' / ' + D.BLOODLINE_MAX : '未觉醒'}</span></h3>
         ${S.player.bloodline ? `
           <div class="hint mb2">${S.player.bloodline}：${D.BLOODLINES[S.player.bloodline].desc}</div>
@@ -1346,9 +1391,9 @@ window.UI = (function () {
         <button class="btn small block mt3" data-realm-open="1">查看境界 · 渡劫 ›</button>
       </div>
       <div class="card">
-        <h3>📊 属性面板 <span class="sub">装备 / 血统 / 境界 / 基因锁都已算进来</span></h3>
+        <h3>📊 属性面板 <span class="sub">装备 / 血统 / 境界 / 铭刻都已算进来</span></h3>
         ${statGrid(st)}
-        <div class="hint mt2">主角与招募角色成长体系独立：随玩家等级成长、无星级碎片、6 装备槽、血统自选、基因锁每阶全属性额外 +3%。</div>
+        <div class="hint mt2">主角与招募角色成长体系独立：随玩家等级成长、无星级碎片、6 装备槽、血统自选、铭刻每阶全属性额外 +3%。</div>
       </div>
       <div class="card"><button class="btn small ghost block" data-rename="1">✏️ 修改名字</button></div>
     `);
@@ -1772,7 +1817,7 @@ window.UI = (function () {
     return `
       <div class="pill-tabs" style="margin-bottom:6px">${catFilters.map(([k, n]) => `<div class="pill ${equipCatFilter === k ? 'active' : ''}" data-ecat="${k}">${n}</div>`).join('')}</div>
       <div class="pill-tabs">${filters.map(([k, n]) => `<div class="pill ${equipFilter === k ? 'active' : ''}" data-efilter="${k}">${n}</div>`).join('')}</div>
-      <div style="display:flex;align-items:center;font-size:11px;color:var(--dim);margin:2px 2px 8px">
+      <div data-eqpage="1" style="display:flex;align-items:center;font-size:11px;color:var(--dim);margin:2px 2px 8px">
         <span>背包 ${list.length} 件</span>
         <span style="margin-left:auto"></span>
         ${batchMode
@@ -1889,7 +1934,7 @@ window.UI = (function () {
   function recruitModal(wrap) {
     const S = C().S;
     const free = C().freeRecruitAvailable();
-    const w = showPanel(wrap, '轮回者招募', `
+    const w = showPanel(wrap, '记名者招募', `
       <div class="card mb3">
         <h3>每日免费 <span class="sub">${free ? '今日可领' : '明天再来'}</span></h3>
         <div class="hint mb2">一天一次，免费招募同样计入主线与每日任务。</div>
@@ -2015,7 +2060,7 @@ window.UI = (function () {
   function ssrPickModal(wrap) {
     const ssrs = D.characters.filter(c => c.rarity === 'SSR' && !c.hidden);
     const w = showPanel(wrap, 'SSR 自选（剩 ' + C().S.ssrTicket + ' 张）', `
-      <div class="note mb3">选一名 SSR 轮回者入队；已拥有的角色会转成碎片。</div>
+      <div class="note mb3">选一名 SSR 记名者入队；已拥有的角色会转成碎片。</div>
       <div class="char-grid">${ssrs.map(ch => `
       <div class="char-card rarity-SSR" data-pickssr="${ch.id}">${charAvatar(ch.id)}<div class="cname">${esc(ch.name)}</div><div class="cmeta">${ch.role} · ${ch.faction}</div></div>`).join('')}</div>
       <button class="btn ghost block mt4" data-back>‹ 返回招募</button>`);
@@ -2093,7 +2138,7 @@ window.UI = (function () {
     return w;
   }
 
-  /* ================= 主神权限（对标《道友修仙》的"洞府"） ================= */
+  /* ================= 灯阁权限（对标《道友修仙》的"洞府"） ================= */
   /* ================= 药园（对标《道友修仙》洞府里的"药园"） ================= */
   // 一块地收什么：主产 + 稀有掉落概率，写成一行的文字（"说明与实装同源"：直接读 GARDEN 数据）
   function gardenYieldText(g) {
@@ -2156,7 +2201,7 @@ window.UI = (function () {
       <div class="card" style="border-color:#e6b64c44">
         <h3>斗法台 <span class="sub">第 ${st.floor} 台 · 历史最高 ${st.best} 台</span></h3>
         <div class="note">守擂者按你自己的队伍战力换算出来，越往上越强。每天 <b>${st.cap}</b> 次机会，
-          赢了升一台并拿 ◆异界结晶 + ♜回廊徽记，输了退一台（次数照常消耗，不会卡死在第 1 台）。</div>
+          赢了升一台并拿 ◆异界结晶 + ♜深井徽记，输了退一台（次数照常消耗，不会卡死在第 1 台）。</div>
         <div class="kv mt2"><span class="k">今日剩余</span><span>${st.left} / ${st.cap}</span></div>
         <div class="kv"><span class="k">本台奖励</span><span style="color:var(--gold)">◆${fmt(st.reward.otherworld)} · ♜${st.reward.corridor}</span></div>
         <button class="btn primary block mt3" data-arena="1" ${st.left > 0 ? '' : 'disabled'}>${st.left > 0 ? `挑战第 ${st.floor} 台` : '今日次数已用完'}</button>
@@ -2395,7 +2440,7 @@ window.UI = (function () {
     return w;
   }
 
-  /* ================= 主神评级（对标《道友修仙》的“宗门等级”） =================
+  /* ================= 灯阁评级（对标《道友修仙》的“宗门等级”） =================
      它那条线是 321 级、随主线推进自动涨、每级抬全队属性。我们照机制做，
      强调一句：**不用手动点**——打关卡、打赢战斗、挂机都会涨，满了自动升。
      意义在于让"打关卡"除了掉装备之外，还有一条挡不住的长期回报。 */
@@ -2404,7 +2449,7 @@ window.UI = (function () {
     const g = info.gain;
     const body = `
       <div class="card" style="border-color:#ffd76a55">
-        <h3>主神评级 <span class="sub">Lv.${info.lv} / ${info.max}</span></h3>
+        <h3>灯阁评级 <span class="sub">Lv.${info.lv} / ${info.max}</span></h3>
         <div class="note">这条线<b>不用你点</b>：打关卡、战斗获胜、挂机都会自动涨经验，满了就升。
           每升一级，全队（含主角）所有基础属性 +${(info.rate * 100).toFixed(1)}%，永久生效、转生保留。</div>
         <div class="bar exp mt3"><i style="width:${info.maxed ? 100 : Math.min(100, info.exp / info.need * 100)}%"></i></div>
@@ -2423,7 +2468,7 @@ window.UI = (function () {
         <div class="kv"><span class="k">每打赢一场战斗</span><span>+${g.win}</span></div>
         <div class="kv"><span class="k">挂机（在线 / 离线都算）</span><span>每分钟 +${g.perMin}</span></div>
       </div>`;
-    return showPanel(wrap, '主神评级', body);
+    return showPanel(wrap, '灯阁评级', body);
   }
   // 挂机游历奇遇（对标《道友修仙》的 YouLi）：挂满一段时间就出一条，点一下拿东西
   function travelModal(wrap) {
@@ -2527,9 +2572,9 @@ window.UI = (function () {
     const afford = cost ? (hl >= cost.holy && ow >= cost.otherworld) : false;
     const body = `
       <div class="card" style="border-color:#ffd76a55">
-        <h3>主神权限 <span class="sub">Lv.${info.lv} / ${info.max}</span></h3>
+        <h3>灯阁权限 <span class="sub">Lv.${info.lv} / ${info.max}</span></h3>
         <div class="note">
-          用<b>高级货币</b>向主神换取永久授权：投入一次，之后每一分钟都在生效，<b>转生也不清空</b>。<br>
+          用<b>高级货币</b>向灯阁换取永久授权：投入一次，之后每一分钟都在生效，<b>转生也不清空</b>。<br>
           和"基地建设"分工不同——建筑花的是挂机就能刷的 ◈点数，这里花的是 ✦圣洁晶石 + ◆异界结晶，
           给高级货币一条"抽卡之外的长期出口"。
         </div>
@@ -2544,20 +2589,20 @@ window.UI = (function () {
         ${info.now.allPct ? `<div class="kv"><span class="k">全队全属性</span><span style="color:var(--gold)">+${Math.round(info.now.allPct * 100)}%</span></div>` : ''}
       </div>
       ${info.maxed
-        ? '<div class="card"><h3>已满级</h3><div class="note">主神已把最高权限交给你了。</div></div>'
+        ? '<div class="card"><h3>已满级</h3><div class="note">灯阁已把最高权限交给你了。</div></div>'
         : `<div class="card" style="border-color:#ffd76a66">
         <h3>下一级 · Lv.${info.lv + 1}</h3>
         <div class="note mb2">${info.nextDesc}</div>
         <div class="kv"><span class="k">✦圣洁晶石</span><span style="color:${hl >= cost.holy ? 'var(--green)' : 'var(--accent)'}">${fmt(hl)} / ${fmt(cost.holy)}</span></div>
         <div class="kv"><span class="k">◆异界结晶</span><span style="color:${ow >= cost.otherworld ? 'var(--green)' : 'var(--accent)'}">${fmt(ow)} / ${fmt(cost.otherworld)}</span></div>
-        <button class="btn primary block" style="margin-top:10px" data-auth="1" ${afford ? '' : 'disabled'}>⚡ 提升主神权限</button>
+        <button class="btn primary block" style="margin-top:10px" data-auth="1" ${afford ? '' : 'disabled'}>⚡ 提升灯阁权限</button>
       </div>`}
       <div class="section-title">权限一览（${info.max} 级）</div>
       ${info.rows.map(r => `<div class="list-row" style="${r.lv <= info.lv ? '' : 'opacity:.6'}">
         <div class="grow"><div class="t1">Lv.${r.lv}${r.lv <= info.lv ? ' <span class="tag" style="color:var(--green);border-color:var(--green)">已获得</span>' : ''}</div>
         <div class="t2">${r.desc}</div></div>
       </div>`).join('')}`;
-    const w = showPanel(wrap, '主神权限', body);
+    const w = showPanel(wrap, '灯阁权限', body);
     const btn = w.querySelector('[data-auth]');
     if (btn) btn.onclick = () => {
       const r = C().upgradeAuthority();
@@ -2578,7 +2623,7 @@ window.UI = (function () {
     const body = `
       <div style="font-size:12px;color:var(--dim);line-height:1.75;margin-bottom:10px">
         4 条产线各派 <b>1 名领队</b>：领队战力越高，这条线产出越高（最高 +150%）。
-        上阵主力不能派去挂机，「板凳上的轮回者」在这里发挥作用；没派领队的产线不产出。
+        上阵主力不能派去挂机，「板凳上的记名者」在这里发挥作用；没派领队的产线不产出。
       </div>
       ${rows.map(r => {
       const leader = r.leaderId;
@@ -2594,7 +2639,7 @@ window.UI = (function () {
           : `<button class="btn small block" data-idlepick="${r.line.id}" ${bench.length ? '' : 'disabled'}>${bench.length ? '＋ 派一名领队' : '没有可派的角色（先去招募）'}</button>`}
       </div>`;
     }).join('')}
-      <div style="font-size:11px;color:var(--dim);line-height:1.7">可派角色：${bench.length} 名（未上阵的轮回者）。产出的收益和挂机收益一起，在首页「一键收取」里结算。</div>`;
+      <div style="font-size:11px;color:var(--dim);line-height:1.7">可派角色：${bench.length} 名（未上阵的记名者）。产出的收益和挂机收益一起，在首页「一键收取」里结算。</div>`;
     const w = showPanel(wrap, '挂机分工', body);
     w.querySelectorAll('[data-idlepick]').forEach(b => b.onclick = () => pickIdleLeader(b.dataset.idlepick, w));
     w.querySelectorAll('[data-idleclear]').forEach(b => b.onclick = () => {
@@ -2610,7 +2655,7 @@ window.UI = (function () {
     const line = D.IDLE_LINES.find(l => l.id === lineId);
     const bench = Object.keys(S.chars).filter(id => !S.party.includes(id));
     const body = `
-      <div class="note mb3">选一名轮回者派往「${line.name}」，战力越高产出越高。</div>
+      <div class="note mb3">选一名记名者派往「${line.name}」，战力越高产出越高。</div>
       ${bench.map(id => {
       const used = D.IDLE_LINES.find(l => l.id !== lineId && S.idle.lines[l.id] === id);
       return `<div class="list-row" data-idlelead="${id}" style="cursor:pointer${used ? ';opacity:.5' : ''}">
@@ -2848,7 +2893,7 @@ window.UI = (function () {
       setTab('home');
       setTimeout(() => {
         buildingsModal();
-        coachmark('[data-bup]', '建筑每升一级都是永久加成：主神核心加挂机产出，训练室加经验，医疗室加离线效率。');
+        coachmark('[data-bup]', '建筑每升一级都是永久加成：灯芯加挂机产出，训练室加经验，医疗室加离线效率。');
       }, 250);
       return;
     }
@@ -2856,7 +2901,8 @@ window.UI = (function () {
       setTab('home');
       setTimeout(() => {
         protagonistDetail();
-        coachmark('[data-pblup]', '血统升级消耗血统结晶 + 点数，是中期最猛的成长线；主角 Lv.10 之后还能在「🌌 境界」里渡劫——每突破一小阶全属性永久 +1.4%，36 阶合计 +50.4%。');
+        // 三种形态都要能高亮到：还没选血统（[data-pbl] 一排选择按钮）/ 已选可升级（[data-pblup]）/ 等级不够（退回整张血统卡）
+        coachmark('[data-pblup], [data-pbl], [data-card="blood"]', '血统升级消耗血统结晶 + 点数，是中期最猛的成长线；还没选就先在下面挑一种（不可更改）。主角 Lv.10 之后还能在「🌌 境界」里渡劫——每突破一小阶全属性永久 +1.4%，36 阶合计 +50.4%。');
       }, 250);
       return;
     }
@@ -2871,7 +2917,7 @@ window.UI = (function () {
       setTab('dungeon');
       dungeonView = { page: 'world', worldId: 'W01', diff: 'normal' };
       render();
-      coachmark('[data-stage="3"]', '每通关一关解锁下一关；战斗中队伍血量会继承，途中遇到「安全屋」和事件可以回血。');
+      coachmark('[data-stage="3"]', '每通关一关解锁下一关；一关是一口气打到底的，一波打完自动接下一波，血量会继承、不会自动回满。血线低了就在结算页点治疗剂。');
       return;
     }
     if (qid === 'q04') {
@@ -2882,7 +2928,7 @@ window.UI = (function () {
     }
     if (qid === 'q07') {
       setTab('equip');
-      coachmark('[data-eqd]', '点击一件装备即可强化，消耗材料提升数值。');
+      coachmark('[data-eqd], [data-eqpage]', '点击一件装备即可强化，消耗材料提升数值。');
       return;
     }
     if (qid === 'q11') { setTab('dungeon'); setTimeout(() => { dungeonView = { page: 'corridor' }; render(); }, 250); return; }
@@ -2894,13 +2940,15 @@ window.UI = (function () {
   }
   // 日常任务的"去完成"
   function gotoDaily(key) {
-    if (key === 'idle1') { setTab('home'); coachmark('[data-act="claim-idle"]', '挂机满 60 秒就能领，离线期间也会累积收益。'); return; }
-    if (key === 'enhance1') { setTab('equip'); coachmark('[data-eqd]', '点一件装备进去强化，成功或失败都算完成一次。'); return; }
+    // 锚点必须指到"真存在的那颗按钮"：挂机卡上现在是 claim-all，claim-idle 早就没了。
+    // 指错了 coachmark 会静默不显示——玩家看到的就是"点了去完成，什么也没发生"。
+    if (key === 'idle1') { setTab('home'); coachmark('[data-act="claim-all"]', '挂机满 60 秒就能领，离线期间也会累积收益。'); return; }
+    if (key === 'enhance1') { setTab('equip'); coachmark('[data-eqd], [data-eqpage]', '点一件装备进去强化，成功或失败都算完成一次。'); return; }
     if (key === 'recruit1') { setTab('home'); setTimeout(() => openRecruit(), 250); return; }
     if (key === 'item1') { setTab('home'); setTimeout(() => bagModal(), 250); return; }
     setTab('dungeon');
   }
-  const DAILY_MAIN_GO = { battle5: '轮回副本打一场', idle1: '主神空间领挂机', enhance1: '装备页强化', recruit1: '招募 1 次', dungeon1: '轮回副本通关一关', item1: '背包用道具' };
+  const DAILY_MAIN_GO = { battle5: '残域打一场', idle1: '灯阁领挂机', enhance1: '装备页强化', recruit1: '招募 1 次', dungeon1: '残域通关一关', item1: '背包用道具' };
   // 周常：与每日任务共用进度来源，每周一自动重置
   function weeklyHtml() {
     const st = C().weeklyState();
@@ -3031,11 +3079,11 @@ window.UI = (function () {
     return w;
   }
 
-  /* ================= 基因锁 / 转生 ================= */
+  /* ================= 铭刻 / 转生 ================= */
   function geneLockModal(wrap) {
     const S = C().S;
     const info = C().geneLockInfo();
-    const w = showPanel(wrap, '基因锁', `
+    const w = showPanel(wrap, '铭刻', `
       <div class="note mb3">在生死之间突破人类极限。当前：<b style="color:var(--accent)">${S.player.geneLock > 0 ? D.GENE_LOCKS[S.player.geneLock - 1].name : '未解锁'}</b></div>
       ${D.GENE_LOCKS.map((g, i) => {
         const unlocked = S.player.geneLock > i;
@@ -3046,7 +3094,7 @@ window.UI = (function () {
           ${isNext && !info.max ? `
             <div style="font-size:11px;color:var(--gold);margin-top:6px">条件：${g.req} · ❥${g.cost.bloodCrystal}</div>
             ${info.reqs.length ? `<div style="font-size:11px;color:var(--accent);margin-top:4px">未满足：${info.reqs.join('；')}</div>` : ''}
-            <button class="btn primary block" style="margin-top:8px" data-glunlock="1" ${info.can ? '' : 'disabled'}>突破基因锁</button>` : ''}
+            <button class="btn primary block" style="margin-top:8px" data-glunlock="1" ${info.can ? '' : 'disabled'}>突破铭刻</button>` : ''}
         </div>`;
       }).join('')}
     `);
@@ -3068,11 +3116,11 @@ window.UI = (function () {
       <div class="card">
         <h3>轮回转生 <span class="sub">已转生 ${S.player.reincarnations} 次</span></h3>
         <div class="note">
-          重置玩家等级与世界进度，保留角色/装备/血统/基因锁/天赋。<br>
+          重置玩家等级与世界进度，保留角色/装备/血统/铭刻/天赋。<br>
           下次转生获得 <b style="color:var(--gold)">♾${rpGain}</b> 转生点。
         </div>
         <div style="font-size:11px;margin-top:8px;color:${can ? 'var(--green)' : 'var(--accent)'}">
-          条件：玩家Lv.${S.player.level}/100 · 基因锁${S.player.geneLock}/5 · 主神核心Lv.${S.buildings.core}/30
+          条件：玩家Lv.${S.player.level}/100 · 铭刻${S.player.geneLock}/5 · 灯芯Lv.${S.buildings.core}/30
         </div>
         <button class="btn primary block" style="margin-top:10px" data-reinc="1" ${can ? '' : 'disabled'}>开始转生</button>
       </div>
@@ -3094,7 +3142,7 @@ window.UI = (function () {
     `);
     w.querySelector('[data-reinc]').onclick = () => {
       closeModal(w);
-      confirmBox('确认转生', '转生将重置玩家等级与世界进度（角色、装备、血统、基因锁、天赋保留）。确定？', () => {
+      confirmBox('确认转生', '转生将重置玩家等级与世界进度（角色、装备、血统、铭刻、天赋保留）。确定？', () => {
         const r = C().reincarnate();
         if (r.ok) { toast(`第 ${r.count} 次转生完成！获得 ♾${r.rp}`, 3000); }
         reincarnModal(); refresh(); render();
@@ -3120,11 +3168,21 @@ window.UI = (function () {
     return '💉';
   }
   // 结果面板：开箱 / 使用道具之后把拿到的东西摆出来
+  /* 通用结算面板：标题 + 一排奖励 + 一个「返回」。
+     ⚠️ backFn 负责"把这一层收掉"——两种合法写法：
+       ① 用同一个 w 画回上一层（showPanel(w, …) / updateModal(w, …)，比如扫荡结果→扫荡面板）；
+       ② 直接 closeModal(w)。
+     只做 refresh()/render() 是**不够**的：那只重画了背后的页面，弹窗还盖在上面，
+     玩家看到的就是"按了返回没反应"。所以这里加了兜底：回调要是没重画也没关掉，就由面板自己关。 */
   function lootPanel(title, chipsHtml, backFn, wrap) {
     const w = showPanel(wrap, title, `
       <div class="reward-chips" style="margin:10px 0">${chipsHtml || '<span class="reward-chip">没有变化</span>'}</div>
       <button class="btn block" data-back>‹ 返回</button>`);
-    w.querySelector('[data-back]').onclick = () => backFn(w);
+    w.querySelector('[data-back]').onclick = () => {
+      const seq = w._drawSeq;
+      backFn(w);
+      if (w._drawSeq === seq && modalStack.indexOf(w) >= 0) closeModal(w);
+    };
     return w;
   }
   // 背包正文：页签与弹窗共用同一份模板，两处永远长一样（避免"页签版"和"弹窗版"漂移）
@@ -3159,10 +3217,10 @@ window.UI = (function () {
             <div class="bico">${itemIcon(it, k)}</div>
             <div class="bname">${it.name}</div>
             <div class="bcount">×${n}</div>
-            ${isTicket ? `<div class="bquick"><button class="qbtn" data-gorecruit="1" data-qev="1">去招募</button></div>`
+            ${isTicket ? `<div class="bquick"><button class="qbtn" data-gorecruit="1">去招募</button></div>`
             : batchable ? `<div class="bquick">
-              <button class="qbtn" data-quick="${k}:1" data-qev="1">${verb}1</button>
-              ${n > 1 ? `<button class="qbtn" data-quick="${k}:${second}" data-qev="1">${verb}${second}</button>` : ''}
+              <button class="qbtn" data-quick="${k}:1">${verb}1</button>
+              ${n > 1 ? `<button class="qbtn" data-quick="${k}:${second}">${verb}${second}</button>` : ''}
             </div>` : ''}
           </div>`;
         }).join('') || '<div class="empty" style="grid-column:1/-1">背包是空的</div>'}
@@ -3174,7 +3232,15 @@ window.UI = (function () {
   // 背包绑定：asDrawer=true 时是"弹窗里的背包"，否则是页签里的背包（返回行为不同）
   function bindBag(root, asDrawer) {
     const refresh = () => { renderTopbar(); if (asDrawer) bagModal(root); else render(); };
-    const backToBag = w => { if (asDrawer) bagModal(root); else { closeModal(w); render(); } };
+    /* "返回背包"要分清两层：
+       抽屉里开的子面板如果画在同一个抽屉元素上（w === root），原地画回背包就行；
+       如果是另开的一层（经验道具选人、道具详情、炼化台…），**得先把那一层关掉**，
+       否则它一直盖在背包上面，看着就是"返回没反应"（V8.9 修）。 */
+    const backToBag = w => {
+      if (asDrawer && w && w !== root) closeModal(w);
+      if (asDrawer) bagModal(root);
+      else { closeModal(w); render(); }
+    };
     const expand = root.querySelector('[data-expand]');
     if (expand) expand.onclick = () => { const r = C().buyBagCap(); toast(r.msg); refresh(); };
     const refineBtn = root.querySelector('[data-refine-open]');
@@ -3248,7 +3314,7 @@ window.UI = (function () {
         <button class="btn small gold" data-serum="0" ${n >= 1 ? '' : 'disabled'}>全部用（${n}）</button>
       </div>
       <div style="font-size:11px;color:var(--dim);margin-top:6px;line-height:1.7">
-        永久生效，不是临时增益。${sd.bloodline ? `只有「${sd.bloodline}」血统能用；` : '任何轮回者（含主角）都能用；'}每人每种上限 ${sd.max} 支。
+        永久生效，不是临时增益。${sd.bloodline ? `只有「${sd.bloodline}」血统能用；` : '任何记名者（含主角）都能用；'}每人每种上限 ${sd.max} 支。
       </div>`;
     } else if (it.type === 'consumable') {
       actions = run
@@ -3369,7 +3435,7 @@ window.UI = (function () {
     });
     return w;
   }
-  // 血清：先选轮回者（血统血清只列对应血统的人）
+  // 血清：先选记名者（血统血清只列对应血统的人）
   function pickSerumTarget(itemId, count, wrap, backFn) {
     const S = C().S;
     const it = D.ITEMS[itemId];
@@ -3389,7 +3455,7 @@ window.UI = (function () {
     const usable = rows.filter(r => !sd.bloodline || r.bl === sd.bloodline);
     const body = `
       <div class="note mb3">
-        选择要吃「${it.name} ×${count}」的轮回者 —— <b>永久生效</b>
+        选择要吃「${it.name} ×${count}」的记名者 —— <b>永久生效</b>
       </div>
       ${usable.length ? usable.map(r => {
         const taken = C().serumTaken(r.id, serumId);
@@ -3417,7 +3483,7 @@ window.UI = (function () {
     const goBack = onBack || (w2 => bagModal(w2));
     const body = `
       <div style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:10px">
-        血清是<b>永久强化剂</b>：喂给某名轮回者后永久加属性，每人每种有上限。
+        血清是<b>永久强化剂</b>：喂给某名记名者后永久加属性，每人每种有上限。
         血统血清只有对应血统能用——先觉醒血统，再决定喂给谁。
       </div>
       ${D.SERUMS.map(s => {
@@ -3514,7 +3580,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V8.9</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V9.0</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -3581,13 +3647,15 @@ window.UI = (function () {
   // 胜利结算的自动倒计时：5 秒内没点，就自动走"主按钮"那条（默认就是「下一关」）。
   // 只对胜利生效，失败页不自动跳；没有主按钮（最后一关打完）时也不自动，避免把人越推越远。
   const AUTO_NEXT_SEC = 5;
+  // 副本"波间结算"的倒计时：比整关结算短，副本是一路打到底的
+  const WAVE_AUTO_SEC = 3;
   function autoNextIndex(win, acts) {
     if (!win || !acts || !acts.length) return -1;
     return acts.findIndex(a => a.primary);
   }
   // 倒计时文案与按钮拼在一处：测试与界面共用同一份（文案与行为同源）
   function autoNextBtnHtml(label, sec) { return `${label} <span class="auto-cd">${sec}s</span>`; }
-  // opts.mult：整队倍率（回廊印记用）；opts.extra 为额外属性百分比（预留）
+  // opts.mult：整队倍率（深井印记用）；opts.extra 为额外属性百分比（预留）
   function buildAllies(hpPctMap, extraBuffs, opts) {
     const S = C().S;
     const mult = (opts && opts.mult) || 1;
@@ -3644,7 +3712,7 @@ window.UI = (function () {
   // 战斗配置：{ title, allies, enemies, worldId, maxRounds, onEnd(win, result, hpLeft) }
   function startBattle(cfg) {
     const S = C().S;
-    // 敌人的五行属性跟着世界走（回廊没有世界就不带属性）—— 五行克制在战斗引擎里结算
+    // 敌人的五行属性跟着世界走（深井没有世界就不带属性）—— 五行克制在战斗引擎里结算
     const foeElem = cfg.worldId ? D.worldElement(cfg.worldId) : null;
     if (foeElem) (cfg.enemies || []).forEach(e => { if (!e.elem) e.elem = foeElem; });
     const res = window.Battle.run({
@@ -3804,18 +3872,22 @@ window.UI = (function () {
       // 倒计时目标：胜利时优先"主按钮"（默认就是「下一关」）。
       // 关闭设置里的「结算自动进下一关」后，autoIdx 直接算作 -1，不显示倒计时。
       const autoIdx = C().S.settings.autoNext !== false ? autoNextIndex(res.win, acts) : -1;
+      // 波间结算用更短的倒计时：副本是一路打到底的，不用等满 5 秒
+      const autoSec = outcome.autoSec || AUTO_NEXT_SEC;
       const panel = document.createElement('div');
       panel.className = 'b-result';
       panel.innerHTML = `
         <h2 class="${res.win ? 'win' : 'lose'}">${res.win ? '胜 利' : '任务失败'}</h2>
         <div style="color:var(--dim);font-size:12px">${res.rounds} 回合${outcome.sub ? ' · ' + outcome.sub : ''}</div>
         ${rewards.length ? `<div class="reward-chips">${rewards.map(r => `<span class="reward-chip">${r}</span>`).join('')}</div>` : ''}
+        ${outcome.extraHtml || ''}
         ${acts.length ? `<div class="btn-row" style="max-width:340px;width:100%">
-          ${acts.map((a, i) => `<button class="btn ${a.primary ? 'primary' : ''}" data-bact="${i}">${i === autoIdx ? autoNextBtnHtml(a.label, AUTO_NEXT_SEC) : a.label}</button>`).join('')}
+          ${acts.map((a, i) => `<button class="btn ${a.primary ? 'primary' : ''}" data-bact="${i}">${i === autoIdx ? autoNextBtnHtml(a.label, autoSec) : a.label}</button>`).join('')}
         </div>` : ''}
-        <button class="btn ${acts.length ? 'ghost' : 'primary'}" style="min-width:200px" data-close>${res.win ? (acts.length ? '收下奖励并返回' : '收下奖励') : '返回'}</button>`;
+        <button class="btn ${acts.length ? 'ghost' : 'primary'}" style="min-width:200px" data-close>${outcome.closeLabel || (res.win ? (acts.length ? '收下奖励并返回' : '收下奖励') : '返回')}</button>`;
       overlay.appendChild(panel);
-      let autoT = null, autoLeft = AUTO_NEXT_SEC;
+      if (outcome.onExtra) outcome.onExtra(panel);
+      let autoT = null, autoLeft = autoSec;
       const clearAuto = () => { if (autoT) { clearInterval(autoT); autoT = null; } };
       panel.querySelector('[data-close]').onclick = () => {
         clearAuto();
@@ -3858,6 +3930,10 @@ window.UI = (function () {
   }
 
   /* ================= 随机事件 ================= */
+  /* 随机遭遇面板。
+     ⚠️ V8.9 起**副本里不再触发它**（父亲大人要求副本"纯粹点"：波间不插事件、不插补给箱），
+     所以现在没有调用方。数据和这个面板都留着——以后想把它接到「游历奇遇」或别的玩法上，
+     直接 showEvent(D.EVENTS[i], onDone) 就行；事件里 eff.battle 的战斗分支也还是好的。 */
   function showEvent(ev, onDone) {
     const S0 = C().S;
     // 需要花钱的选项：余额不足就先禁用，别让玩家点了才发现扣成 0
@@ -3949,6 +4025,19 @@ window.UI = (function () {
         C().save();
         return {
           rewards: rewardChips(g.got),
+          // 波间结算：血条 + 药剂 + 「继续」倒计时——不再有"开打第 N 波"这种要按的按钮
+          extraHtml: waveExtraHtml(),
+          onExtra: panel => {
+            const paint = () => {
+              const box = panel.querySelector('[data-waveextra]');
+              if (box) box.innerHTML = waveExtraInner();
+              bindPotionButtons(panel, paint);
+            };
+            bindPotionButtons(panel, paint);
+          },
+          actions: [{ label: nextWaveLabel(), primary: true, run: () => afterWave() }],
+          autoSec: WAVE_AUTO_SEC,
+          closeLabel: '收下奖励',
           after: () => { refresh(); onDone && onDone(); },
         };
       },
@@ -3961,32 +4050,17 @@ window.UI = (function () {
     if (run.wave === run.waves.length - 1) return doFinalBattle();
     return doNodeBattle(run.waves[run.wave], () => afterWave());
   }
-  /* 一波打完：推进到下一波。中间小概率插一次"途中遭遇"或"补给箱"——
-     对标产品的副本里也有随机事件，但它不拦路：出现就出现，不影响你一路打过去。 */
+  /* 一波打完：直接推进到下一波，一路打到底。
+     父亲大人 2026-09-15 定：副本要"纯粹"——不要"开打第 N 波 / 最后一波"这种要按的按钮，
+     也不要在波间插随机事件 / 补给箱。补血与增益挪到波间结算页上（血条 + 药剂就在那儿）。 */
   function afterWave() {
     if (!run) return;
-    const Dun = window.Dungeon;
     run.wave++;
     persistRun();
-    const moreToGo = run.wave < run.waves.length;
-    const roll = Math.random();
-    if (moreToGo && roll < Dun.WAVE_EVENT_CHANCE) {
-      const ev = D.EVENTS[Math.floor(Math.random() * D.EVENTS.length)];
-      showEvent(ev, () => { refresh(); render(); });
-      return;
-    }
-    if (moreToGo && roll < Dun.WAVE_EVENT_CHANCE + Dun.WAVE_CHEST_CHANCE) {
-      const r = Dun.nodeReward('chest', run.worldId, run.diff, run.stage);
-      const chips = [`◈+${fmt(r.points)}`];
-      if (r.equip) chips.push(`<span class="rtext-${r.equip.rarity}">装备 ${r.equip.name}</span>`);
-      if (r.sold) chips.push(`结晶 +${r.gain}（自动分解）`);
-      if (r.item) chips.push(D.ITEMS[r.item].name);
-      refresh(); renderTopbar();
-      lootPanel('途中补给箱', chips.map(c => `<span class="reward-chip">${c}</span>`).join(''), () => { refresh(); render(); });
-      return;
-    }
     refresh();
     render();
+    // 一口气打到最后一波：不再插播随机事件 / 补给箱，也不用再按一次"开打"
+    if (run.wave < run.waves.length) fightWave();
   }
   function doFinalBattle(premadeEnemies) {
     const Dun = window.Dungeon;
@@ -4061,9 +4135,9 @@ window.UI = (function () {
     const spec = D.corridorEnemy(floor);
     const allies = buildAllies(null, null, { mult: 1 + C().corridorMarkBonus() });
     const enemies = [spec];
-    if (spec.isBoss) enemies.push({ name: '回廊之影', hp: Math.round(spec.hp * 0.3), atk: Math.round(spec.atk * 0.5), def: Math.round(spec.def * 0.5), spd: 70, faction: null, eva: 0.05 });
+    if (spec.isBoss) enemies.push({ name: '深井之影', hp: Math.round(spec.hp * 0.3), atk: Math.round(spec.atk * 0.5), def: Math.round(spec.def * 0.5), spd: 70, faction: null, eva: 0.05 });
     startBattle({
-      title: `无限回廊 · 第 ${floor} 层`,
+      title: `深井 · 第 ${floor} 层`,
       allies, enemies, worldId: null,
       maxRounds: spec.isBoss ? 50 : 30,
       onEnd(win, res) {
@@ -4083,7 +4157,7 @@ window.UI = (function () {
         C().save();
         const gotMark = C().corridorMarks() > before;
         return {
-          rewards: [`◈+${rw.points}`, `❖+${rw.story}`, `♜+${rw.corridor}`].concat(rw.bloodCrystal ? [`❥+${rw.bloodCrystal}`] : [], gotMark ? [`♜ 获得回廊印记（${C().corridorMarks()}枚 · 回廊内 +${Math.round(C().corridorMarkBonus() * 100)}%）`] : []),
+          rewards: [`◈+${rw.points}`, `❖+${rw.story}`, `♜+${rw.corridor}`].concat(rw.bloodCrystal ? [`❥+${rw.bloodCrystal}`] : [], gotMark ? [`♜ 获得深井印记（${C().corridorMarks()}枚 · 深井内 +${Math.round(C().corridorMarkBonus() * 100)}%）`] : []),
           sub: `进入第 ${floor + 1} 层`,
           after: () => render(),
         };
@@ -4096,7 +4170,7 @@ window.UI = (function () {
     const root = $view();
     // 背包页签的按钮与弹窗共用一套绑定
     if (curTab === 'bag') bindBag(root, false);
-    // 轮回者的三个子页：切换时各自保留滚动位置
+    // 记名者的三个子页：切换时各自保留滚动位置
     root.querySelectorAll('[data-roster]').forEach(el => el.onclick = () => {
       const next = el.dataset.roster;
       if (next === rosterView) return;
@@ -4109,22 +4183,9 @@ window.UI = (function () {
       const act = el.dataset.act;
       const S = C().S;
       switch (act) {
-        case 'claim-idle': {
-          const g = C().claimIdle();
-          sfx('coin');
-          modal('挂机收益', `
-            <div style="text-align:center;padding:6px 0 12px">
-              <div class="note">本次挂机 ${formatDuration(g.seconds)}</div>
-              <div class="reward-chips mt4">
-                <span class="reward-chip">◈+${fmt(g.points)}</span>
-                <span class="reward-chip">EXP+${fmt(g.exp)}</span>
-                ${g.otherworld ? `<span class="reward-chip">◆+${g.otherworld}</span>` : ''}
-                ${g.story ? `<span class="reward-chip">❖+${g.story}</span>` : ''}
-              </div>
-            </div>`, { center: true });
-          render();
-          break;
-        }
+        /* 这里原来还有一个 'claim-idle' 分支，但全站没有任何元素发出过这个动作
+           （挂机卡上的按钮早就统一成 claim-all 了）——分支留着也没人点得到，V8.9 删掉。
+           同样的"有分支没出处"清单由测试 scripts/test_ui.js 守着。 */
         case 'open-recruit': openRecruit(); break;
         case 'claim-all': {
           const r = C().claimEverything();
@@ -4156,7 +4217,6 @@ window.UI = (function () {
         case 'open-tasks': tasksModal(); break;
         case 'open-genelock': geneLockModal(); break;
         case 'open-reincarn': reincarnModal(); break;
-        case 'open-bag': setTab('bag'); break;
         case 'open-idlelines': idleLinesModal(); break;
         case 'open-bounty': bountyModal(); break;
         case 'open-realm': realmModal(); break;
@@ -4236,27 +4296,7 @@ window.UI = (function () {
       if (!run || el.disabled) return;
       fightWave();
     });
-    root.querySelectorAll('[data-potion]').forEach(el => el.onclick = () => {
-      if (!run) return;
-      const id = el.dataset.potion;
-      const eff = (D.ITEMS[id] || {}).effect || {};
-      if (!C().removeItem(id)) { toast('道具不足'); return; }
-      const parts = [];
-      if (eff.healPct) {
-        Object.keys(run.hpPct).forEach(cid => { run.hpPct[cid] = Math.min(1, run.hpPct[cid] + eff.healPct); });
-        parts.push(`全队恢复 ${Math.round(eff.healPct * 100)}% 生命`);
-      }
-      ['atkPct', 'spdPct', 'defPct'].forEach(k => {
-        if (!eff[k]) return;
-        run.buffs[k] = (run.buffs[k] || 0) + eff[k];
-        parts.push(`${D.CONSUMABLE_TAG[k] || k}+${Math.round(eff[k] * 100)}%`);
-      });
-      C().task('item1', 1);
-      C().save();
-      toast(`${eff.healPct ? '🧪' : '💉'} ${D.ITEMS[id].name}：${parts.join(' · ')}`);
-      persistRun();
-      render();
-    });
+    bindPotionButtons(root, () => render());
     root.querySelectorAll('[data-resume-run]').forEach(el => el.onclick = () => {
       const pr = C().S.pendingRun;
       if (!pr || !pr.waves) { toast('没有可继续的副本'); return; }
@@ -4264,6 +4304,7 @@ window.UI = (function () {
       dungeonView = { page: 'run' };
       toast('已继续上次的副本');
       render();
+      fightWave();   // 接着上次的波次直接打，不用再按一次"继续"
     });
     root.querySelectorAll('[data-drop-run]').forEach(el => el.onclick = () => {
       confirmBox('放弃这一轮', '确定放弃上次没打完的副本？已获得的奖励保留。', () => {
@@ -4366,11 +4407,11 @@ window.UI = (function () {
         <button class="btn small" data-gm="lvup">全体角色 Lv+10</button>
         <button class="btn small" data-gm="skill">全体技能升满</button>
         <button class="btn small" data-gm="equip">获得 5 件 SSR 装备</button>
-        <button class="btn small" data-gm="gene">基因锁 +1 阶</button>
-        <button class="btn small" data-gm="floor">回廊 +10 层</button>
+        <button class="btn small" data-gm="gene">铭刻 +1 阶</button>
+        <button class="btn small" data-gm="floor">深井 +10 层</button>
         <button class="btn small" data-gm="recruit">✦ +900（十连）</button>
       </div>
-      <div style="font-size:11px;color:var(--dim);margin-top:12px">玩家Lv.${S.player.level} · 基因锁${S.player.geneLock} · 回廊${S.corridor.floor}层 · 角色${Object.keys(S.chars).length}</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:12px">玩家Lv.${S.player.level} · 铭刻${S.player.geneLock} · 深井${S.corridor.floor}层 · 角色${Object.keys(S.chars).length}</div>
     `);
     w.querySelectorAll('[data-gm]').forEach(b => b.onclick = () => {
       const act = b.dataset.gm;
@@ -4422,7 +4463,7 @@ window.UI = (function () {
     C().addPlayerExp(g.gains.exp);
     const mat = C().grantIdleMat(g.gains.mat || 0);
     C().save();
-    modal('欢迎回来，轮回者', `
+    modal('欢迎回来，记名者', `
       <div style="text-align:center;padding:6px 0 12px">
         <div style="font-size:13px;color:var(--dim)">离线 ${formatDuration(g.seconds)}（效率 ${Math.round(g.efficiency * 100)}%）</div>
         <div class="reward-chips" style="margin-top:14px">
@@ -4447,21 +4488,21 @@ window.UI = (function () {
       </div>`, { center: true });
   }
   function showTutorial() {
-    const w = modal('欢迎来到主神空间', `
+    const w = modal('欢迎来到灯阁', `
       <div class="event-desc">
-        你被神秘存在选中，成为了<b style="color:var(--accent)">轮回者</b>。<br><br>
+        你被神秘存在选中，成为了<b style="color:var(--accent)">记名者</b>。<br><br>
         在这里，你将：<br>
-        🌀 进入恐怖世界执行轮回任务<br>
-        👥 招募轮回者，组建五人小队（主角必上阵）<br>
-        🧬 解锁血统与基因锁，突破极限<br>
-        ♾ 挑战无限回廊，寻找离开的方法<br><br>
+        🌀 进入残域执行轮回任务<br>
+        👥 招募记名者，组建五人小队（主角必上阵）<br>
+        🧬 解锁血统与铭刻，突破极限<br>
+        ♾ 挑战深井，寻找离开的方法<br><br>
         新手补给已发放：◈50,000 · ✦1,000 · 经验模块×20 · 治疗剂×10<br><br>
         <b style="color:var(--gold)">上手就三件事：</b><br>
         ① 先在「选择血统」里挑一条路——境界线跟着血统走，选定不能改；<br>
         ② 首页最下面「挂机」那块点「一键收取」，把挂机、任务、成就、悬赏能领的一次全领；<br>
-        ③ 点「轮回副本」选第 1 关，点进去就直接开打，通关后解锁招募；招募里每天有一次<b>免费</b>，别忘了领。<br><br>
+        ③ 点「残域」选第 1 关，点进去就直接开打，通关后解锁招募；招募里每天有一次<b>免费</b>，别忘了领。<br><br>
         三张招募池花的是<b>三种不同的货币</b>：◈点数抽普通（攒碎片）、✦圣洁晶石抽高级（补图鉴）、◆异界结晶抽限定（定向出当期 UP）。<br>
-        首页最下面「设置」里的「玩法指南」有完整说明（货币、套装、挂机分工、副本打法、血统与境界、限时悬赏、回廊、周常都在里面）。<br><br>
+        首页最下面「设置」里的「玩法指南」有完整说明（货币、套装、挂机分工、副本打法、血统与境界、限时悬赏、深井、周常都在里面）。<br><br>
         <b>如果下一场轮回真的会死，你会带谁进去？</b>
       </div>
       <button class="btn primary block mt4" data-start>签订轮回契约</button>
@@ -4470,8 +4511,8 @@ window.UI = (function () {
   }
   const RANDOM_NAMES = ['夜行者', '渡鸦', '白泽', '北辰', '惊蛰', '拾荒者', '阿岚', '无常', '青槐', '孤鸿', '墨白', '临渊'];
   function showCharCreate() {
-    const w = modal('创建你的轮回者', `
-      <div class="event-desc" style="margin-bottom:12px">主神需要一个名字来记录你的轮回。这个名字将伴随你进入每一个世界。</div>
+    const w = modal('创建你的记名者', `
+      <div class="event-desc" style="margin-bottom:12px">灯阁需要一个名字来记录你的轮回。这个名字将伴随你进入每一个世界。</div>
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <input id="cc-name" maxlength="12" placeholder="输入你的名字（12字内）" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:15px;outline:none" />
         <button class="btn" data-dice style="flex:0 0 auto">🎲</button>
@@ -4571,6 +4612,11 @@ window.UI = (function () {
       autoNextIndex, autoNextBtnHtml,
       gardenModal, arenaModal, fabaoModal, mountModal, signModal,
       buildAllies,
+      // 测试用：弹窗层数与"原地重画"，用来验"返回到底有没有把面板收掉"
+      _modalCount: () => modalStack.length,
+      _updateModal: updateModal,
+      _closeModal: closeModal,
+      lootPanel,
       armLongPress, clickPosition, dropOn, cancelGrab, grabState,
       _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen, growScreen },
     },

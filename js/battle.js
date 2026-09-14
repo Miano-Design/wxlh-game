@@ -1,4 +1,4 @@
-/* 《无限轮回》战斗引擎：同步计算整局战斗，输出帧序列供 UI 播放 */
+/* 《残域》战斗引擎：同步计算整局战斗，输出帧序列供 UI 播放 */
 window.Battle = (function () {
   const D = window.DATA;
 
@@ -166,6 +166,7 @@ window.Battle = (function () {
       u.ultPct = spec.ultPct || 0;
       u.energy = Math.min(100, spec.initEnergy || 0);
       u.beastElem = spec.beastElem || null;   // 随行伴生体属性（五行克制用）
+      u.charId = spec.charId;                 // 记住这是队伍里的谁：波间血量继承 / 战后写回都要靠它
       return u;
     });
     const enemies = cfg.enemies.map(spec => makeEnemyUnit(spec));
@@ -188,7 +189,7 @@ window.Battle = (function () {
         const rule = rules[round % 3];
         const pool = rule === 'defDown' ? allies : enemies;
         pool.forEach(u => addStatus(u, 'debuff', 1, rule === 'defDown' ? { defPct: -0.2 } : { atkPct: 0.15 }));
-        frames.push({ type: 'rule', text: rule === 'atkUp' ? '主神规则：敌方攻击提升' : rule === 'defDown' ? '主神规则：我方防御下降' : '主神规则：敌方速度提升' });
+        frames.push({ type: 'rule', text: rule === 'atkUp' ? '灯阁规则：敌方攻击提升' : rule === 'defDown' ? '灯阁规则：我方防御下降' : '灯阁规则：敌方速度提升' });
       }
       // 回合开始：DOT / 恢复
       for (const u of all) {
@@ -274,7 +275,9 @@ window.Battle = (function () {
   }
 
   function publicUnit(u) {
-    return { uid: u.uid, name: u.name, side: u.side, maxHp: u.maxHp, hp: u.hp, isBoss: u.isBoss, position: u.position, kind: u.kind };
+    // charId 必须带上：界面靠它把"打完这一波剩多少血"写回 run.hpPct，
+    // 下一波才谈得上"血量继承"。少了它，每波都会满血开打（V8.9 修）。
+    return { uid: u.uid, name: u.name, side: u.side, maxHp: u.maxHp, hp: u.hp, isBoss: u.isBoss, position: u.position, kind: u.kind, charId: u.charId };
   }
 
   /* ---------- 单位行动 ---------- */

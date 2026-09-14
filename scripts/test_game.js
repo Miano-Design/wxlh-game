@@ -123,7 +123,7 @@ const sc = Core.stageComplete('W01', 'normal', 0, 3);
 t('首关记录', Core.S.worlds.W01.stages.normal[0] === 3);
 t('第二关解锁', Core.stageUnlocked('W01', 'normal', 1));
 t('第三关未解锁', !Core.stageUnlocked('W01', 'normal', 2));
-t('通关1关后解锁招募', sc.newUnlocks.includes('轮回者招募') && Core.isUnlocked('recruit'));
+t('通关1关后解锁招募', sc.newUnlocks.includes('记名者招募') && Core.isUnlocked('recruit'));
 
 // 9b. 主线任务
 Core.S.stats.profileViews = 1;
@@ -166,11 +166,11 @@ t('登录奖励', lr && lr.day >= 1);
 
 // 14. 商店
 Core.addCur('points', 100000);
-t('主神商店购买', Core.buyShopItem('god', 0).ok);
+t('灯阁市集购买', Core.buyShopItem('god', 0).ok);
 
-// 15. 回廊敌人曲线
+// 15. 深井敌人曲线
 const e50 = D.corridorEnemy(50);
-t('回廊Boss', e50.isBoss && e50.hp > 10000);
+t('深井Boss', e50.isBoss && e50.hp > 10000);
 
 // 16. 转生条件
 t('默认不可转生', !Core.canReincarnate());
@@ -483,8 +483,8 @@ setParty(['C021']);
   Core.setPlayerName('回归');
   Core.S.cur.points = 100000;
   const godShop = D.SHOPS.god.items;
-  t('主神商店上架肌肉强化剂', godShop.some(x => x.item === 'buff_muscle'));
-  t('主神商店上架神经刺激剂', godShop.some(x => x.item === 'buff_nerve'));
+  t('灯阁市集上架肌肉强化剂', godShop.some(x => x.item === 'buff_muscle'));
+  t('灯阁市集上架神经刺激剂', godShop.some(x => x.item === 'buff_nerve'));
   const idx = godShop.findIndex(x => x.item === 'buff_muscle');
   const r = Core.buyShopItem('god', idx);
   t('强化剂可购买', r.ok === true && Core.S.items.buff_muscle === 1);
@@ -658,7 +658,7 @@ setParty(['C021']);
   t('单人满级经验总量 < 200 万', expTotal < 2000000);
   t('单人满级点数总量 < 30 万', ptTotal < 300000);
   Core.S.player.level = 100; Core.S.player.geneLock = 5;
-  Core.S.player.talents = { body: 0, energy: 0, nerve: 0, grace: 10 };   // 满「主神恩赐」
+  Core.S.player.talents = { body: 0, energy: 0, nerve: 0, grace: 10 };   // 满「灯阁恩赐」
   Core.S.buildings.core = 30; Core.S.buildings.medical = 50; Core.S.buildings.training = 50;
   const r = Core.idleRates();
   t('满配挂机点数 ≥ 80/分', r.pointsPerMin >= 80);
@@ -671,8 +671,8 @@ setParty(['C021']);
   t('高级经验模块有商店来源', shopItems.includes('exp_l'));
   t('超级经验模块有来源', shopItems.includes('exp_xl'));
   t('虚空晶体有商店来源', shopItems.includes('mat_t4'));
-  t('主神残片有商店来源', shopItems.includes('mat_t5'));
-  t('T5 材料不再与建筑同名', D.ITEMS.mat_t5.name !== '主神核心');
+  t('灯阁残片有商店来源', shopItems.includes('mat_t5'));
+  t('T5 材料不再与建筑同名', D.ITEMS.mat_t5.name !== '灯芯');
   t('每个道具都写了获取途径', Object.values(D.ITEMS).every(i => !!i.src));
 }
 
@@ -687,12 +687,12 @@ setParty(['C021']);
   t('通关 W04 后可购买 T4', r.ok && (Core.S.items.mat_t4 || 0) === 5);
 }
 
-// 46. 回廊曲线与回廊印记
+// 46. 深井曲线与深井印记
 {
-  t('回廊 100 层不再是断崖', D.corridorEnemy(100).hp < 200000 && D.corridorEnemy(100).hp > 80000);
-  t('回廊印记每 10 层 1 枚', D.corridorMarks(95) === 9 && D.corridorMarks(100) === 10);
-  t('回廊印记有上限', D.corridorMarks(9999) === D.CORRIDOR_MARK_CAP);
-  t('回廊印记加成为 1.5%/枚', Math.abs(D.corridorMarkBonus(100) - 0.15) < 1e-9);
+  t('深井 100 层不再是断崖', D.corridorEnemy(100).hp < 200000 && D.corridorEnemy(100).hp > 80000);
+  t('深井印记每 10 层 1 枚', D.corridorMarks(95) === 9 && D.corridorMarks(100) === 10);
+  t('深井印记有上限', D.corridorMarks(9999) === D.CORRIDOR_MARK_CAP);
+  t('深井印记加成为 1.5%/枚', Math.abs(D.corridorMarkBonus(100) - 0.15) < 1e-9);
 }
 
 // 47. 副本进度落盘
@@ -1071,7 +1071,7 @@ setParty(['C021']);
   t('三池花的是三种不同货币', new Set(Object.values(D.RECRUIT_POOLS).map(p => p.currency)).size === 3);
 }
 
-// 64. 主神权限（对标"洞府"）：高级货币长线投资，永久生效
+// 64. 灯阁权限（对标"洞府"）：高级货币长线投资，永久生效
 {
   Core.newGame(); Core.setPlayerName('权限');
   t('初始权限 0 级', Core.authorityInfo().lv === 0);
@@ -1154,7 +1154,7 @@ setParty(['C021']);
   t('每个阵型都有名字与人数要求', D.FORMATIONS.every(f => f.name && f.reqText && Object.keys(f.buff).length));
 }
 
-// ---- V8.0 主神评级 / 秘术阁 / 挂机游历（对标《道友修仙》的宗门等级 · KeJi · YouLi） ----
+// ---- V8.0 灯阁评级 / 秘术阁 / 挂机游历（对标《道友修仙》的宗门等级 · KeJi · YouLi） ----
 {
   Core.newGame();
   const s0 = Core.sectInfo();

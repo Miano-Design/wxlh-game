@@ -1,4 +1,4 @@
-/* 《无限轮回》入口：启动、主循环 */
+/* 《残域》入口：启动、主循环 */
 (function () {
   const Core = window.Core, UI = window.UI;
 

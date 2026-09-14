@@ -31,7 +31,12 @@ function El(tag) {
     offsetWidth: 0,
     appendChild(c) { this.children.push(c); return c; },
     remove() {},
-    querySelector() { return El('stub'); },
+    // 同一个元素上按选择器缓存：这样"先绑 onclick、再取回来点一下"的用例才成立
+    // （每次返回新对象的话，绑上去的 handler 就丢了，测试永远点不到）
+    querySelector(sel) {
+      this._qs = this._qs || {};
+      return this._qs[sel] || (this._qs[sel] = El('stub:' + sel));
+    },
     querySelectorAll() { return []; },
     addEventListener() {},
     focus() {},
@@ -63,6 +68,89 @@ let pass = 0, fail = 0;
 function t(name, fn) {
   try { fn(); pass++; } catch (e) { fail++; console.log('FAIL:', name, '→', e.message); }
 }
+
+/* 弹窗收尾：这一条来自父亲大人报的"打副本时途中补给箱按返回没反应"——
+   根因是返回回调只 refresh() 了背后的页面，弹窗自己没被关掉。
+   现在 lootPanel 有兜底：回调没重画也没关，就由面板自己关。 */
+t('结算面板的「返回」一定会把这一层收掉（不会点了没反应）', () => {
+  const n0 = UI._panels._modalCount();
+  // ① 回调什么都不做（老写法就是只 refresh()）→ 兜底必须把面板关掉
+  const w = UI._panels.lootPanel('测试结算', '<span class="reward-chip">◈+1</span>', () => {}, null);
+  if (UI._panels._modalCount() !== n0 + 1) throw new Error('结算面板没开出来');
+  w.querySelector('[data-back]').onclick();
+  if (UI._panels._modalCount() !== n0) throw new Error('回调没收尾时，返回没把面板关掉（就是父亲大人报的那个 bug）');
+  // ② 回调把同一层重画回上一层（扫荡结果→扫荡面板就是这种）→ 不该被兜底误关
+  const w2 = UI._panels.lootPanel('测试结算2', '', self => UI._panels._updateModal(self, '上一层', '<div>x</div>'), null);
+  const n1 = UI._panels._modalCount();
+  w2.querySelector('[data-back]').onclick();
+  if (UI._panels._modalCount() !== n1) throw new Error('回调已经重画了同一层，兜底不该再把它关掉');
+  UI._panels._closeModal(w2);
+  if (UI._panels._modalCount() !== n0) throw new Error('测试自己没收拾干净');
+});
+t('「无效按钮」守卫：data-act 的处理分支都必须真的有出处', () => {
+  const src = fs.readFileSync('js/ui.js', 'utf8');
+  const start = src.indexOf('switch (act) {');
+  if (start < 0) throw new Error('找不到 data-act 的分发代码');
+  const end = src.indexOf('\n      }', start);
+  const block = src.slice(start, end < 0 ? src.length : end);
+  const cases = [...block.matchAll(/case '([a-zA-Z-]+)':/g)].map(m => m[1]);
+  // 出处：模板里明写的 data-act="xxx"，以及文字宫格那种 ['xxx', '名字', …] 数组项
+  const emitted = new Set([...src.matchAll(/data-act="([a-zA-Z-]+)"/g)].map(m => m[1]));
+  [...src.matchAll(/\['([a-z][a-zA-Z-]+)',\s*'/g)].forEach(m => emitted.add(m[1]));
+  const orphan = [...new Set(cases)].filter(c => !emitted.has(c));
+  if (orphan.length) throw new Error('这些动作有处理分支、却没有任何按钮发出：' + orphan.join(', '));
+});
+t('主线引导的高亮锚点必须真的存在（指错了会静默不显示）', () => {
+  const src = fs.readFileSync('js/ui.js', 'utf8');
+  // 挂机那条原来指向 claim-idle，而挂机卡上的按钮早就叫 claim-all 了 → 引导永远不出现
+  ['claim-all', 'data-eqpage', 'data-card="blood"', 'data-eqd', 'data-stage', 'data-row', 'data-bup', 'data-free', 'text-rows'].forEach(k => {
+    if (src.indexOf(k) < 0) throw new Error('引导锚点依赖的东西不存在：' + k);
+  });
+  ['case \'claim-idle\'', 'data-act="claim-idle"', "coachmark('[data-act=\"claim-idle\"]'"].forEach(k => {
+    if (src.indexOf(k) >= 0) throw new Error('还有代码在引用已经不存在的 claim-idle：' + k);
+  });
+  const i = src.indexOf("coachmark('[data-act=");
+  if (i < 0) throw new Error('找不到挂机那条引导');
+  if (src.slice(i, i + 40).indexOf('claim-all') < 0) throw new Error('挂机引导没有指向真正的按钮');
+});
+t('副本一口气打到底：波间不插事件 / 补给箱，打完自动进下一波', () => {
+  const src = fs.readFileSync('js/ui.js', 'utf8');
+  const i = src.indexOf('function afterWave()');
+  if (i < 0) throw new Error('找不到 afterWave');
+  const seg = src.slice(i, src.indexOf('function doFinalBattle'));
+  ['WAVE_EVENT_CHANCE', 'WAVE_CHEST_CHANCE', 'showEvent', 'lootPanel', 'Math.random'].forEach(k => {
+    if (seg.indexOf(k) >= 0) throw new Error('afterWave 里还有波间插曲：' + k);
+  });
+  if (seg.indexOf('fightWave()') < 0) throw new Error('afterWave 没有自动接着打下一波');
+  // 界面上不该再有"开打 · 第 N 波 / 最后一波"这种要按的按钮
+  ['开打 · 第', '开打 · 最后一波', '开打 · 守关', '开打 · 精英伏击'].forEach(k => {
+    if (src.indexOf(k) >= 0) throw new Error('副本界面还在写「' + k + '」');
+  });
+});
+t('波间结算页带血条 + 药剂 + 自动继续（自动推进也不丢补血手段）', () => {
+  const src = fs.readFileSync('js/ui.js', 'utf8');
+  const i = src.indexOf("extraHtml: waveExtraHtml()");
+  if (i < 0) throw new Error('波间结算页没有血条 / 药剂那一格');
+  const seg = src.slice(i, i + 600);
+  ['bindPotionButtons', 'actions:', 'afterWave()', 'autoSec: WAVE_AUTO_SEC'].forEach(k => {
+    if (seg.indexOf(k) < 0) throw new Error('波间结算页缺：' + k);
+  });
+  if (src.indexOf('function waveExtraInner') < 0 || src.indexOf('function partyHpHtml') < 0) {
+    throw new Error('缺血条 / 药剂的共用渲染');
+  }
+});
+t('战斗快照带 charId（波间血量继承的前提，不然每波都满血开打）', () => {
+  Core.addChar('C021');
+  if (!Core.S.party[1]) Core.S.party[1] = 'C021';
+  const allies = UI._panels.buildAllies({}, {});
+  if (!allies.length) throw new Error('没造出上阵队伍');
+  const res = window.Battle.run({
+    allies, enemies: window.Dungeon.makeEnemies('W01', 'normal', 1, 'combat'), worldId: 'W01', maxRounds: 30,
+  });
+  const snap = res.frames[0];
+  if (!snap.allies.every(u => u.charId !== undefined)) throw new Error('战斗快照丢了 charId，界面写不回 run.hpPct');
+  if (!snap.enemies.every(u => u.charId === undefined)) throw new Error('敌方不该带 charId');
+});
 
 t('boot 完成（newGame + init）', () => { if (!Core.S) throw new Error('no state'); });
 t('首页渲染含主线任务', () => {
@@ -137,8 +225,8 @@ panel('道具详情-材料', () => UI._panels.itemDetail('mat_t2'));
 panel('货币图鉴', () => UI._panels.currencyModal('holy'));
 panel('玩法指南', () => UI._panels.guideModal());
 panel('设置', () => UI._panels.settingsModal());
-panel('商店-主神', () => UI._panels.shopModal('god'));
-panel('商店-回廊', () => UI._panels.shopModal('corridor'));
+panel('商店-灯阁', () => UI._panels.shopModal('god'));
+panel('商店-深井', () => UI._panels.shopModal('corridor'));
 panel('任务-主线', () => UI._panels.tasksModal('main'));
 panel('任务-日常', () => UI._panels.tasksModal('daily'));
 panel('任务-周常', () => UI._panels.tasksModal('weekly'));
@@ -147,7 +235,7 @@ panel('角色图鉴', () => UI._panels.codexModal());
 panel('招募', () => UI._panels.recruitModal());
 panel('扫荡', () => UI._panels.sweepModal('W01', 'normal'));
 panel('转生与天赋', () => UI._panels.reincarnModal());
-panel('基因锁', () => UI._panels.geneLockModal());
+panel('铭刻', () => UI._panels.geneLockModal());
 panel('角色详情（6 装备槽）', () => UI._panels.charDetail('C021'));
 const anyEquipUid = Object.keys(Core.S.equips)[0];
 if (anyEquipUid) panel('装备详情', () => UI._panels.equipDetail(anyEquipUid));
@@ -159,7 +247,7 @@ panel('限时悬赏', () => UI._panels.bountyModal());
 panel('境界渡劫', () => UI._panels.realmModal());
 panel('招募-三池', () => UI._panels.recruitModal());
 panel('招募-概率公示', () => UI._panels.recruitRatesModal());
-panel('主神权限', () => UI._panels.authorityModal());
+panel('灯阁权限', () => UI._panels.authorityModal());
 Core.addChar('C021');
 Core.S.party[1] = 'C021';
 Core.addItem('exp_s', 5);
@@ -168,8 +256,8 @@ panel('派遣领队-有人可选', () => UI._panels.pickIdleLeader('gather'));
 panel('伴生体兽栏-空', () => UI._panels.beastModal());
 Core.addItem('beast_egg', 30);
 panel('伴生体兽栏-有兽魂石', () => UI._panels.beastModal());
-// V7.2 起养成线（含伴生体）整体搬到「轮回者 → 成长」子页，首页不再摊平所有系统
-t('伴生体入口在「轮回者 → 成长」子页', () => {
+// V7.2 起养成线（含伴生体）整体搬到「记名者 → 成长」子页，首页不再摊平所有系统
+t('伴生体入口在「记名者 → 成长」子页', () => {
   const html = UI._panels._screens.growScreen();
   if (html.indexOf('伴生体') < 0) throw new Error('成长页没有伴生体入口');
 });
@@ -197,13 +285,13 @@ for (const tab of ['bag', 'roster', 'party', 'chars', 'equip', 'home', 'dungeon'
     if (!html || !html.length) throw new Error('空页面');
   });
 }
-t('旧页签名映射到「轮回者」子页', () => {
+t('旧页签名映射到「记名者」子页', () => {
   UI._setTab('chars');
   if (UI.tab !== 'roster') throw new Error('chars 没有落到 roster，实际是 ' + UI.tab);
 });
 t('V8.6：今日卡已撤，每天要做的事都摊在首页上', () => {
   const html = UI._panels._screens.homeScreen();
-  ['一键收取', '限时悬赏', '每日任务', '轮回者招募'].forEach(k => {
+  ['一键收取', '限时悬赏', '每日任务', '记名者招募'].forEach(k => {
     if (html.indexOf(k) < 0) throw new Error('首页缺少：' + k);
   });
   if (html.indexOf('open-today') >= 0) throw new Error('「今日」入口还留着');
@@ -222,7 +310,7 @@ t('首页入口是纯文字方块菜单', () => {
 });
 t('首页功能入口一屏摊开（今天/养成都能直接找到）', () => {
   const html = UI._panels._screens.homeScreen();
-  ['主神评级', '秘术阁', '基地建设', '伴生体', '转生天赋', '游历奇遇'].forEach(k => {
+  ['灯阁评级', '秘术阁', '基地建设', '伴生体', '转生天赋', '游历奇遇'].forEach(k => {
     if (html.indexOf(k) < 0) throw new Error('首页缺入口：' + k);
   });
 });
@@ -250,7 +338,7 @@ t('首页有游历奇遇条', () => {
   const html = UI._panels._screens.homeScreen();
   if (html.indexOf('游历奇遇') < 0) throw new Error('缺游历条');
 });
-panel('主神评级', () => UI._panels.sectModal());
+panel('灯阁评级', () => UI._panels.sectModal());
 panel('秘术阁', () => UI._panels.kejiModal());
 panel('游历奇遇', () => UI._panels.travelModal());
 panel('血统（未选）', () => UI._panels.bloodlineModal());
@@ -274,15 +362,15 @@ t('悬赏面板写明"过期作废"', () => {
 });
 
 
-// ---- V7.0 世界观移植：券 / 概率公示 / 主神权限 / 阵型 / 顶部状态区 ----
+// ---- V7.0 世界观移植：券 / 概率公示 / 灯阁权限 / 阵型 / 顶部状态区 ----
 t('首页顶部是【标签】值 文字行（境界/等级/轮回）', () => {
   const html = UI._panels._screens.homeScreen();
   if (!/境界/.test(html) || !/等级/.test(html) || !/轮回/.test(html)) throw new Error('缺状态行');
   if (!html.includes('text-rows')) throw new Error('缺文字行容器');
 });
-t('主神权限入口在「轮回者 → 成长」子页', () => {
+t('灯阁权限入口在「记名者 → 成长」子页', () => {
   const html = UI._panels._screens.growScreen();
-  if (!html.includes('主神权限')) throw new Error('缺入口');
+  if (!html.includes('灯阁权限')) throw new Error('缺入口');
 });
 t('招募页显示券数量与"有券先用券"', () => {
   Core.addItem('ticket_normal', 3);
@@ -299,7 +387,7 @@ t('概率公示列出每一档出率', () => {
   ['普通招募', '高级招募', '限定招募'].forEach(n => { if (!html.includes(n)) throw new Error('缺 ' + n); });
   if (!html.includes('还差')) throw new Error('缺"还差几抽"');
 });
-t('主神权限面板列出 10 级与当前加成', () => {
+t('灯阁权限面板列出 10 级与当前加成', () => {
   const html = UI._panels.authorityModal().innerHTML;
   if (!/Lv\.[0-9]+ \/ 10/.test(html)) throw new Error('缺等级');
   if (!html.includes('挂机产出')) throw new Error('缺效果说明');
@@ -340,7 +428,7 @@ t('没有下一关时不动', () => {
   if (UI._panels.autoNextIndex(true, [{ label: '↻ 再来一次' }]) !== -1) throw new Error('无主按钮时不该自动跳');
 });
 t('倒计时按钮文案带秒数', () => {
-  const html = UI._panels.autoNextBtnHtml('› 下一关（生化蜂巢 5/12）', 5);
+  const html = UI._panels.autoNextBtnHtml('› 下一关（菌毯巢穴 5/12）', 5);
   if (!html.includes('下一关')) throw new Error('缺按钮文字');
   if (!html.includes('5s')) throw new Error('缺秒数');
   if (!html.includes('auto-cd')) throw new Error('缺倒计时样式钩子');
@@ -782,7 +870,7 @@ t('游历段只放游历奇遇；悬赏 / 每日 / 成就 / 求签 / 招募 / �
   const iTravel = html.indexOf('data-sec="travel"');
   if (iGrow < 0 || iTravel < 0) throw new Error('缺养成段或游历段');
   if (iGrow > iTravel) throw new Error('养成段排在游历段后面了');
-  ['限时悬赏', '每日任务', '成就', '求签', '轮回者招募', '兑换大厅'].forEach(k => {
+  ['限时悬赏', '每日任务', '成就', '求签', '记名者招募', '兑换大厅'].forEach(k => {
     const i = html.indexOf(k);
     if (i < 0) throw new Error('首页缺入口：' + k);
     if (i > iTravel) throw new Error(k + ' 被放进「游历」段了（应该收在「养成」段的日常里）');
@@ -859,7 +947,7 @@ t('index.html 挂了 manifest 与主屏图标', () => {
 });
 t('manifest 合法且字段齐全', () => {
   const m = JSON.parse(fs.readFileSync('manifest.webmanifest', 'utf8'));
-  if (m.name !== '无限轮回' || !m.short_name) throw new Error('名字不对');
+  if (m.name !== '残域' || !m.short_name) throw new Error('名字不对');
   if (m.display !== 'standalone') throw new Error('不是独立窗口（加到主屏会带上浏览器地址栏）');
   if (!m.start_url || !m.scope) throw new Error('缺 start_url / scope');
   if (!Array.isArray(m.icons) || m.icons.length < 2) throw new Error('图标不够');
@@ -890,7 +978,7 @@ t('设置页显示的版本号也跟着一起走（三处同源）', () => {
   const html = fs.readFileSync('index.html', 'utf8');
   const ui = fs.readFileSync('js/ui.js', 'utf8');
   const htmlV = (html.match(/\?v=([\d.]+)/) || [])[1];
-  const shown = (ui.match(/data-ver>无限轮回 V([\d.]+)</) || [])[1];
+  const shown = (ui.match(/data-ver>残域 V([\d.]+)</) || [])[1];
   if (!shown) throw new Error('设置页没有版本号');
   if (shown !== htmlV) throw new Error(`设置页写的是 V${shown}，资源版本是 V${htmlV}`);
 });

@@ -1,4 +1,4 @@
-/* 《无限轮回》核心逻辑：状态 / 存档 / 挂机 / 养成 / 经济 */
+/* 《残域》核心逻辑：状态 / 存档 / 挂机 / 养成 / 经济 */
 window.Core = (function () {
   const D = window.DATA;
   const SAVE_KEY = 'wxlh_save_v5';
@@ -24,7 +24,7 @@ window.Core = (function () {
     return {
       v: 5,
       createdAt: Date.now(),
-      player: Object.assign(freshProtagonist('轮回者'), { geneLock: 0, reincarnations: 0, talents: { body: 0, energy: 0, nerve: 0, grace: 0 } }),
+      player: Object.assign(freshProtagonist('记名者'), { geneLock: 0, reincarnations: 0, talents: { body: 0, energy: 0, nerve: 0, grace: 0 } }),
       altPlayers: [],         // 新建的主角（体验不同血统），与当前主角可切换
       bag: { cap: 100, expands: 0 },
       cur: { points: 0, story: 0, otherworld: 0, holy: 0, skillChip: 0, bloodCrystal: 0, corridor: 0, rp: 0 },
@@ -37,8 +37,8 @@ window.Core = (function () {
       items: {},            // itemId → count
       serums: {},           // charId（或 '@player'）→ { serumId: 已服支数 }
       buildings: { core: 1, training: 1, medical: 1, workshop: 1, geneLab: 1 },
-      auth: 0,               // 主神权限等级（对标"洞府"：高级货币的一次性长线投资）
-      sect: { lv: 1, exp: 0 },   // 主神评级（对标"宗门等级"：随关卡推进自动涨的全局长线）
+      auth: 0,               // 灯阁权限等级（对标"洞府"：高级货币的一次性长线投资）
+      sect: { lv: 1, exp: 0 },   // 灯阁评级（对标"宗门等级"：随关卡推进自动涨的全局长线）
       keji: {},                  // 秘术阁（对标"KeJi"）：id → 等级
       travel: { bankSec: 0, pending: null, got: 0 },   // 挂机游历奇遇（对标"YouLi"）
       garden: Array(4).fill(null),       // 药园（对标"洞府·药园"）：每块地 null 或 {kind, at}
@@ -112,7 +112,7 @@ window.Core = (function () {
  function migrate() {
     const def = defaultState();
     S.stats = Object.assign(def.stats, S.stats || {});
-    // V8.0 新增的三块（主神评级 / 秘术阁 / 挂机游历）：老档补默认值，缺字段不会读出 undefined
+    // V8.0 新增的三块（灯阁评级 / 秘术阁 / 挂机游历）：老档补默认值，缺字段不会读出 undefined
     S.sect = Object.assign({ lv: 1, exp: 0 }, S.sect || {});
     S.keji = S.keji || {};
     S.travel = Object.assign({ bankSec: 0, pending: null, got: 0 }, S.travel || {});
@@ -149,7 +149,7 @@ window.Core = (function () {
     // 老存档按「旧第 N 境 = 新第 4N 阶」换算：加成总量不变（旧 N×5% = 新 4N×1.4%），
     // 已解锁的内容一件不少；用 realmScaled 做一次性标记，避免每次读档都乘 4。
     if (!S.realmScaled) { S.player.realm = S.player.realm * 4; S.realmScaled = true; }
-    S.auth = S.auth || 0;   // 主神权限等级
+    S.auth = S.auth || 0;   // 灯阁权限等级
     S.sweep = Object.assign(def.sweep, S.sweep || {});
     // 老存档补新字段：设置项 / 图鉴领取记录 / 登录轮次
     S.settings = Object.assign(def.settings, S.settings || {});
@@ -446,7 +446,7 @@ window.Core = (function () {
     const bp = beastPct();
     Object.keys(bp).forEach(k => { pct[k] = (pct[k] || 0) + bp[k]; });
   }
-  // 主神权限：满 10 级才有的一条"全属性 +5%"，同样走百分比区（与血统 / 基因锁加算）
+  // 灯阁权限：满 10 级才有的一条"全属性 +5%"，同样走百分比区（与血统 / 铭刻加算）
   function applyAuthority(pct) {
     const v = authority().allPct;
     if (!v) return;
@@ -526,7 +526,7 @@ window.Core = (function () {
     return { ok: true, msg: `技能升到 Lv.${c.skillLv[idx]}` };
   }
 
-  /* ================= 血统 / 基因锁 ================= */
+  /* ================= 血统 / 铭刻 ================= */
   function bloodlineUpgrade(charId) {
     const c = S.chars[charId];
     const base = D.charById[charId];
@@ -555,12 +555,12 @@ window.Core = (function () {
   }
   function geneLockUnlock() {
     const info = geneLockInfo();
-    if (info.max) return { ok: false, msg: '基因锁已完全解锁' };
+    if (info.max) return { ok: false, msg: '铭刻已完全解锁' };
     if (!info.can) return { ok: false, msg: info.reqs.join('；') };
     S.cur.bloodCrystal -= info.next.cost.bloodCrystal;
     S.player.geneLock++;
     save();
-    return { ok: true, msg: `基因锁 ${info.next.name} 已解锁！` };
+    return { ok: true, msg: `铭刻 ${info.next.name} 已解锁！` };
   }
 
   /* ================= 属性计算 ================= */
@@ -597,7 +597,7 @@ window.Core = (function () {
       if (bl.spiritPct) pct.spiritPct += bl.spiritPct * blm;
       if (bl.allPct) { pct.atkPct += bl.allPct * blm; pct.hpPct += bl.allPct * blm; pct.defPct += bl.allPct * blm; pct.spdPct += bl.allPct * blm; }
     }
-    // 基因锁
+    // 铭刻
     if (S.player.geneLock >= 1) { pct.atkPct += 0.05; pct.hpPct += 0.05; pct.defPct += 0.05; pct.spdPct += 0.05; }
     if (S.player.geneLock >= 2) pct.skillPct += 0.15;
     if (S.player.geneLock >= 5) { pct.atkPct += 0.15; pct.hpPct += 0.15; pct.defPct += 0.15; pct.spdPct += 0.15; }
@@ -607,8 +607,8 @@ window.Core = (function () {
     ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'].forEach(k => { pct[k] += tt[k] || 0; });
     applySerums(charId, pct);                      // 血清（永久强化剂）
     applyBeast(pct);                               // 随行伴生体（全队加成）
-    applyAuthority(pct);                           // 主神权限（满 10 级的全属性加成）
-    applySect(pct);                                // 主神评级（全队，随进度自动涨）
+    applyAuthority(pct);                           // 灯阁权限（满 10 级的全属性加成）
+    applySect(pct);                                // 灯阁评级（全队，随进度自动涨）
     applyKeji(pct);                                // 秘术阁（全队百分比长线）
     applyMount(pct);                               // 坐骑（全队，含招募角色）
     // 装备
@@ -661,7 +661,7 @@ window.Core = (function () {
     const pa = S.player.attrs || {};
     Object.keys(a).forEach(k => { a[k] += (pa[k] || 0) * D.ATTR_POINT_VALUE; });
     const pct = { atkPct: 0, hpPct: 0, defPct: 0, spdPct: 0, critPct: 0, critDmg: 0, skillPct: 0, evaPct: 0.05, resPct: 0, lifesteal: 0, spiritPct: 0 };
-    // 基因锁（全队加成 + 主角每阶额外3%）
+    // 铭刻（全队加成 + 主角每阶额外3%）
     if (S.player.geneLock >= 1) { pct.atkPct += 0.05; pct.hpPct += 0.05; pct.defPct += 0.05; pct.spdPct += 0.05; }
     if (S.player.geneLock >= 2) pct.skillPct += 0.15;
     if (S.player.geneLock >= 5) { pct.atkPct += 0.15; pct.hpPct += 0.15; pct.defPct += 0.15; pct.spdPct += 0.15; }
@@ -688,8 +688,8 @@ window.Core = (function () {
     ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'].forEach(k => { pct[k] += tt[k] || 0; });
     applySerums('@player', pct);                   // 血清（主角同样是永久加成）
     applyBeast(pct);                               // 随行伴生体（全队加成）
-    applyAuthority(pct);                           // 主神权限（满 10 级的全属性加成）
-    applySect(pct);                                // 主神评级（对标"宗门等级"：随进度自动涨）
+    applyAuthority(pct);                           // 灯阁权限（满 10 级的全属性加成）
+    applySect(pct);                                // 灯阁评级（对标"宗门等级"：随进度自动涨）
     applyKeji(pct);                                // 秘术阁（对标"KeJi"：42 条百分比长线）
     applyMount(pct);                               // 坐骑（全队，含主角）
     // 境界（渡劫）：9 大境 × 初/中/后/大圆满 = 36 小阶，每阶全属性 +1.4%（合计 +50.4%），属于永久成长
@@ -1351,7 +1351,7 @@ window.Core = (function () {
 
   /* ================= 挂机 ================= */
   // 2026-09-12 调整产出：点数 (10+0.3Lv) / 分、经验 (8+0.5Lv) / 分，
-  // 与新的等级曲线（Lv1→100 累计 EXP 148.8 万 / 点数 21.3 万）配套；天赋「主神恩赐」的挂机/经验节点在此生效。
+  // 与新的等级曲线（Lv1→100 累计 EXP 148.8 万 / 点数 21.3 万）配套；天赋「灯阁恩赐」的挂机/经验节点在此生效。
   function idleBaseRates() {
     const lv = S.player.level;
     const au = authority();
@@ -1425,7 +1425,7 @@ window.Core = (function () {
   function setIdleLeader(lineId, charId) {
     if (!D.IDLE_LINES.some(l => l.id === lineId)) return { ok: false, msg: '没有这条产线' };
     if (!charId) { S.idle.lines[lineId] = null; save(); return { ok: true, msg: '已撤下领队' }; }
-    if (!S.chars[charId]) return { ok: false, msg: '没有这名轮回者' };
+    if (!S.chars[charId]) return { ok: false, msg: '没有这名记名者' };
     if (S.party.includes(charId)) return { ok: false, msg: '上阵主力不能派去挂机，先把他换下来' };
     const other = D.IDLE_LINES.find(l => l.id !== lineId && S.idle.lines[l.id] === charId);
     if (other) return { ok: false, msg: `他已经在「${other.name}」了` };
@@ -1617,7 +1617,7 @@ window.Core = (function () {
     return { ok: true, msg: `升到 Lv.${S.buildings[id]}` };
   }
 
-  /* ================= 主神权限（对标《道友修仙》的"洞府"） ================= */
+  /* ================= 灯阁权限（对标《道友修仙》的"洞府"） ================= */
   // 建筑用点数（软货币）升级，这条线专用高级货币（✦圣洁晶石 + ◆异界结晶）——
   // 目的：给"抽卡之外"的高级货币一个长线出口，投进去就永久生效，转生也保留。
   function authority() { return D.authorityBonus(S.auth || 0); }
@@ -1635,16 +1635,16 @@ window.Core = (function () {
   }
   function upgradeAuthority() {
     const lv = S.auth || 0;
-    if (lv >= D.AUTHORITY_MAX) return { ok: false, msg: '主神权限已满级' };
+    if (lv >= D.AUTHORITY_MAX) return { ok: false, msg: '灯阁权限已满级' };
     const cost = D.authorityCost(lv);
     if (!canAfford(cost)) return { ok: false, msg: `材料不足：需要 ${cost.holy} 圣洁晶石 + ${cost.otherworld} 异界结晶` };
     spend(cost);
     S.auth = lv + 1;
     save();
-    return { ok: true, msg: `主神权限提升到 Lv.${S.auth}` };
+    return { ok: true, msg: `灯阁权限提升到 Lv.${S.auth}` };
   }
 
-  /* ================= 主神评级（对标《道友修仙》的"宗门等级"） =================
+  /* ================= 灯阁评级（对标《道友修仙》的"宗门等级"） =================
      它那条线是 321 级、随主线推进自动涨、每级抬全队属性。
      我们做成同样的机制：**不用手动点**，打关卡 / 打赢 / 挂机都会涨经验，满了自动升。
      这样"打关卡"这件事除了掉装备之外，还有一条挡不住的长期回报。 */
@@ -1660,7 +1660,7 @@ window.Core = (function () {
       gain: D.SECT_EXP,
     };
   }
-  // 每级：全队全属性 +0.5%（与基因锁 / 血统 / 血清同为百分比区，加算）
+  // 每级：全队全属性 +0.5%（与铭刻 / 血统 / 血清同为百分比区，加算）
   function sectBonusPct() {
     if (!S.sect) return { atkPct: 0, hpPct: 0, defPct: 0, spdPct: 0, critPct: 0, critDmg: 0, skillPct: 0, evaPct: 0 };
     const v = D.sectBonusPct(S.sect.lv || 1);
@@ -2009,7 +2009,7 @@ window.Core = (function () {
     }
     S.stats.runs++;
     task('dungeon1', 1);
-    // 主神评级经验：打关卡就涨，首通给全额，重复刷给一半（对标"宗门等级随进度涨"）
+    // 灯阁评级经验：打关卡就涨，首通给全额，重复刷给一半（对标"宗门等级随进度涨"）
     const sectGain = Math.round((D.SECT_EXP[diff] || D.SECT_EXP.normal) * (first ? 1 : 0.5));
     const sectUp = addSectExp(sectGain);
     const newUnlocks = refreshUnlocks();
@@ -2134,7 +2134,7 @@ window.Core = (function () {
     return { ok: equips.length + sold > 0, equips, sold, soldGain, count: equips.length + sold };
   }
   function dailyDate() { return new Date().toISOString().slice(0, 10); }
-  // 每日扫荡上限（主神权限越高，次数越多）
+  // 每日扫荡上限（灯阁权限越高，次数越多）
   function sweepCap() { return D.SWEEP_DAILY_CAP + authority().sweep; }
   // 今日剩余扫荡次数（跨天自动重置）
   function sweepLeft() {
@@ -2258,7 +2258,7 @@ window.Core = (function () {
     return S.player.level >= 100 && S.player.geneLock >= 5 && S.buildings.core >= 30;
   }
   function reincarnate() {
-    if (!canReincarnate()) return { ok: false, msg: '条件未满足（玩家Lv100 + 基因锁5阶 + 主神核心Lv30）' };
+    if (!canReincarnate()) return { ok: false, msg: '条件未满足（玩家Lv100 + 铭刻5阶 + 灯芯Lv30）' };
     const n = S.player.reincarnations + 1;
     const rp = Math.floor(100 * Math.pow(n, 1.15));
     S.player.reincarnations = n;
@@ -2582,7 +2582,7 @@ window.Core = (function () {
     save();
   }
   function clearPendingRun() { S.pendingRun = null; save(); }
-  /* --- 回廊印记（由历史最高层派生，不需要额外存档字段） --- */
+  /* --- 深井印记（由历史最高层派生，不需要额外存档字段） --- */
   const corridorMarks = () => D.corridorMarks(S.corridor.best || 0);
   const corridorMarkBonus = () => D.corridorMarkBonus(S.corridor.best || 0);
 
@@ -2600,7 +2600,7 @@ window.Core = (function () {
     save();
   }
   function addCharExp(charIds, exp) {
-    // 天赋「主神恩赐」的经验加成在这里统一生效（副本 / 回廊角色经验）
+    // 天赋「灯阁恩赐」的经验加成在这里统一生效（副本 / 深井角色经验）
     const n = Math.round(exp * graceExpMult());
     charIds.forEach(id => { const c = S.chars[id]; if (c) c.exp += n; });
     return n;
