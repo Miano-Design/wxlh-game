@@ -334,10 +334,59 @@ body {
 .idle-lines-hint { font-size: 11px; color: var(--dim); margin-top: 8px; line-height: 1.7; }
 
 /* ---------- 招募卡池 ---------- */
-.pool-card .rate-row { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; margin-bottom: 6px; }
-.pool-card .pity-row { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--dim); margin-bottom: 8px; }
-.pool-card .pity-row b { color: var(--text); }
+/* 出率行 / 保底行：招募页和「概率公示」页共用同一套样式（原来只在 .pool-card 内生效，
+   导致公示页里 SR/SSR/UR 挤成一行没有间隔） */
+.rate-row { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; margin-bottom: 6px; }
+.pity-row { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+.pity-row b { color: var(--text); }
 .up-banner { background: linear-gradient(90deg, #ffd76a22, transparent); border-left: 3px solid var(--gold); border-radius: 6px; padding: 6px 10px; font-size: 11px; line-height: 1.6; margin-bottom: 8px; }
+
+/* 招募券状态行：一眼看清"这次到底扣券还是扣货币" */
+.ticket-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 11px; padding: 6px 9px; border-radius: 8px; margin-bottom: 8px;
+  border: 1px dashed var(--line); color: var(--dim);
+}
+.ticket-row.has { border-style: solid; border-color: #ffd76a66; background: linear-gradient(90deg, #ffd76a18, transparent); color: var(--text); }
+.ticket-row b { color: var(--gold); }
+.ticket-row .ticket-hint { margin-left: auto; color: var(--dim); }
+
+/* ---------- 顶部状态区（境界 / 修为 / 轮回） ---------- */
+.status-strip { display: flex; gap: 8px; margin-bottom: 10px; }
+.status-strip .ss-cell {
+  flex: 1; min-width: 0; min-height: 56px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 8px 10px; cursor: pointer;
+}
+.status-strip .ss-k { font-size: 10px; color: var(--dim); letter-spacing: 1px; }
+.status-strip .ss-v { font-size: 14px; font-weight: 700; margin: 2px 0 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-strip .ss-s { font-size: 10px; color: var(--dim); }
+
+/* ---------- 境界小阶（大境 × 初/中/后/大圆满） ---------- */
+.step-row { display: flex; gap: 6px; margin-top: 6px; }
+.step-chip {
+  flex: 1; min-width: 0; text-align: center; border: 1px solid var(--line);
+  border-radius: 8px; padding: 5px 2px; background: var(--panel2);
+}
+.step-chip b { display: block; font-size: 11px; font-weight: 600; }
+.step-chip i { display: block; font-size: 9px; font-style: normal; color: var(--dim); margin-top: 1px; }
+.step-chip.done { border-color: #5dd39e55; }
+.step-chip.done b { color: var(--green); }
+.step-chip.cur { border-color: #ffd76a; background: linear-gradient(180deg, #ffd76a22, transparent); }
+.step-chip.cur b { color: var(--gold); }
+
+/* ---------- 阵型 ---------- */
+.formation-list { margin-top: 8px; border-top: 1px solid var(--line); }
+.fm-row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 11px; padding: 6px 0; border-bottom: 1px solid #ffffff08; opacity: .55;
+}
+.fm-row.on { opacity: 1; }
+.fm-row .fm-name { font-weight: 700; min-width: 62px; }
+.fm-row.on .fm-name { color: var(--gold); }
+.fm-row .fm-req { color: var(--dim); }
+.fm-row .fm-buff { margin-left: auto; color: var(--green); }
+.fm-row .fm-on { color: var(--green); font-size: 10px; min-width: 36px; text-align: right; }
 
 /* ---------- 结算页奖励逐条浮入 ---------- */
 .b-result .reward-chip { animation: chipIn .32s ease both; }

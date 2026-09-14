@@ -24,6 +24,20 @@ window.DATA = (function () {
   // 克制环：先锋→策略→科技→异能→先锋（克制方伤害+15%，被克-10%）
   const FACTION_COUNTER = { '先锋': '策略', '策略': '科技', '科技': '异能', '异能': '先锋' };
 
+  /* ================= 阵型（对标《道友修仙》的"阵法"） ================= */
+  // 它的做法是：不是笼统说"同门派有加成"，而是把组合写成具名阵法 + 具体人数要求（例如
+  // 「阵法要求：3 个巨剑门和 3 个无极门道友组队」），玩家一眼知道自己现在站的是哪一阵、还差什么。
+  // 这里照这个思路做：每一档都写清"需要几个人、加成是多少"，由 core.formationState 判定命中。
+  // 主角不属于任何阵营，但在编阵时是"万能补位"——可以顶任意一个阵营的人数，凑不出 5 人同营时它就是那个第 5 人。
+  const FORMATIONS = [
+    { id: 'twin',   name: '双子阵',     reqText: '同一阵营 2 人',              buff: { atkPct: 0.03 } },
+    { id: 'tri',    name: '三才阵',     reqText: '同一阵营 3 人',              buff: { atkPct: 0.06, hpPct: 0.06 } },
+    { id: 'quad',   name: '四象阵',     reqText: '同一阵营 4 人',              buff: { atkPct: 0.10, hpPct: 0.10, skillPct: 0.05 } },
+    { id: 'penta',  name: '五行归元阵', reqText: '同一阵营 5 人（主角可补位）', buff: { atkPct: 0.14, hpPct: 0.14, skillPct: 0.08 } },
+    { id: 'pillar', name: '双柱阵',     reqText: '两个阵营各 2 人',            buff: { atkPct: 0.04, hpPct: 0.04 } },
+    { id: 'allfour',name: '四海阵',     reqText: '四个阵营各 1 人',            buff: { atkPct: 0.04, hpPct: 0.04, skillPct: 0.04 } },
+  ];
+
   // 经验表：Lv→Lv+1 所需 EXP = round(80 × Lv^1.32)；角色升级另耗点数 round(40 × 1.06^(Lv-1))
   // 2026-09-12 调整：旧曲线（100×Lv^1.55 / 50×1.075）单人满级需纯挂机 ~200 小时点数 + ~1600 小时经验，
   // 与挂机产出严重脱节；调整为 Lv1→100 累计 EXP 148.8 万 / 点数 21.3 万，纯挂机约 41 / 171 小时。
@@ -401,6 +415,13 @@ window.DATA = (function () {
   // effect：消耗品在副本探索中的效果（healPct 全队回血 / atkPct 攻击 / spdPct 速度 / defPct 防御）
   // src：主要获取途径（背包详情卡直接展示，回答"这东西去哪弄"）
   const ITEMS = {
+    /* ---- 招募券（对标《道友修仙》的"基础招徒卷 / 高级招徒卷"）----
+       它的招募不是直接花货币，而是花"券"；券可以从商店买、也能从玩法里掉。
+       好处是"打副本 → 掉券 → 去抽"自己成了一条循环，不用先攒够一大笔货币才敢点招募。
+       我们三个池子各配一张券，抽的时候「有券先用券，没券才花货币」，规则只有这一条。 */
+    ticket_normal: { name: '轮回招募券', type: 'ticket', where: 'recruit', pool: 'normal', use: '在「轮回者招募」点普通池抽卡时自动先用它', desc: '普通招募 1 次（没券时会自动改花 ◈点数）', src: '副本战斗、扫荡、挂机、每日任务' },
+    ticket_adv:    { name: '圣契招募令', type: 'ticket', where: 'recruit', pool: 'advanced', use: '在「轮回者招募」点高级池抽卡时自动先用它', desc: '高级招募 1 次（没券时会自动改花 ✦圣洁晶石）', src: '精英/Boss 掉落、限时悬赏、每周任务、兑换大厅' },
+    ticket_lim:    { name: '异界征召令', type: 'ticket', where: 'recruit', pool: 'limited', use: '在「轮回者招募」点限定池抽卡时自动先用它', desc: '限定招募 1 次（没券时会自动改花 ◆异界结晶）', src: '无限回廊、地狱难度、周常全清、异界商店' },
     heal_s: { name: '小型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.2 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 20% 生命', src: '主神商店、副本宝箱、随机事件' },
     heal_m: { name: '中型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.4 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 40% 生命', src: '主神商店、副本宝箱、随机事件' },
     heal_l: { name: '大型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.7 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 70% 生命', src: '副本宝箱（第 5 关起）、随机事件、周常奖励' },
@@ -468,8 +489,8 @@ window.DATA = (function () {
   const CURRENCY_INFO = {
     points:       { use: '强化装备、普通招募、背包扩容、主神商店、建筑升级', gain: '挂机、副本战斗、扫荡、任务、分解装备外的主要产出' },
     story:        { use: '故事商店（角色碎片、材料、装备箱）', gain: '挂机每30分钟、副本事件、首通奖励' },
-    otherworld:   { use: '装备强化、异界商店（高阶装备箱）、限定招募（定向出当期 UP）', gain: '分解装备、副本战斗、扫荡、悬赏' },
-    holy:         { use: '高级招募（SR 起抽、50 抽保底 SSR、优先给还没有的角色）', gain: '主线任务、首通奖励、登录奖励、限时悬赏' },
+    otherworld:   { use: '装备强化、异界商店（高阶装备箱）、限定招募（定向出当期 UP）、主神权限投资', gain: '分解装备、副本战斗、扫荡、悬赏' },
+    holy:         { use: '高级招募（SR 起抽、50 抽保底 SSR、优先给还没有的角色）、主神权限投资', gain: '主线任务、首通奖励、登录奖励、限时悬赏' },
     skillChip:    { use: '招募角色技能升级', gain: '副本战斗、扫荡、主神商店兑换' },
     bloodCrystal: { use: '血统选择与升级（主角与招募角色）', gain: 'Boss战、困难/地狱难度、回廊' },
     corridor:     { use: '回廊商店（稀有道具）', gain: '无限回廊层数奖励' },
@@ -495,7 +516,9 @@ window.DATA = (function () {
     { id: 'party', title: '② 队伍与站位', body: [
       '主角必上阵，另外可以带 4 名招募角色，一共 5 人。',
       '站位决定被打概率：前排放 2 人（坦克 / 战士），后排放 2 人（输出 / 治疗）。敌人优先攻击前排。',
-      '同阵营的人越多，羁绊加成越高：2 人攻击 +3%，3 人攻击 / 生命 +6%，4 人再额外加技能 +5%。',
+      '阵型（对标"阵法"）：队伍页会把你现在站的阵**叫出名字**——双子阵 / 三才阵 / 四象阵 / 五行归元阵 / 双柱阵 / 四海阵，每个都写清"要几个人、加成多少"。',
+      '主角不属于任何阵营，但编阵时是**万能补位**：可以顶任意一个阵营的名额，所以 4 个同阵营 + 主角就能凑成 5 人五行归元阵。',
+      '「同阵营」那一族只取命中的最高档，不会 2/3/4/5 人重复叠；双柱阵（2+2）和四海阵（四个阵营各 1 人）是另外两条独立路线。',
       '克制环：先锋 → 策略 → 科技 → 异能 → 先锋，克制伤害 +15%。',
     ] },
     { id: 'equip', title: '③ 装备与强化', body: [
@@ -510,7 +533,8 @@ window.DATA = (function () {
     ] },
     { id: 'currency', title: '④ 八种货币怎么花', body: [
       '每种货币只干一件事，记不住就点顶栏的「▤ 货币」看完整图鉴（用途 + 主要来源）。',
-      '最常用的三种：◈点数（强化 / 招募 / 建筑 / 商店）、✦圣洁晶石（抽卡）、◆异界结晶（强化 / 异界商店）。',
+      '最常用的三种：◈点数（强化 / 招募 / 建筑 / 商店）、✦圣洁晶石（抽卡 / 主神权限）、◆异界结晶（强化 / 异界商店 / 主神权限）。',
+      '高级货币除了抽卡，还有一条长线出口——「🔑 主神权限」（见第 ⑬ 章）：投进去就永久生效，转生也不清空。',
     ] },
     { id: 'gene', title: '⑤ 血统与基因锁', body: [
       '招募角色的血统是固定的；主角在 Lv.10 可以自选一次血统，选完不能改。',
@@ -536,6 +560,8 @@ window.DATA = (function () {
       '高级招募（✦圣洁晶石）：主力池，SR 起抽，50 抽内必出 SSR、100 抽内必出 UR，而且优先给「你还没有的角色」——缺图鉴就抽它。',
       '限定招募（◆异界结晶）：定向池，本期只出「当期 UP」所属阵营的角色，SSR 里一半是当期 UP，50 抽内必出当期 UP。想要某个特定的人，就盯着它抽。',
       '保底三个池分开关账：高级池和限定池各自数自己的 SSR / UR / UP 次数，换池不会清零，也不会串。',
+      '**招募券**：每个池配一张券（轮回招募券 / 圣契招募令 / 异界征召令），从副本掉落、悬赏、每日与每周任务、登录、商店都能拿。抽的时候**有券先用券，券不够才扣货币**；十连要么给 10 张券、要么给足货币，不混着扣。',
+      '想知道每一档到底多少概率？招募页最下面有「📊 招募概率公示」，逐池列清每一档出率、保底抽数、还差几抽触发保底。',
       '每天有一次免费招募（走普通池出率），同样计入主线与每日任务，别忘了领。',
     ] },
     { id: 'idle', title: '⑩ 挂机分工：让板凳角色去干活', body: [
@@ -548,8 +574,15 @@ window.DATA = (function () {
       '限时悬赏有截止时间，到点作废：达成后手动领奖，奖励是圣洁晶石 / 异界结晶 / 血统结晶这类硬通货。',
       '目标是**按你的当前进度生成的**：推进当前世界、等级再高 5 级、强化次数翻一档，剩下的位置按你缺什么（回廊层数 / SSR 数量 / 伴生体 / 渡劫）补。四条全部结束后开新一期，会重新按那时的进度生成。',
       '首页「今日」卡会显示最快到期的那条还剩多久，别让它白白过期。',
-      '境界（渡劫）：主角每 10 级一个境界，达标后可以渡劫，成功全属性永久 +5%。',
+      '境界（渡劫）：9 个大境界 × 初/中/后/大圆满 = **36 小阶**，从炼气初期一路到渡劫大圆满。每突破一小阶，主角全属性永久 +1.4%（36 阶合计 +50.4%）。',
       '渡劫失败只扣材料与点数，等级不掉，可以反复挑战——但失败也照扣，所以别在材料不够的时候硬渡。',
+      '境界面板按"大境界一行、行内四个小阶"排列，一眼看得到自己走到哪一格、离下一格还差多少。',
+    ] },
+    { id: 'authority', title: '⑬ 主神权限：高级货币的长线出路', body: [
+      '对标别人的"洞府"：花 ✦圣洁晶石 + ◆异界结晶向主神换**永久授权**，10 级，投入一次永久生效，转生也不清空。',
+      '和「基地建设」分工不同——建筑花的是挂机就能刷的 ◈点数，逐级堆到 50 级；主神权限花的是稀缺的高级货币，所以给的多是"倍率"：挂机产出、挂机经验、离线上限、离线效率、每日扫荡次数。',
+      '满 10 级额外给全队全属性 +5%，是这条线的收尾奖励。',
+      '入口：首页功能宫格「🔑 主神权限」，或者首页顶部状态区的「轮回」那一格。',
     ] },
     { id: 'beast', title: '⑫ 伴生体与五行克制', body: [
       '伴生体是第二条养成线（对标灵兽驯宠）：上阵 1 只，给**全队**加属性，主角也吃。',
@@ -734,6 +767,48 @@ window.DATA = (function () {
     return Math.round(b.base * Math.pow(1.12, lv - 1));
   };
 
+  /* ================= 主神权限（对标《道友修仙》的"洞府"） ================= */
+  // 它的洞府是"一次性把高级货币（钻石/灵石）投进去，永久抬高挂机倍率、任务数、副本次数"，
+  // 也就是说：高级货币不只有"抽卡"一个出口，还有一条"投入之后一劳永逸"的长线。
+  // 我们的高级货币（✦圣洁晶石 / ◆异界结晶）原本只能抽卡和买箱子，缺的正是这条长线，所以补上。
+  // 每级都是永久效果，不退款、不重置，转生也保留（它是"主神对自己的授权"，不是角色的属性）。
+  const AUTHORITY_MAX = 10;
+  const authorityCost = lv => ({
+    holy: Math.round(60 * Math.pow(1.38, lv)),
+    otherworld: Math.round(40 * Math.pow(1.38, lv)),
+  });
+  const AUTHORITY = [
+    { lv: 1,  desc: '挂机产出 +6%、挂机经验 +4%' },
+    { lv: 2,  desc: '离线上限 +0.6 小时' },
+    { lv: 3,  desc: '每日扫荡次数 +4' },
+    { lv: 4,  desc: '挂机产出再 +6%（累计 +12%）' },
+    { lv: 5,  desc: '离线效率 +5%（累计 +5%）' },
+    { lv: 6,  desc: '挂机经验再 +4%（累计 +8%）' },
+    { lv: 7,  desc: '离线上限再 +0.6 小时（累计 +1.2h）' },
+    { lv: 8,  desc: '每日扫荡再 +4（累计 +8）' },
+    { lv: 9,  desc: '挂机产出再 +6%（累计 +18%）' },
+    { lv: 10, desc: '全队全属性 +5%、离线效率 +5%（累计 +10%）' },
+  ];
+  // 权限加成（按当前等级线性累加，界面与实装共用这一份数据，避免"写了没做"）
+  const AUTHORITY_PER_LV = { idlePct: 0.06, expPct: 0.04, capHours: 0.6, sweep: 4, offlinePct: 0.05, allPct: 0.05 };
+  const authorityBonus = lv => {
+    lv = Math.max(0, Math.min(AUTHORITY_MAX, lv | 0));
+    // 1/4/9 级给挂机产出，2/7 级给离线上限，3/8 级给扫荡次数，5/10 级给离线效率，10 级额外给全属性
+    const idleSteps = [1, 4, 9].filter(x => lv >= x).length;
+    const capSteps = [2, 7].filter(x => lv >= x).length;
+    const sweepSteps = [3, 8].filter(x => lv >= x).length;
+    const offSteps = [5, 10].filter(x => lv >= x).length;
+    const expSteps = [1, 6].filter(x => lv >= x).length;
+    return {
+      idlePct: idleSteps * AUTHORITY_PER_LV.idlePct,
+      expPct: expSteps * AUTHORITY_PER_LV.expPct,
+      capHours: capSteps * AUTHORITY_PER_LV.capHours,
+      sweep: sweepSteps * AUTHORITY_PER_LV.sweep,
+      offlinePct: offSteps * AUTHORITY_PER_LV.offlinePct,
+      allPct: lv >= 10 ? AUTHORITY_PER_LV.allPct : 0,
+    };
+  };
+
   /* ================= 招募 ================= */
   // 三个池子按「花什么货币 + 出什么结构」分工，而不是同一套出率换种货币卖两遍：
   //   普通池（点数·软货币）：日常补碎片，只出 N/R/SR，重复角色转碎片
@@ -744,14 +819,16 @@ window.DATA = (function () {
       name: '普通招募', short: '普通', currency: 'points',
       rates: { N: 0.46, R: 0.36, SR: 0.18 },
       cost: { points: 5000 }, ten: { points: 45000 },
-      desc: '日常池：只出 N / R / SR，重复角色转碎片。花的是挂机能刷的点数，用来攒碎片升星。',
+      ticket: 'ticket_normal',
+      desc: '日常池：只出 N / R / SR，重复角色转碎片。花的是挂机能刷的点数，用来攒碎片升星。有「轮回招募券」时先扣券。',
       tag: '攒碎片',
     },
     advanced: {
       name: '高级招募', short: '高级', currency: 'holy',
       rates: { SR: 0.72, SSR: 0.25, UR: 0.03 },
       cost: { holy: 100 }, ten: { holy: 900 },
-      desc: '主力池：SR 起抽，50 抽内必出 SSR、100 抽内必出 UR，并且优先给「你还没有的角色」。',
+      ticket: 'ticket_adv',
+      desc: '主力池：SR 起抽，50 抽内必出 SSR、100 抽内必出 UR，并且优先给「你还没有的角色」。有「圣契招募令」时先扣券。',
       tag: '补图鉴',
       prioritizeNew: true,
     },
@@ -759,10 +836,18 @@ window.DATA = (function () {
       name: '限定招募', short: '限定', currency: 'otherworld',
       rates: { SR: 0.62, SSR: 0.33, UR: 0.05 },
       cost: { otherworld: 60 }, ten: { otherworld: 540 },
-      desc: '定向池：本期只出「当期 UP」所属阵营的角色，SSR 里一半是当期 UP，50 抽内必出当期 UP。',
+      ticket: 'ticket_lim',
+      desc: '定向池：本期只出「当期 UP」所属阵营的角色，SSR 里一半是当期 UP，50 抽内必出当期 UP。有「异界征召令」时先扣券。',
       tag: '定向 UP',
       upRatio: 0.5,
     },
+  };
+  // 概率公示：直接把"每一档到底多少概率、保底怎么算"写成给人看的文字，和 rates 同源。
+  // 对标《道友修仙》——它在招募界面明写「招募到 37% 血脉修士的概率为 5%，25% 血脉的概率为 15%…」。
+  const pityText = pool => {
+    if (pool === 'normal') return '本池没有保底：出率固定，重复角色转碎片，用来攒升星材料。';
+    if (pool === 'advanced') return `每抽累计 1 次保底：满 ${PITY.SSR} 抽必出 SSR、满 ${PITY.UR} 抽必出 UR；出更高稀有度会同时清空对应计数。SSR / UR 优先给「你还没有的角色」。`;
+    return `每抽累计 1 次保底：满 ${PITY.SSR} 抽必出 SSR、满 ${PITY.UR} 抽必出 UR、满 ${PITY_UP} 抽必出当期 UP。SSR 档里有 ${Math.round(RECRUIT_POOLS.limited.upRatio * 100)}% 直接是当期 UP。`;
   };
   const PITY = { SSR: 50, UR: 100 };
   const PITY_UP = 50;
@@ -810,16 +895,16 @@ window.DATA = (function () {
       push('stage', { world: target.w.id, diff: 'normal', stage: target.stage },
         `推进 · ${target.w.name}`,
         `通关「${target.w.name} · 普通」第 ${target.stage} 关`,
-        72, { holy: 400 + target.stage * 30, points: 8000 + target.stage * 1500 });
+        72, { holy: 400 + target.stage * 30, points: 8000 + target.stage * 1500, item: 'ticket_adv' });
     }
     // 2) 等级：比当前高 5 级（每期都会往前推）
     const lvTarget = Math.max(10, lv + 5);
     push('level', { n: lvTarget }, '修炼有成', `玩家等级到达 Lv.${lvTarget}`, 96,
-      { holy: 500, points: 20000 + lvTarget * 500 });
+      { holy: 500, points: 20000 + lvTarget * 500, item: 'ticket_normal' });
     // 3) 强化：按已强化次数往上加
     const enhTarget = Math.max(10, Math.floor(((S.stats && S.stats.enhances) || 0) / 10) * 10 + 10);
     push('enhance', { n: enhTarget }, '强化达人', `累计强化装备 ${enhTarget} 次`, 120,
-      { otherworld: 200 + enhTarget * 10, holy: 400 });
+      { otherworld: 200 + enhTarget * 10, holy: 400, item: 'ticket_adv' });
     // 4) 剩下一个位置按进度挑：图鉴 / 回廊 / 伴生体 / 境界
     const owned = Object.keys(S.chars || {}).length;
     const ssrN = Object.keys(S.chars || {}).filter(id => {
@@ -844,26 +929,41 @@ window.DATA = (function () {
     } else {
       const next = Math.min(60, owned + 3);
       push('chars', { n: next }, '广纳英才', `拥有 ${next} 名轮回者`, 168,
-        { holy: 1500, points: 80000 });
+        { holy: 1500, points: 80000, item: 'ticket_lim' });
     }
     return out;
   };
 
   /* ================= 境界（渡劫） ================= */
-  // 主角每 10 级一个境界，达标后可渡劫：成功全属性永久 +5%，失败只扣材料、不掉等级，可以反复挑战
-  const REALMS = [
-    { name: '炼气', lv: 10, rate: 0.95, cost: { points: 8000, matN: 6 } },
-    { name: '筑基', lv: 20, rate: 0.90, cost: { points: 20000, matN: 10 } },
-    { name: '金丹', lv: 30, rate: 0.85, cost: { points: 45000, matN: 16 } },
-    { name: '元婴', lv: 40, rate: 0.80, cost: { points: 90000, matN: 24 } },
-    { name: '化神', lv: 50, rate: 0.75, cost: { points: 160000, matN: 34 } },
-    { name: '炼虚', lv: 60, rate: 0.70, cost: { points: 260000, matN: 46 } },
-    { name: '合体', lv: 70, rate: 0.65, cost: { points: 400000, matN: 60 } },
-    { name: '大乘', lv: 80, rate: 0.60, cost: { points: 600000, matN: 78 } },
-    { name: '渡劫', lv: 90, rate: 0.55, cost: { points: 900000, matN: 100 } },
-    { name: '飞升', lv: 100, rate: 0.50, cost: { points: 1400000, matN: 130 } },
-  ];
-  const REALM_PCT = 0.05;   // 每突破一境：全属性 +5%
+  // 2026-09-14 重构：从「每 10 级一个大境界，共 10 境」改成「大境界 × 初/中/后/大圆满，共 36 小阶」。
+  // 原因：旧写法两次突破之间隔 10 级，练级路上长时间没有任何正反馈（对标《道友修仙》的
+  // 「凡体→练气初/中/后/大圆满→筑基…」写法，它的境界是被切成小阶的，每隔几级就能破一次）。
+  // 单阶加成从 +5% 降到 +1.4%：36 阶 × 1.4% ≈ +50.4%，总量与旧的 10 境 × 5% 基本对齐，
+  // 但"变强的出口"从 10 个变成 36 个。老存档按「旧第 N 境 = 新第 4N 阶」迁移（见 core.migrate）。
+  const REALM_TIERS = ['初期', '中期', '后期', '大圆满'];
+  const REALM_MAJORS = ['炼气', '筑基', '金丹', '元婴', '化神', '炼虚', '合体', '大乘', '渡劫'];
+  const REALM_STEP = (100 - 10) / (REALM_MAJORS.length * REALM_TIERS.length - 1);   // ≈2.57 级一阶
+  // 单阶消耗按等级平滑放大，保证 lv10→100 的累计消耗与旧表同量级（旧表累计 ≈388 万点 / 504 材料）
+  const realmCost = lv => Math.round(1980 * Math.pow(lv / 10, 2.19));
+  const REALMS = (() => {
+    const out = [];
+    REALM_MAJORS.forEach((mj, mi) => {
+      REALM_TIERS.forEach((tier, ti) => {
+        const i = mi * REALM_TIERS.length + ti;
+        const lv = Math.round(10 + REALM_STEP * i);
+        out.push({
+          name: mj,
+          step: tier,
+          full: mj + tier,                       // 完整写法，界面直接用
+          lv,
+          rate: +(0.95 - i * (0.95 - 0.52) / (REALM_MAJORS.length * REALM_TIERS.length - 1)).toFixed(3),
+          cost: { points: realmCost(lv), matN: Math.round(1 + lv * 0.235) },
+        });
+      });
+    });
+    return out;
+  })();
+  const REALM_PCT = 0.014;   // 每突破一小阶：全属性 +1.4%（36 阶合计 +50.4%）
 
   /* ================= 五行 / 伴生体 ================= */
   // 五行相克：金克木、木克土、土克水、水克火、火克金。
@@ -937,6 +1037,7 @@ window.DATA = (function () {
       { currencyGain: { skillChip: 10 }, name: '技能芯片×10', price: 2000, stock: -1 },
       { item: 'box_r', name: '随机R装备', price: 5000, stock: -1 },
       { item: 'box_sr', name: '随机SR装备', price: 30000, stock: -1 },
+      { item: 'ticket_normal', name: '轮回招募券', price: 6000, stock: 3 },
     ] },
     otherworld: { name: '异界商店', currency: 'otherworld', items: [
       { item: 'box_sr', name: 'SR装备箱', price: 100, stock: -1 },
@@ -947,6 +1048,8 @@ window.DATA = (function () {
       { item: 'mat_t4', name: '虚空晶体×5', price: 300, count: 5, stock: -1, req: { world: 'W04' } },
       { item: 'mat_t5', name: '主神残片×3', price: 900, count: 3, stock: -1, req: { world: 'W06' } },
       { item: 'exp_l', name: '高级经验模块', price: 150, stock: -1, req: { world: 'W04' } },
+      { item: 'ticket_adv', name: '圣契招募令', price: 120, stock: 2 },
+      { item: 'ticket_lim', name: '异界征召令', price: 180, stock: 2 },
     ] },
     story: { name: '故事商店', currency: 'story', items: [
       { shardRandom: 'R', shardCount: 10, name: '随机R角色碎片×10', price: 100, stock: -1 },
@@ -956,6 +1059,7 @@ window.DATA = (function () {
       { item: 'exp_m', name: '中级经验模块×2', price: 150, count: 2, stock: -1 },
       { currencyGain: { skillChip: 100 }, name: '技能芯片×100', price: 200, stock: -1 },
       { currencyGain: { holy: 10 }, name: '圣洁晶石×10', price: 500, stock: 1 },
+      { item: 'ticket_normal', name: '轮回招募券', price: 250, stock: 3 },
     ] },
     corridor: { name: '回廊商店', currency: 'corridor', items: [
       { shardRandom: 'SR', shardCount: 10, name: 'SR角色碎片×10', price: 100, stock: -1 },
@@ -966,6 +1070,8 @@ window.DATA = (function () {
       { item: 'mat_t5', name: '主神残片×5', price: 150, count: 5, stock: -1 },
       { item: 'box_ssr', name: 'SSR装备箱', price: 500, stock: -1 },
       { item: 'box_ur', name: 'UR装备箱', price: 1500, stock: -1 },
+      { item: 'ticket_adv', name: '圣契招募令', price: 150, stock: 3 },
+      { item: 'ticket_lim', name: '异界征召令', price: 220, stock: 2 },
     ] },
   };
 
@@ -978,16 +1084,16 @@ window.DATA = (function () {
     { id: 'dungeon1', name: '完成 1 次副本', target: 1, reward: { story: 100 } },
     { id: 'item1',    name: '使用 1 个道具', target: 1, reward: { points: 500 } },
   ];
-  const DAILY_ALL_REWARD = { points: 5000, skillChip: 50, holy: 20 };
+  const DAILY_ALL_REWARD = { points: 5000, skillChip: 50, holy: 20, item: 'ticket_normal' };
   // 周常任务：与每日任务共用同一套进度来源（战斗/强化/副本/招募/道具/挂机），按自然周重置
   const WEEKLY_TASKS = [
     { id: 'w_battle',  name: '本周战斗 100 次', target: 100, src: 'battle', reward: { points: 8000, holy: 60 } },
     { id: 'w_run',     name: '本周通关 10 次副本', target: 10,  src: 'dungeon', reward: { points: 10000, skillChip: 150 } },
     { id: 'w_enhance', name: '本周强化 20 次装备', target: 20,  src: 'enhance', reward: { otherworld: 300, points: 6000 } },
-    { id: 'w_recruit', name: '本周招募 10 次', target: 10,      src: 'recruit', reward: { holy: 120 } },
+    { id: 'w_recruit', name: '本周招募 10 次', target: 10,      src: 'recruit', reward: { holy: 120, item: 'ticket_adv' } },
     { id: 'w_idle',    name: '本周领取挂机收益 7 次', target: 7, src: 'idle', reward: { story: 600, points: 5000 } },
   ];
-  const WEEKLY_ALL_REWARD = { holy: 300, otherworld: 800, item: 'exp_xl' };
+  const WEEKLY_ALL_REWARD = { holy: 300, otherworld: 800, item: ['exp_xl', 'ticket_lim'] };
   // 成就：长线目标，覆盖战斗 / 养成 / 收集 / 挑战四条线
   const ACHIEVEMENTS = [
     { id: 'a_battle100', cat: '战斗', name: '百战之躯', desc: '累计战斗 100 场', check: S => S.stats.battles >= 100, reward: { points: 8000 } },
@@ -1012,8 +1118,10 @@ window.DATA = (function () {
     { id: 'a_codex20', cat: '收集', name: '图鉴过半', desc: '图鉴收集 20 名角色', check: S => S.codex.chars.length >= 20, reward: { points: 30000, holy: 200 } },
   ];
   const LOGIN_REWARDS = [
-    { holy: 100 }, { points: 10000 }, { skillChip: 100 }, { otherworld: 200 },
-    { holy: 200 }, { item: 'box_ssr' }, { ssrTicket: true },
+    { holy: 100, item: 'ticket_normal' }, { points: 10000, item: 'ticket_normal' },
+    { skillChip: 100, item: 'ticket_adv' }, { otherworld: 200 },
+    { holy: 200, item: 'ticket_adv' }, { item: 'box_ssr' },
+    { ssrTicket: true, item: 'ticket_lim' },
   ];
   const STARTER = {
     points: 50000, holy: 1000,
@@ -1212,8 +1320,10 @@ window.DATA = (function () {
     BLOODLINES, BLOODLINE_MAX, bloodlineCost, GENE_LOCKS,
     BUILDINGS, buildingCost,
     RECRUIT_POOLS, PITY, PITY_UP, recruitUpChar, weekIndex,
+    FORMATIONS, pityText,
+    AUTHORITY, AUTHORITY_MAX, authorityCost, authorityBonus, AUTHORITY_PER_LV,
     IDLE_LINES, IDLE_LINE_ATTR_DIV, IDLE_MAT_PER_MIN,
-    makeBounties, REALMS, REALM_PCT,
+    makeBounties, REALMS, REALM_PCT, REALM_TIERS, REALM_MAJORS,
     ELEMENTS, ELEMENT_ICON, ELEMENT_COUNTER, ELEMENT_BONUS, ELEMENT_PENALTY, worldElement,
     BEASTS, beastById, beastDesc, beastPctAt, BEAST_PCT_NAME, BEAST_RARITY_RATE,
     BEAST_EGG_ITEM, BEAST_EGG_COST, BEAST_MAX_LV, BEAST_SOUL_PER_LV, BEAST_LV_PCT,

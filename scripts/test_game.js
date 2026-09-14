@@ -861,18 +861,26 @@ Core.S.party[1] = 'C021';
   t('等级不够不能渡劫', Core.attemptRealm().ok === false);
   Core.S.player.level = 10;
   const atk0 = Core.effectivePlayerStats().atk;
+  // 用 D.REALMS 里的真实消耗做断言，不写死数值：境界改成 36 小阶之后，
+  // 单阶消耗本来就会跟着表走（旧版用例把 6/10 这样的快照值当常量，改表必假报警）
+  const r0 = D.REALMS[0];
+  const mat0 = Core.S.items.mat_t1;
   const okR = withRandom(0.01, () => Core.attemptRealm());
   t('渡劫成功提升境界', okR.ok && okR.success && Core.S.player.realm === 1);
-  t('渡劫消耗被扣除', Core.S.items.mat_t1 === 94);
+  t('渡劫消耗被扣除', Core.S.items.mat_t1 === mat0 - r0.cost.matN);
   t('境界加成真的进了属性', Core.effectivePlayerStats().atk > atk0);
-  t('境界加成比例正确（1 境 = +5%）', Math.abs(Core.realmBonusPct() - 0.05) < 1e-9);
+  t('境界加成比例正确（1 小阶 = +1.4%）', Math.abs(Core.realmBonusPct() - D.REALM_PCT) < 1e-9);
+  t('境界共 36 小阶', D.REALMS.length === 36);
+  t('首阶是炼气初期', D.REALMS[0].full === '炼气初期' && D.REALMS[0].lv === 10);
+  t('末阶是渡劫大圆满', D.REALMS[35].full === '渡劫大圆满' && D.REALMS[35].lv === 100);
+  t('36 阶加成总量≈旧 10 境的 +50%', Math.abs(D.REALMS.length * D.REALM_PCT - 0.5) < 0.02);
 
   Core.S.items.mat_t1 = 2;
-  Core.S.player.level = 20;
+  Core.S.player.level = D.REALMS[1].lv;
   t('材料不足不能渡劫', Core.attemptRealm().ok === false);
   Core.S.items.mat_t1 = 100;
   const failR = withRandom(0.999, () => Core.attemptRealm());
-  t('渡劫失败：不掉等级、只扣消耗', failR.ok && !failR.success && Core.S.player.level === 20 && Core.S.items.mat_t1 === 90);
+  t('渡劫失败：不掉等级、只扣消耗', failR.ok && !failR.success && Core.S.player.level === D.REALMS[1].lv && Core.S.items.mat_t1 === 100 - D.REALMS[1].cost.matN);
   t('失败后境界不变', Core.S.player.realm === 1);
 }
 
@@ -970,6 +978,154 @@ Core.S.party[1] = 'C021';
     return hi >= lo;
   })());
   t('加成封顶不超过 maxBonus', Core.idleLines().every(x => x.bonus <= 1.5 + 1e-9));
+}
+
+
+// 62. 招募券（对标《道友修仙》的"招徒卷"）：有券扣券 / 没券扣货币 / 十连整付
+{
+  Core.newGame(); Core.setPlayerName('券');
+  Core.S.unlocks.recruit = true;
+  const C0 = Object.assign({}, Core.S.cur);
+  // 没券时：扣货币
+  Core.addCur('points', 100000);
+  const beforePts = Core.S.cur.points;
+  const r1 = withRandom(0.99, () => Core.recruitOnce('normal'));
+  t('没券时扣货币', !r1.error && Core.S.cur.points === beforePts - D.RECRUIT_POOLS.normal.cost.points);
+  t('没券时结果不带 usedTicket', !r1.usedTicket);
+
+  // 有券时：扣券、货币不动
+  Core.addItem('ticket_normal', 1);
+  const beforePts2 = Core.S.cur.points;
+  const r2 = withRandom(0.99, () => Core.recruitOnce('normal'));
+  t('有券时优先扣券', r2.usedTicket === 'ticket_normal' && (Core.S.items.ticket_normal || 0) === 0);
+  t('有券时货币不动', Core.S.cur.points === beforePts2);
+  t('券也算进招募统计', Core.S.stats.recruits === 2);
+
+  // 十连：10 张券 = 免货币
+  Core.addItem('ticket_adv', 10);
+  Core.S.cur.holy = 0;
+  const beforeSweep = Core.S.cur.holy;
+  const ten = withRandom(0.99, () => Core.recruitTen('advanced'));
+  t('十连有 10 张券时整付券', !ten.error && ten.usedTickets === 10 && (Core.S.items.ticket_adv || 0) === 0);
+  t('十连用券时不扣货币', Core.S.cur.holy === beforeSweep);
+  t('十连出满 10 个结果', ten.results.length === 10);
+
+  // 十连：券只有 9 张 → 不混付，改扣货币
+  Core.addItem('ticket_adv', 9);
+  Core.addCur('holy', D.RECRUIT_POOLS.advanced.ten.holy);
+  const holyBefore = Core.S.cur.holy;
+  const ten2 = withRandom(0.99, () => Core.recruitTen('advanced'));
+  t('券不足 10 张时不混付、改扣货币', !ten2.error && ten2.usedTickets === 0 && Core.S.cur.holy === holyBefore - D.RECRUIT_POOLS.advanced.ten.holy);
+  t('券不足 10 张时券原样留着', (Core.S.items.ticket_adv || 0) === 9);
+
+  // 货币和券都不够 → 明确失败
+  Core.S.cur.holy = 0; Core.S.items.ticket_adv = 0;
+  t('券和货币都不足时招募失败', !!Core.recruitOnce('advanced').error);
+
+  // 募捐券能进背包、能被奖励系统发出来
+  Core.addItem('ticket_lim', 2);
+  t('券是背包里的道具', Core.S.items.ticket_lim === 2 && D.ITEMS.ticket_lim.type === 'ticket');
+  t('三个池子各配一张券', ['normal', 'advanced', 'limited'].every(p => D.RECRUIT_POOLS[p].ticket && D.ITEMS[D.RECRUIT_POOLS[p].ticket]));
+  // 奖励对象里带 item 时能真的发到背包（说明与实装同源）
+  Core.removeItem('ticket_normal', Core.S.items.ticket_normal || 0);
+  Core.applyRewardObj({ points: 1, item: 'ticket_normal' });
+  Core.applyRewardObj({ item: ['ticket_normal', 'ticket_lim'] });
+  t('奖励对象里的 item 会真的发到背包', (Core.S.items.ticket_normal || 0) === 2 && (Core.S.items.ticket_lim || 0) === 3);
+}
+
+// 63. 概率公示文案：每一档出率与保底规则必须和真正抽卡用的数据一致
+{
+  t('三池都有出率表', Object.values(D.RECRUIT_POOLS).every(p => Object.keys(p.rates).length > 0));
+  t('普通池不出 SSR/UR', !D.RECRUIT_POOLS.normal.rates.SSR && !D.RECRUIT_POOLS.normal.rates.UR);
+  t('高级池 SR 起抽', !D.RECRUIT_POOLS.advanced.rates.N && !D.RECRUIT_POOLS.advanced.rates.R);
+  t('每池出率合计为 1', Object.values(D.RECRUIT_POOLS).every(p => Math.abs(Object.values(p.rates).reduce((a, b) => a + b, 0) - 1) < 1e-9));
+  t('每个池子都有一段公示文字', ['normal', 'advanced', 'limited'].every(p => typeof D.pityText(p) === 'string' && D.pityText(p).length > 10));
+  t('公示文字里写明了保底抽数', D.pityText('advanced').includes(String(D.PITY.SSR)) && D.pityText('advanced').includes(String(D.PITY.UR)));
+  t('限定池公式里写明 UP 保底', D.pityText('limited').includes(String(D.PITY_UP)));
+  t('三池花的是三种不同货币', new Set(Object.values(D.RECRUIT_POOLS).map(p => p.currency)).size === 3);
+}
+
+// 64. 主神权限（对标"洞府"）：高级货币长线投资，永久生效
+{
+  Core.newGame(); Core.setPlayerName('权限');
+  t('初始权限 0 级', Core.authorityInfo().lv === 0);
+  const base0 = Core.idleBaseRates().pointsPerMin;
+  const cap0 = Core.offlineCapHours();
+  const sweep0 = Core.sweepCap();
+  t('初始 0 级时没有权限加成', Core.authority().idlePct === 0 && Core.authority().capHours === 0);
+
+  // 材料不足时失败
+  t('高级货币不足时升不了', Core.upgradeAuthority().ok === false);
+
+  // 给足材料升到 1 级
+  const c1 = D.authorityCost(0);
+  const holy0 = Core.S.cur.holy, ow0 = Core.S.cur.otherworld;
+  Core.addCur('holy', c1.holy); Core.addCur('otherworld', c1.otherworld);
+  const up1 = Core.upgradeAuthority();
+  t('够材料就能升级', up1.ok && Core.S.auth === 1);
+  t('升级扣掉两种高级货币', Core.S.cur.holy === holy0 && Core.S.cur.otherworld === ow0);
+  t('挂机产出真的变高', Core.idleBaseRates().pointsPerMin > base0);
+  t('挂机经验也提高', Core.idleBaseRates().expPerMin > 0 && Core.authority().expPct === D.AUTHORITY_PER_LV.expPct);
+
+  // 升到 3 级：扫荡次数 +4
+  for (let i = 1; i < 3; i++) { const cc = D.authorityCost(i); Core.addCur('holy', cc.holy); Core.addCur('otherworld', cc.otherworld); Core.upgradeAuthority(); }
+  t('升到 3 级', Core.S.auth === 3);
+  t('每日扫荡次数随权限提高', Core.sweepCap() === sweep0 + D.AUTHORITY_PER_LV.sweep);
+  t('扫荡剩余次数跟着新上限走', Core.S.sweep = { date: Core.dailyDate(), count: 0 }, Core.sweepLeft() === Core.sweepCap());
+
+  // 升到 10 级：满级 + 全属性
+  for (let i = 3; i < 10; i++) { const cc = D.authorityCost(i); Core.addCur('holy', cc.holy); Core.addCur('otherworld', cc.otherworld); Core.upgradeAuthority(); }
+  t('升到满级 10 级', Core.S.auth === D.AUTHORITY_MAX);
+  t('满级给全属性加成', Core.authority().allPct === D.AUTHORITY_PER_LV.allPct);
+  t('满级后离线效率提高', Core.offlineEfficiency() > 0.85 + 1e-9);
+  t('满级后离线上限提高', Core.offlineCapHours() > cap0);
+  t('满级后不能再升', Core.upgradeAuthority().ok === false);
+  t('权限等级存在存档里', Core.exportSave().includes('"auth"'));
+}
+
+// 65. 阵型（对标"阵法"）：具名组合 + 主角万能补位
+{
+  Core.newGame(); Core.setPlayerName('阵型');
+  const byFac = {};
+  D.characters.forEach(c => { (byFac[c.faction] = byFac[c.faction] || []).push(c.id); });
+  const F = D.FACTIONS;
+  t('四个阵营各有角色可用', F.every(f => (byFac[f] || []).length >= 4));
+
+  const empty = Core.formationState([]);
+  t('空队伍不成阵', empty.names.length === 0 && empty.atkPct === 0);
+
+  // 4 个同阵营 + 主角补位 = 5 人同营 → 五行归元阵
+  const mono = byFac[F[0]].slice(0, 4);
+  mono.forEach(id => Core.addChar(id));
+  const st5 = Core.formationState(mono);
+  t('4 同阵营 + 主角补位 = 五行归元阵', st5.hit.includes('penta'));
+  t('同阵营一族只取最高档（不同时给三才/四象）', !st5.hit.includes('quad') && !st5.hit.includes('tri') && !st5.hit.includes('twin'));
+  t('五行归元阵给攻击/生命/技能', st5.atkPct > 0 && st5.hpPct > 0 && st5.skillPct > 0);
+
+  // 3 + 1 → 四象阵（主角补到 4）
+  const three = byFac[F[0]].slice(0, 3).concat(byFac[F[1]].slice(0, 1));
+  const st4 = Core.formationState(three);
+  t('3+1（主角补位）成四象阵', st4.hit.includes('quad') && !st4.hit.includes('penta'));
+
+  // 2 + 2 → 三才阵 + 双柱阵（主角补到 3+2）
+  const two2 = byFac[F[0]].slice(0, 2).concat(byFac[F[1]].slice(0, 2));
+  const st22 = Core.formationState(two2);
+  t('2+2 成双柱阵', st22.hit.includes('pillar'));
+  t('2+2 时主角补位让最高的那营成三才', st22.hit.includes('tri'));
+
+  // 四个阵营各 1 人 → 四海阵
+  const four = F.map(f => byFac[f][0]);
+  const stF = Core.formationState(four);
+  t('四阵营各 1 人成四海阵', stF.hit.includes('allfour') && stF.skillPct > 0);
+
+  // 加成真的进战斗：3 人同阵营的队伍攻击高于单带一人
+  const solo = Core.formationState([mono[0]]);
+  t('阵型加成会进战斗属性', st4.atkPct > solo.atkPct);
+  t('factionBuffs 仍返回旧字段（战斗侧不用改）', (() => {
+    const fb = Core.factionBuffs(mono);
+    return typeof fb.atkPct === 'number' && typeof fb.hpPct === 'number' && typeof fb.skillPct === 'number' && fb.count;
+  })());
+  t('每个阵型都有名字与人数要求', D.FORMATIONS.every(f => f.name && f.reqText && Object.keys(f.buff).length));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

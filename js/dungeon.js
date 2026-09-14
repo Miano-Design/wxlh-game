@@ -130,6 +130,19 @@ window.Dungeon = (function () {
     if (kind === 'elite' && Math.random() < Math.min(1, 0.35 * dropBoost)) { if (Core.addItem(matId)) got.push({ k: 'item', v: matId, n: 1 }); }
     if (kind === 'boss') { const n = 1 + (Math.random() < 0.5 ? 1 : 0); if (Core.addItem(matId, n)) got.push({ k: 'item', v: matId, n }); }
     if (kind === 'combat' && Math.random() < Math.min(1, 0.08 * dropBoost)) { if (Core.addItem(matId)) got.push({ k: 'item', v: matId, n: 1 }); }
+    // 招募券掉落（对标《道友修仙》的"招徒卷"：券是玩法里会掉的，不是只能在商店买）。
+    // 这样"打副本 → 掉券 → 去招募"自己就是一条循环，不必先攒够一大笔货币才敢点招募。
+    if (kind === 'boss' && Math.random() < Math.min(1, 0.50 * dropBoost)) {
+      if (Core.addItem('ticket_adv')) got.push({ k: 'item', v: 'ticket_adv', n: 1 });
+    } else if (kind === 'elite' && Math.random() < Math.min(1, 0.28 * dropBoost)) {
+      if (Core.addItem('ticket_adv')) got.push({ k: 'item', v: 'ticket_adv', n: 1 });
+    } else if (kind === 'combat' && Math.random() < Math.min(1, 0.18 * dropBoost)) {
+      if (Core.addItem('ticket_normal')) got.push({ k: 'item', v: 'ticket_normal', n: 1 });
+    }
+    // 地狱难度的 Boss 额外掉限定券（限定池是"定向池"，券最稀有）
+    if (diff === 'hell' && kind === 'boss' && Math.random() < 0.35) {
+      if (Core.addItem('ticket_lim')) got.push({ k: 'item', v: 'ticket_lim', n: 1 });
+    }
     // 高阶世界的普通战斗也会掉低级材料（前期囤的材料不会因为世界推进变废）
     if (kind !== 'boss' && tier > 1 && Math.random() < 0.12 * dropBoost) {
       const lowId = 'mat_t' + (tier - 1);
@@ -204,8 +217,9 @@ window.Dungeon = (function () {
     }
     // 每日扫荡上限
     if (Core.S.sweep.date !== Core.dailyDate()) { Core.S.sweep.date = Core.dailyDate(); Core.S.sweep.count = 0; }
-    const left = D.SWEEP_DAILY_CAP - Core.S.sweep.count;
-    if (left <= 0) { Core.save(); return { ok: false, msg: `今日扫荡次数已用完（${D.SWEEP_DAILY_CAP}/${D.SWEEP_DAILY_CAP}）` }; }
+    const cap = Core.sweepCap();
+    const left = cap - Core.S.sweep.count;
+    if (left <= 0) { Core.save(); return { ok: false, msg: `今日扫荡次数已用完（${cap}/${cap}）` }; }
     const n = Math.min(times, left);
     const total = [];
     for (let i = 0; i < n; i++) total.push(grantRewards(worldId, diff, stage, stage === 12 ? 'boss' : stage % 4 === 0 ? 'elite' : 'combat'));

@@ -148,6 +148,8 @@ panel('派遣领队-没有可选人', () => UI._panels.pickIdleLeader('cultivate
 panel('限时悬赏', () => UI._panels.bountyModal());
 panel('境界渡劫', () => UI._panels.realmModal());
 panel('招募-三池', () => UI._panels.recruitModal());
+panel('招募-概率公示', () => UI._panels.recruitRatesModal());
+panel('主神权限', () => UI._panels.authorityModal());
 Core.addChar('C021');
 Core.S.party[1] = 'C021';
 Core.addItem('exp_s', 5);
@@ -202,6 +204,58 @@ t('悬赏面板写明"过期作废"', () => {
   const html = UI._panels.bountyModal().innerHTML;
   if (html.indexOf('作废') < 0) throw new Error('没写清过期规则');
 });
+
+
+// ---- V7.0 世界观移植：券 / 概率公示 / 主神权限 / 阵型 / 顶部状态区 ----
+t('首页有顶部状态区（境界/修为/轮回）', () => {
+  const html = UI._panels._screens.homeScreen();
+  if (!/境界/.test(html) || !/修为/.test(html) || !/轮回/.test(html)) throw new Error('缺状态栏三栏');
+  if (!html.includes('status-strip')) throw new Error('缺 status-strip');
+});
+t('首页有主神权限入口', () => {
+  const html = UI._panels._screens.homeScreen();
+  if (!html.includes('主神权限')) throw new Error('缺入口');
+});
+t('招募页显示券数量与"有券先用券"', () => {
+  Core.addItem('ticket_normal', 3);
+  const html = UI._panels.recruitModal().innerHTML;
+  if (!html.includes('轮回招募券')) throw new Error('没显示券名');
+  if (!html.includes('有券先用券')) throw new Error('没说明扣券规则');
+});
+t('招募页有概率公示入口', () => {
+  const html = UI._panels.recruitModal().innerHTML;
+  if (!html.includes('概率公示')) throw new Error('缺公示入口');
+});
+t('概率公示列出每一档出率', () => {
+  const html = UI._panels.recruitRatesModal().innerHTML;
+  ['普通招募', '高级招募', '限定招募'].forEach(n => { if (!html.includes(n)) throw new Error('缺 ' + n); });
+  if (!html.includes('还差')) throw new Error('缺"还差几抽"');
+});
+t('主神权限面板列出 10 级与当前加成', () => {
+  const html = UI._panels.authorityModal().innerHTML;
+  if (!/Lv\.[0-9]+ \/ 10/.test(html)) throw new Error('缺等级');
+  if (!html.includes('挂机产出')) throw new Error('缺效果说明');
+  if (!html.includes('每日扫荡次数')) throw new Error('缺扫荡说明');
+});
+t('队伍页显示阵型与具名阵列表', () => {
+  const html = UI._panels._screens.partyScreen();
+  if (!html.includes('阵型')) throw new Error('缺阵型区');
+  if (!html.includes('五行归元阵')) throw new Error('缺具名阵');
+  if (!html.includes('万能补位')) throw new Error('缺主角补位说明');
+});
+t('境界面板显示大境 × 小阶', () => {
+  const html = UI._panels.realmModal().innerHTML;
+  if (!html.includes('炼气')) throw new Error('缺大境名');
+  if (!html.includes('大圆满')) throw new Error('缺小阶名');
+  if (!html.includes('36')) throw new Error('缺总阶数');
+});
+t('背包里的招募券有"去招募"快捷键', () => {
+  Core.addItem('ticket_adv', 2);
+  const html = UI._panels.bagModal().innerHTML;
+  if (!html.includes('圣契招募令')) throw new Error('券不在背包里');
+  if (!html.includes('去招募')) throw new Error('缺快捷键');
+});
+t('道具详情-招募券', () => UI._panels.itemDetail('ticket_lim'));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

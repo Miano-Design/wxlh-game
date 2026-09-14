@@ -34,6 +34,7 @@ window.Core = (function () {
       items: {},            // itemId → count
       serums: {},           // charId（或 '@player'）→ { serumId: 已服支数 }
       buildings: { core: 1, training: 1, medical: 1, workshop: 1, geneLab: 1 },
+      auth: 0,               // 主神权限等级（对标"洞府"：高级货币的一次性长线投资）
       worlds: {},           // worldId → {unlocked, stages: {normal:[stars×12], hard, hell}}
       corridor: { floor: 1, best: 0 },
       // 保底按池分开记账：高级 / 限定 各自算 SSR / UR / 当期 UP 的累计数
@@ -105,7 +106,12 @@ window.Core = (function () {
     S.beast = Object.assign({ owned: {}, active: null }, S.beast || {});
     S.beast.owned = S.beast.owned || {};
     if (S.beast.active && !S.beast.owned[S.beast.active]) S.beast.active = null;
-    S.player.realm = S.player.realm || 0;   // 已突破的境界数
+    S.player.realm = S.player.realm || 0;   // 已突破的境界（小阶）数
+    // 境界从「10 个大境」改成「36 小阶」（见 data.js REALMS 注释）。
+    // 老存档按「旧第 N 境 = 新第 4N 阶」换算：加成总量不变（旧 N×5% = 新 4N×1.4%），
+    // 已解锁的内容一件不少；用 realmScaled 做一次性标记，避免每次读档都乘 4。
+    if (!S.realmScaled) { S.player.realm = S.player.realm * 4; S.realmScaled = true; }
+    S.auth = S.auth || 0;   // 主神权限等级
     S.sweep = Object.assign(def.sweep, S.sweep || {});
     // 老存档补新字段：设置项 / 图鉴领取记录 / 登录轮次
     S.settings = Object.assign(def.settings, S.settings || {});
@@ -308,6 +314,15 @@ window.Core = (function () {
     if (S.items[id] <= 0) delete S.items[id];
     return true;
   }
+  // 统一的"奖励对象"结算：货币走 addCur，item 走 addItem。
+  // 所有奖励（任务 / 周常 / 登录 / 悬赏 / 图鉴）都走这一个入口，避免"某处支持道具、某处不支持"。
+  function applyRewardObj(obj) {
+    Object.entries(obj || {}).forEach(([k, v]) => {
+      if (k === 'item') [].concat(v).forEach(id => addItem(id));
+      else if (k === 'ssrTicket') S.ssrTicket = (S.ssrTicket || 0) + (v === true ? 1 : v || 0);
+      else addCur(k, v);
+    });
+  }
 
   /* ================= 角色 ================= */
   function addChar(id) {
@@ -386,6 +401,12 @@ window.Core = (function () {
   function applyBeast(pct) {
     const bp = beastPct();
     Object.keys(bp).forEach(k => { pct[k] = (pct[k] || 0) + bp[k]; });
+  }
+  // 主神权限：满 10 级才有的一条"全属性 +5%"，同样走百分比区（与血统 / 基因锁加算）
+  function applyAuthority(pct) {
+    const v = authority().allPct;
+    if (!v) return;
+    pct.atkPct += v; pct.hpPct += v; pct.defPct += v; pct.spdPct += v;
   }
   // 炼化：材料 + 点数 → 血清道具
   function craftSerum(serumId, n = 1) {
@@ -542,6 +563,7 @@ window.Core = (function () {
     ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'].forEach(k => { pct[k] += tt[k] || 0; });
     applySerums(charId, pct);                      // 血清（永久强化剂）
     applyBeast(pct);                               // 随行伴生体（全队加成）
+    applyAuthority(pct);                           // 主神权限（满 10 级的全属性加成）
     // 装备
     const eq = S.equipped[charId] || {};
     const flat = { atk: 0, def: 0, hp: 0, spd: 0 };
@@ -619,6 +641,7 @@ window.Core = (function () {
     ['atkPct', 'hpPct', 'defPct', 'spdPct', 'critPct', 'critDmg', 'skillPct', 'evaPct', 'spiritPct'].forEach(k => { pct[k] += tt[k] || 0; });
     applySerums('@player', pct);                   // 血清（主角同样是永久加成）
     applyBeast(pct);                               // 随行伴生体（全队加成）
+    applyAuthority(pct);                           // 主神权限（满 10 级的全属性加成）
     // 境界（渡劫）：每突破一境全属性 +5%，与基因锁/血统/血清并列，属于永久成长
     const rp = realmBonusPct();
     if (rp) { pct.atkPct += rp; pct.hpPct += rp; pct.defPct += rp; pct.spdPct += rp; }
@@ -681,17 +704,44 @@ window.Core = (function () {
   function teamPower() {
     return playerPower() + S.party.filter(Boolean).reduce((sum, id) => sum + power(id), 0);
   }
-  function factionBuffs(partyIds) {
+  // 阵型（对标《道友修仙》的"阵法"）：由 D.FORMATIONS 的具名组合判定，界面直接显示"站的是哪一阵"。
+  // 规则只有两条：①「同阵营」那一族只取命中的最高档，不重复叠；② 主角是万能补位（顶人数最多的那个阵营）。
+  function formationState(partyIds) {
+    const ids = (partyIds || []).filter(Boolean);
     const count = {};
-    partyIds.filter(Boolean).forEach(id => { const f = D.charById[id].faction; count[f] = (count[f] || 0) + 1; });
-    let atkPct = 0, hpPct = 0, skillPct = 0;
-    Object.values(count).forEach(n => {
-      if (n >= 4) { atkPct += 0.10; hpPct += 0.10; skillPct += 0.05; }
-      else if (n >= 3) { atkPct += 0.06; hpPct += 0.06; }
-      else if (n >= 2) { atkPct += 0.03; }
+    ids.forEach(id => { const c = D.charById[id]; if (c) count[c.faction] = (count[c.faction] || 0) + 1; });
+    let top = '';
+    Object.keys(count).forEach(f => { if (!top || count[f] > count[top]) top = f; });
+    const eff = Object.assign({}, count);
+    if (top) eff[top] += 1;              // 主角补位
+    const vals = Object.values(eff);
+    const maxN = vals.length ? Math.max.apply(null, vals) : 0;
+    const twoPlus = vals.filter(n => n >= 2).length;
+    const kinds = Object.keys(count).length;
+    const has = {
+      twin: maxN >= 2, tri: maxN >= 3, quad: maxN >= 4, penta: maxN >= 5,
+      pillar: twoPlus >= 2, allfour: kinds >= 4,
+    };
+    const SAME_FAMILY = ['penta', 'quad', 'tri', 'twin'];
+    const bestSame = SAME_FAMILY.find(x => has[x]) || null;
+    const hit = [];
+    const buff = { atkPct: 0, hpPct: 0, skillPct: 0 };
+    D.FORMATIONS.forEach(f => {
+      if (!has[f.id]) return;
+      if (SAME_FAMILY.includes(f.id) && f.id !== bestSame) return;   // 同阵营只取最高档
+      hit.push(f.id);
+      Object.keys(f.buff).forEach(k => { buff[k] = (buff[k] || 0) + f.buff[k]; });
     });
-    return { atkPct, hpPct, skillPct, count };
+    return {
+      atkPct: buff.atkPct, hpPct: buff.hpPct, skillPct: buff.skillPct,
+      count, eff, maxN, kinds, hit,
+      bestSame,
+      active: hit.map(id => D.FORMATIONS.find(f => f.id === id)),
+      // 界面用：现在命中的阵型名，没命中就是"未成阵"
+      names: hit.map(id => (D.FORMATIONS.find(f => f.id === id) || {}).name).filter(Boolean),
+    };
   }
+  function factionBuffs(partyIds) { return formationState(partyIds); }
 
   /* ================= 装备操作 ================= */
   function grantEquip(worldId, rarity, slot) {
@@ -979,7 +1029,12 @@ window.Core = (function () {
     opts = opts || {};
     const p = D.RECRUIT_POOLS[pool];
     if (!p) return { error: '卡池不存在' };
-    if (!opts.noCost && !spend(p.cost)) return { error: '货币不足' };
+    let usedTicket = null;
+    if (!opts.noCost) {
+      // 招募券优先于货币：有对应券就先扣券（券是玩法掉出来的，货币是攒出来的）
+      if (p.ticket && (S.items[p.ticket] || 0) > 0) { removeItem(p.ticket, 1); usedTicket = p.ticket; }
+      else if (!spend(p.cost)) return { error: '货币不足（也没有对应的招募券）' };
+    }
     S.stats.recruits++;
     task('recruit1', 1);
     let rar = rollRarityInPool(pool);
@@ -1009,16 +1064,25 @@ window.Core = (function () {
     const upChar = poolUpChar(pool);
     return {
       id: base.id, name: base.name, rarity: base.rarity, isNew: res.isNew, shards: res.shards || 0,
-      isUp: !!(upChar && base.id === upChar.id),
+      isUp: !!(upChar && base.id === upChar.id), usedTicket,
     };
+  }
+  // 某个池现在有多少张券（界面显示"券 N 张"用）
+  function ticketOf(pool) {
+    const p = D.RECRUIT_POOLS[pool];
+    return p && p.ticket ? { id: p.ticket, n: S.items[p.ticket] || 0 } : null;
   }
   function recruitTen(pool) {
     const p = D.RECRUIT_POOLS[pool];
     if (!p) return { error: '卡池不存在' };
     const cost = p.ten || p.cost;
-    // 十连是一次交易：先按折扣价整笔扣费，再抽 10 次；任一步失败都不会出现"扣了钱看不到结果"
-    if (!canAfford(cost)) return { error: '货币不足' };
-    spend(cost);
+    // 十连是一次交易，规则只有一条：要么 10 张券，要么全额货币，不支持混付（界面也这么写）。
+    let usedTickets = 0;
+    if (p.ticket && (S.items[p.ticket] || 0) >= 10) { removeItem(p.ticket, 10); usedTickets = 10; }
+    else {
+      if (!canAfford(cost)) return { error: '货币不足（招募券也不足 10 张）' };
+      spend(cost);
+    }
     const results = [];
     let hasSR = false;
     for (let i = 0; i < 10; i++) {
@@ -1034,7 +1098,7 @@ window.Core = (function () {
       results[results.length - 1] = { id: base.id, name: base.name, rarity: 'SR', isNew: res.isNew, shards: res.shards || 0, pityFix: true };
     }
     save();
-    return { results };
+    return { results, usedTickets };
   }
   function freeRecruitAvailable() {
     const today = new Date().toDateString();
@@ -1066,10 +1130,11 @@ window.Core = (function () {
   // 与新的等级曲线（Lv1→100 累计 EXP 148.8 万 / 点数 21.3 万）配套；天赋「主神恩赐」的挂机/经验节点在此生效。
   function idleBaseRates() {
     const lv = S.player.level;
-    const coreBonus = (1 + S.buildings.core * 0.02 + (S.player.geneLock >= 1 ? 0.10 : 0)) * graceIdleMult();
+    const au = authority();
+    const coreBonus = (1 + S.buildings.core * 0.02 + (S.player.geneLock >= 1 ? 0.10 : 0) + au.idlePct) * graceIdleMult();
     return {
       pointsPerMin: (10 + lv * 0.3) * coreBonus,
-      expPerMin: (8 + lv * 0.5) * (1 + S.buildings.training * 0.03) * graceExpMult(),
+      expPerMin: (8 + lv * 0.5) * (1 + S.buildings.training * 0.03 + au.expPct) * graceExpMult(),
       otherworldPer10Min: 1 + Math.floor(lv / 50),
       storyPer30Min: 1,
     };
@@ -1146,10 +1211,11 @@ window.Core = (function () {
   function offlineCapHours() {
     let cap = 12 + (S.player.geneLock >= 5 ? 12 : 0);
     cap += S.buildings.medical * 0.2;
+    cap += authority().capHours;
     return cap;
   }
   function offlineEfficiency() {
-    return Math.min(1.5, 0.85 + S.buildings.medical * 0.01 + (talentAll().offlinePct || 0));
+    return Math.min(1.5, 0.85 + S.buildings.medical * 0.01 + (talentAll().offlinePct || 0) + authority().offlinePct);
   }
   // 上线结算离线收益
   function settleOffline() {
@@ -1316,6 +1382,33 @@ window.Core = (function () {
     return { ok: true, msg: `升到 Lv.${S.buildings[id]}` };
   }
 
+  /* ================= 主神权限（对标《道友修仙》的"洞府"） ================= */
+  // 建筑用点数（软货币）升级，这条线专用高级货币（✦圣洁晶石 + ◆异界结晶）——
+  // 目的：给"抽卡之外"的高级货币一个长线出口，投进去就永久生效，转生也保留。
+  function authority() { return D.authorityBonus(S.auth || 0); }
+  function authorityInfo() {
+    const lv = S.auth || 0;
+    const max = D.AUTHORITY_MAX;
+    return {
+      lv, max,
+      maxed: lv >= max,
+      cost: lv >= max ? null : D.authorityCost(lv),
+      now: authority(),
+      nextDesc: lv >= max ? null : D.AUTHORITY[lv].desc,
+      rows: D.AUTHORITY,
+    };
+  }
+  function upgradeAuthority() {
+    const lv = S.auth || 0;
+    if (lv >= D.AUTHORITY_MAX) return { ok: false, msg: '主神权限已满级' };
+    const cost = D.authorityCost(lv);
+    if (!canAfford(cost)) return { ok: false, msg: `材料不足：需要 ${cost.holy} 圣洁晶石 + ${cost.otherworld} 异界结晶` };
+    spend(cost);
+    S.auth = lv + 1;
+    save();
+    return { ok: true, msg: `主神权限提升到 Lv.${S.auth}` };
+  }
+
   /* ================= 世界进度 ================= */
   function unlockWorld(id) {
     if (!S.worlds[id]) {
@@ -1383,7 +1476,7 @@ window.Core = (function () {
     if (!q || S.quests.claimed.includes(id)) return { ok: false };
     if (!q.check(S)) return { ok: false, msg: '尚未完成' };
     S.quests.claimed.push(id);
-    Object.entries(q.reward).forEach(([k, v]) => addCur(k, v));
+    applyRewardObj(q.reward);
     save();
     return { ok: true };
   }
@@ -1463,10 +1556,12 @@ window.Core = (function () {
     return { ok: equips.length + sold > 0, equips, sold, soldGain, count: equips.length + sold };
   }
   function dailyDate() { return new Date().toISOString().slice(0, 10); }
+  // 每日扫荡上限（主神权限越高，次数越多）
+  function sweepCap() { return D.SWEEP_DAILY_CAP + authority().sweep; }
   // 今日剩余扫荡次数（跨天自动重置）
   function sweepLeft() {
-    if (S.sweep.date !== dailyDate()) return D.SWEEP_DAILY_CAP;
-    return Math.max(0, D.SWEEP_DAILY_CAP - (S.sweep.count || 0));
+    if (S.sweep.date !== dailyDate()) return sweepCap();
+    return Math.max(0, sweepCap() - (S.sweep.count || 0));
   }
 
   /* ================= 任务 / 登录 ================= */
@@ -1515,7 +1610,7 @@ window.Core = (function () {
     if (!t || S.tasks.weeklyClaimed[id]) return { ok: false, msg: '已领取' };
     if ((S.tasks.weekly[id] || 0) < t.target) return { ok: false, msg: '本周还没完成' };
     S.tasks.weeklyClaimed[id] = true;
-    Object.entries(t.reward).forEach(([k, v]) => addCur(k, v));
+    applyRewardObj(t.reward);
     save();
     return { ok: true, msg: '周常奖励已领取' };
   }
@@ -1524,7 +1619,7 @@ window.Core = (function () {
     if (S.tasks.weeklyAllClaimed) return { ok: false, msg: '已领取' };
     if (!D.WEEKLY_TASKS.every(t => (S.tasks.weekly[t.id] || 0) >= t.target)) return { ok: false, msg: '本周任务尚未全部完成' };
     S.tasks.weeklyAllClaimed = true;
-    Object.entries(D.WEEKLY_ALL_REWARD).forEach(([k, v]) => { if (k === 'item') addItem(v); else addCur(k, v); });
+    applyRewardObj(D.WEEKLY_ALL_REWARD);
     save();
     return { ok: true, msg: '周常全清奖励已领取' };
   }
@@ -1542,7 +1637,7 @@ window.Core = (function () {
     if (S.achievements[a.id]) return { ok: false, msg: '已领取' };
     if (!a.check(S)) return { ok: false, msg: '尚未达成' };
     S.achievements[a.id] = true;
-    Object.entries(a.reward).forEach(([k, v]) => addCur(k, v));
+    applyRewardObj(a.reward);
     save();
     return { ok: true, msg: `🏅 成就达成：${a.name}`, name: a.name };
   }
@@ -1552,7 +1647,7 @@ window.Core = (function () {
     if (!t || S.tasks.claimed[id]) return { ok: false };
     if ((S.tasks.daily[id] || 0) < t.target) return { ok: false, msg: '未完成' };
     S.tasks.claimed[id] = true;
-    Object.entries(t.reward).forEach(([k, v]) => addCur(k, v));
+    applyRewardObj(t.reward);
     save();
     return { ok: true };
   }
@@ -1562,7 +1657,7 @@ window.Core = (function () {
     const allDone = D.DAILY_TASKS.every(t => (S.tasks.daily[t.id] || 0) >= t.target);
     if (!allDone) return { ok: false, msg: '尚未完成全部任务' };
     S.tasks.allClaimed = true;
-    Object.entries(D.DAILY_ALL_REWARD).forEach(([k, v]) => addCur(k, v));
+    applyRewardObj(D.DAILY_ALL_REWARD);
     save();
     return { ok: true };
   }
@@ -1574,13 +1669,7 @@ window.Core = (function () {
     if (S.login.day >= D.LOGIN_REWARDS.length) { S.login.day = 0; S.login.round = (S.login.round || 1) + 1; }
     S.login.day += 1;
     const r = D.LOGIN_REWARDS[S.login.day - 1];
-    if (r.ssrTicket) S.ssrTicket++;
-    else {
-      Object.entries(r).forEach(([k, v]) => {
-        if (k === 'item') addItem(v);
-        else addCur(k, v);
-      });
-    }
+    applyRewardObj(r);
     save();
     return { day: S.login.day, reward: r, round: S.login.round || 1, cycleDays: D.LOGIN_REWARDS.length };
   }
@@ -1632,7 +1721,7 @@ window.Core = (function () {
     if (S.codex.claimed.includes(n)) return { ok: false, msg: '已领取' };
     if (S.codex.chars.filter(id => D.charById[id]).length < n) return { ok: false, msg: `还差 ${n - codexState().owned} 名角色` };
     S.codex.claimed.push(n);
-    Object.entries(r.reward).forEach(([k, v]) => addCur(k, v));
+    applyRewardObj(r.reward);
     save();
     return { ok: true, msg: `图鉴奖励已领取（${n} 名）` };
   }
@@ -1754,7 +1843,7 @@ window.Core = (function () {
     if (item.expired) return { ok: false, msg: '这条悬赏已经过期' };
     if (!item.done) return { ok: false, msg: '目标还没完成' };
     S.bounty.claimed[id] = true;
-    Object.entries(item.b.reward).forEach(([k, v]) => addCur(k, v));
+    applyRewardObj(item.b.reward);
     save();
     return { ok: true, msg: `悬赏达成：${item.b.name}`, reward: item.b.reward, name: item.b.name };
   }
@@ -1867,6 +1956,7 @@ window.Core = (function () {
     const matItem = 'mat_t' + tier;
     return {
       realm, next,
+      nextName: next ? (next.full || next.name) : null,   // 「炼气初期」这样的完整写法
       bonusPct: realm * D.REALM_PCT,
       levelOk: next ? S.player.level >= next.lv : false,
       matItem, matN: next ? next.cost.matN : 0,
@@ -1892,10 +1982,10 @@ window.Core = (function () {
     if (success) S.player.realm = st.realm + 1;
     save();
     return {
-      ok: true, success, name: st.next.name, rate: st.next.rate,
+      ok: true, success, name: st.nextName, rate: st.next.rate,
       realm: S.player.realm, bonusPct: realmBonusPct(),
       msg: success
-        ? `渡劫成功：突破「${st.next.name}」，全队主角属性永久 +${Math.round(D.REALM_PCT * 100)}%`
+        ? `渡劫成功：突破「${st.nextName}」，主角属性永久 +${(D.REALM_PCT * 100).toFixed(1)}%`
         : `渡劫失败：消耗已扣除，但等级不掉，再来一次就好`,
     };
   }
@@ -1938,20 +2028,20 @@ window.Core = (function () {
   return {
     get S() { return S; },
     save, load, newGame, wipeSave, exportSave, importSave, saveSlot, loadSlot, slotInfo,
-    addCur, canAfford, spend, addItem, removeItem, canAddItem, setCurListener,
+    addCur, canAfford, spend, addItem, removeItem, canAddItem, setCurListener, applyRewardObj, sweepCap,
     bagUsage, buyBagCap,
     addChar, addShards, levelCost, levelUp, useExpItem, starUp, skillUp, SKILL_CHIP_COST,
     craftSerum, useSerum, serumTaken, serumApplied,
     bloodlineUpgrade, geneLockInfo, geneLockUnlock,
-    equipStats, effectiveStats, power, teamPower, factionBuffs,
+    equipStats, effectiveStats, power, teamPower, factionBuffs, formationState,
     effectivePlayerStats, playerPower, choosePlayerBloodline, upgradePlayerBloodline,
     allocateAttr, allocateSkill, resetSkills, protagonistSkills, protagonistList, createProtagonist, switchProtagonist,
     grantEquip, grantSignatureEquip, equipItem, canEquip, unequipItem, enhanceCost, enhance, decompose, decomposeMany, inventoryEquips,
     toggleEquipLock, autoEquipBest, equipScore, savePreset, applyPreset,
-    recruitOnce, recruitTen, freeRecruit, freeRecruitAvailable, ssrTicketUse,
+    recruitOnce, recruitTen, freeRecruit, freeRecruitAvailable, ssrTicketUse, ticketOf,
     idleRates, idleBaseRates, idleLines, idleLineBonus, setIdleLeader, idleMatItem, grantIdleMat,
     settleOffline, onlineTick, idleBankGains, claimIdle, addPlayerExp, offlineCapHours, offlineEfficiency,
-    upgradeBuilding,
+    upgradeBuilding, authority, authorityInfo, upgradeAuthority,
     unlockWorld, worldCleared, stageComplete, stageUnlocked,
     refreshUnlocks, isUnlocked, unlockTip,
     mainQuestState, currentQuest, claimQuest,
