@@ -158,9 +158,14 @@ panel('派遣领队-有人可选', () => UI._panels.pickIdleLeader('gather'));
 panel('伴生体兽栏-空', () => UI._panels.beastModal());
 Core.addItem('beast_egg', 30);
 panel('伴生体兽栏-有兽魂石', () => UI._panels.beastModal());
-t('首页有伴生体入口', () => {
+// V7.2 起养成线（含伴生体）整体搬到「轮回者 → 成长」子页，首页不再摊平所有系统
+t('伴生体入口在「轮回者 → 成长」子页', () => {
+  const html = UI._panels._screens.growScreen();
+  if (html.indexOf('伴生体') < 0) throw new Error('成长页没有伴生体入口');
+});
+t('首页指向成长子页', () => {
   const html = UI._panels._screens.homeScreen();
-  if (html.indexOf('伴生体') < 0) throw new Error('首页没有伴生体入口');
+  if (html.indexOf('成长') < 0) throw new Error('首页没有指向成长');
 });
 t('今日卡的悬赏按进度生成（不是写死的名字）', () => {
   const html = UI._panels._screens.homeScreen();
@@ -212,8 +217,8 @@ t('首页有顶部状态区（境界/修为/轮回）', () => {
   if (!/境界/.test(html) || !/修为/.test(html) || !/轮回/.test(html)) throw new Error('缺状态栏三栏');
   if (!html.includes('status-strip')) throw new Error('缺 status-strip');
 });
-t('首页有主神权限入口', () => {
-  const html = UI._panels._screens.homeScreen();
+t('主神权限入口在「轮回者 → 成长」子页', () => {
+  const html = UI._panels._screens.growScreen();
   if (!html.includes('主神权限')) throw new Error('缺入口');
 });
 t('招募页显示券数量与"有券先用券"', () => {

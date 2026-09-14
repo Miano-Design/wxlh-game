@@ -317,9 +317,10 @@ window.UI = (function () {
     { id: 'bag', name: '背包', ico: '🎒' },
   ];
   const ROSTER_TABS = [
-    { id: 'party', name: '队伍编成', ico: '⚔️' },
-    { id: 'chars', name: '角色图鉴', ico: '👥' },
-    { id: 'equip', name: '装备仓库', ico: '🗡' },
+    { id: 'party', name: '队伍', ico: '⚔️' },
+    { id: 'chars', name: '角色', ico: '👥' },
+    { id: 'equip', name: '装备', ico: '🗡' },
+    { id: 'grow', name: '成长', ico: '🌱' },
   ];
   // 旧的三个页签名一律当作「轮回者」的子页，这样任务"前往"、每日跳转、引导高亮都不用改
   const TAB_ALIAS = { party: 'roster', chars: 'roster', equip: 'roster' };
@@ -417,16 +418,79 @@ window.UI = (function () {
   }
   // 「轮回者」= 队伍编成 / 角色图鉴 / 装备仓库，三个子页共用一条顶部胶囊
   function rosterScreen() {
-    const sub = { party: partyScreen, chars: charsScreen, equip: equipScreen }[rosterView] || partyScreen;
+    const sub = { party: partyScreen, chars: charsScreen, equip: equipScreen, grow: growScreen }[rosterView] || partyScreen;
     return `<div class="pill-tabs mb3">
         ${ROSTER_TABS.map(t => `<div class="pill ${rosterView === t.id ? 'active' : ''}" data-roster="${t.id}">${t.ico} ${t.name}</div>`).join('')}
       </div>
       ${sub()}`;
   }
 
+  // 「成长」子页：把六条养成线集中在这里（原来全摊在首页）。
+  // 每条都给一行"现在到哪了"，点进去才是完整面板——二级信息不占主界面。
+  function growScreen() {
+    const S = C().S;
+    const r = C().realmState();
+    const au = C().authorityInfo();
+    const gl = D.GENE_LOCKS[S.player.geneLock - 1];
+    const beasts = Object.keys(S.beast.owned || {}).length;
+    const bLv = Object.values(S.buildings).reduce((a, b) => a + b, 0);
+    const rows = [
+      { act: 'open-buildings', unlock: 'buildings', ico: '🏗', name: '基地建设',
+        cur: `五栋合计 Lv.${bLv}`, desc: '花 ◈点数，永久提升挂机产出 / 经验 / 离线上限 / 强化折扣' },
+      { act: 'open-authority', unlock: 'buildings', ico: '🔑', name: '主神权限',
+        cur: `Lv.${au.lv} / ${au.max}`, desc: '花 ✦圣洁晶石 + ◆异界结晶，永久提升挂机产出、离线效率、每日扫荡次数' },
+      { act: 'open-realm', unlock: null, ico: '🌌', name: '境界渡劫',
+        cur: r.realm ? `${D.REALMS[r.realm - 1].full}（第 ${r.realm}/${D.REALMS.length} 阶）` : '凡体（未突破）',
+        desc: '36 小阶，每阶全属性永久 +1.4%；失败只扣材料，等级不掉' },
+      { act: 'open-genelock', unlock: 'geneLock', ico: '🧬', name: '基因锁',
+        cur: S.player.geneLock > 0 ? `${S.player.geneLock} 阶 · ${gl.name}` : '未解锁',
+        desc: '五阶全队加成，靠通关进度 + 玩家等级 + 血统结晶解锁' },
+      { act: 'open-beast', unlock: 'beast', ico: '🐾', name: '伴生体',
+        cur: beasts ? `已孵化 ${beasts} 只` : '还没孵化', desc: '第二条养成线：随行 1 只给全队加成，带对五行进本全队伤害 +15%' },
+      { act: 'open-reincarn', unlock: 'reincarn', ico: '♾', name: '转生天赋',
+        cur: `${S.player.reincarnations} 世`, desc: '重置等级与世界，换永久天赋点；四支天赋树越点越强' },
+    ];
+    return `<div class="hint mb3">这六条是"长期变强"的线，全部永久生效。点任意一条看细节。</div>
+      ${rows.map(x => {
+      const ok = !x.unlock || C().isUnlocked(x.unlock);
+      return `<div class="grow-row card plain${ok ? ' tap' : ''}" ${ok ? `data-act="${x.act}"` : `data-locked="${x.unlock}"`}>
+        <span class="gr-ico">${ok ? x.ico : '🔒'}</span>
+        <div class="gr-grow">
+          <div class="gr-t1">${x.name}</div>
+          <div class="gr-t2">${ok ? x.desc : C().unlockTip(x.unlock)}</div>
+        </div>
+        <div class="gr-cur">${ok ? x.cur : '未解锁'}</div>
+      </div>`;
+    }).join('')}`;
+  }
+
   /* ================= 主神空间 ================= */
-  // 今日卡：上线先回答"我现在该做什么"——收菜 / 任务 / 免费招募，三行以内
-  function todayCard() {
+  // 今日：首页上是一条横条（点开才是四行详情），不再占整块正文
+  // 今日：从"一整张卡四行"收成**一条可点的横条**。
+  // 对标产品的主界面只把"每日"做成一个很小的入口，不占正文；四行详情点开再看。
+  function todayStrip() {
+    const t = C().todayState();
+    const bt = C().bountyState();
+    const btLive = bt.list.filter(x => !x.claimed && !x.expired);
+    const btSoon = btLive.length ? Math.min.apply(null, btLive.map(x => x.leftMs)) : 0;
+    const recruitUnlocked = C().isUnlocked('recruit');
+    const bits = [
+      `每日任务 ${t.dailyDone}/${t.dailyTotal}`,
+      recruitUnlocked ? `免费招募 ${t.freeRecruit ? '可领' : '已领'}` : '免费招募 未解锁',
+      btLive.length ? `悬赏 ${formatDuration(Math.floor(btSoon / 1000))}` : '悬赏 已结束',
+    ];
+    const hot = t.claimable || bt.claimable;
+    return `<div class="today-strip tap${hot ? ' hot' : ''}" data-act="open-today">
+      <span class="ts-ico">🗓</span>
+      <div class="ts-grow">
+        <div class="ts-t1">今日${t.claimable ? ` · ${t.claimable} 项可收` : ''}</div>
+        <div class="ts-t2">${bits.join(' · ')}</div>
+      </div>
+      <span class="ts-go">›</span>
+    </div>`;
+  }
+  // 点"今日"才展开的四行详情（原来的今日卡内容原样保留，只是不再占首页）
+  function todayModal(wrap) {
     const t = C().todayState();
     const bt = C().bountyState();
     const btLive = bt.list.filter(x => !x.claimed && !x.expired);
@@ -436,27 +500,35 @@ window.UI = (function () {
     if (t.achClaimable) extra.push(`成就 ${t.achClaimable}`);
     if (t.codexClaimable) extra.push(`图鉴 ${t.codexClaimable}`);
     const recruitUnlocked = C().isUnlocked('recruit');
-    return `<div class="card today-card">
-      <h3>🗓 今日 <span class="sub">${t.claimable ? `${t.claimable} 项可收` : '暂无可收'}</span></h3>
-      <div class="today-row">
-        <span class="tico">📋</span>
-        <div class="tgrow"><div class="tt1">每日任务</div>
-          <div class="tt2">${t.dailyDone}/${t.dailyTotal} 完成${t.dailyClaimable ? ` · ${t.dailyClaimable} 项待领` : ''}${extra.length ? ` · ${extra.join(' / ')}待领` : ''}</div></div>
-        <button class="btn small ghost" data-act="open-tasks">去完成 ›</button>
+    const w = showPanel(wrap, '今日', `
+      <div class="card plain">
+        <div class="today-row">
+          <span class="tico">⚡</span>
+          <div class="tgrow"><div class="tt1">一键收取</div>
+            <div class="tt2">${t.claimable ? `${t.claimable} 项已达成、躺着等点的奖励` : '暂时没有可收的'}</div></div>
+          <button class="btn small primary" data-act="claim-all" ${t.claimable ? '' : 'disabled'}>一键收取</button>
+        </div>
+        <div class="today-row">
+          <span class="tico">📋</span>
+          <div class="tgrow"><div class="tt1">每日任务</div>
+            <div class="tt2">${t.dailyDone}/${t.dailyTotal} 完成${t.dailyClaimable ? ` · ${t.dailyClaimable} 项待领` : ''}${extra.length ? ` · ${extra.join(' / ')}待领` : ''}</div></div>
+          <button class="btn small ghost" data-act="open-tasks">去完成 ›</button>
+        </div>
+        <div class="today-row">
+          <span class="tico">✦</span>
+          <div class="tgrow"><div class="tt1">免费招募</div>
+            <div class="tt2">${!recruitUnlocked ? '通关第 1 关后解锁' : t.freeRecruit ? '今天还没领，免费 1 抽' : '今天已领 · 明天再来'}</div></div>
+          <button class="btn small ${t.freeRecruitReady ? 'gold' : 'ghost'}" data-act="open-recruit">${t.freeRecruitReady ? '去招募 ›' : '看看 ›'}</button>
+        </div>
+        <div class="today-row">
+          <span class="tico">🔥</span>
+          <div class="tgrow"><div class="tt1">限时悬赏</div>
+            <div class="tt2">${btLive.length ? `最快一条还剩 ${formatDuration(Math.floor(btSoon / 1000))}${bt.claimable ? ` · ${bt.claimable} 条可领` : ''}` : bt.allOver ? '本期已结束，可开新一期' : '本期目标已全部处理'}</div></div>
+          <button class="btn small ${bt.claimable ? 'primary' : 'ghost'}" data-act="open-bounty">${bt.claimable ? '去领取 ›' : '去看看 ›'}</button>
+        </div>
       </div>
-      <div class="today-row">
-        <span class="tico">✦</span>
-        <div class="tgrow"><div class="tt1">免费招募</div>
-          <div class="tt2">${!recruitUnlocked ? '通关第 1 关后解锁' : t.freeRecruit ? '今天还没领，免费 1 抽' : '今天已领 · 明天再来'}</div></div>
-        <button class="btn small ${t.freeRecruitReady ? 'gold' : 'ghost'}" data-act="open-recruit">${t.freeRecruitReady ? '去招募 ›' : '看看 ›'}</button>
-      </div>
-      <div class="today-row">
-        <span class="tico">🔥</span>
-        <div class="tgrow"><div class="tt1">限时悬赏</div>
-          <div class="tt2">${btLive.length ? `最快一条还剩 ${formatDuration(Math.floor(btSoon / 1000))}${bt.claimable ? ` · ${bt.claimable} 条可领` : ''}` : bt.allOver ? '本期已结束，可开新一期' : '本期目标已全部处理'}</div></div>
-        <button class="btn small ${bt.claimable ? 'primary' : 'ghost'}" data-act="open-bounty">${bt.claimable ? '去领取 ›' : '去看看 ›'}</button>
-      </div>
-    </div>`;
+      <div class="hint mt2">周常 / 成就 / 图鉴的奖励也在「一键收取」的范围里，不用逐个点。</div>`);
+    return w;
   }
   function homeScreen() {
   // 顶部状态区：对标《道友修仙》主界面最上面那排『境界』『修为』『修龄』——
@@ -514,51 +586,25 @@ window.UI = (function () {
         <button class="btn primary" data-act="claim-all" ${t0.claimable ? '' : 'disabled'}>${t0.claimable ? `⚡ 一键收取（${t0.claimable}）` : '⚡ 一键收取'}</button>
       </div>
     </div>
-    ${todayCard()}
-    ${protagRow()}
-    <div class="section-title">系统</div>
-    <div class="grid-title">养成</div>
-    <div class="feat-grid">
-      ${featureBtn('open-buildings', '🏗 基地建设', 'buildings')}
-      ${featureBtn('open-authority', '🔑 主神权限', 'buildings')}
-      ${featureBtn('open-realm', '🌌 境界渡劫', null)}
-      ${featureBtn('open-genelock', '🧬 基因锁', 'geneLock')}
-      ${featureBtn('open-reincarn', '♾ 转生', 'reincarn')}
-      ${featureBtn('open-beast', '🐾 伴生体', 'beast')}
-    </div>
-    <div class="grid-title">收集</div>
+    ${todayStrip()}
+    ${questCard()}
+    ${homeEntries()}
+    `;
+  }
+  // 首页入口只留"在这儿做"的六件事；养成线（基地/权限/境界/基因锁/转生/伴生体）整体搬到
+  // 「轮回者 → 成长」子页，避免首页把十几个系统一次摊平（这是这一版最主要的收缩）。
+  function homeEntries() {
+    const S = C().S;
+    return `<div class="section-title">入口</div>
     <div class="feat-grid">
       ${featureBtn('open-recruit', '✦ 轮回者招募', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable())}
       ${featureBtn('open-shop', '🏪 兑换大厅', 'shop')}
+      ${featureBtn('open-tasks', '📋 任务', 'tasks')}
+      ${featureBtn('open-bounty', '🔥 限时悬赏', null, C().bountyState().list.some(x => x.done && !x.claimed))}
       ${featureBtn('open-codex', '📕 轮回图鉴', 'recruit')}
       ${featureBtn('open-ach', '🏅 成就', null, C().achievementSummary().list.filter(x => x.done && !x.claimed).length > 0)}
     </div>
-    <div class="grid-title">目标</div>
-    <div class="feat-grid">
-      ${featureBtn('open-tasks', '📋 任务', 'tasks')}
-      ${featureBtn('open-bounty', '🔥 限时悬赏', null, C().bountyState().list.some(x => x.done && !x.claimed))}
-      ${featureBtn('open-bag', '🧰 道具背包', null)}
-      ${featureBtn('open-curdoc', '▤ 货币图鉴', null)}
-    </div>
-    ${questCard()}
-    `;
-  }
-  // 个人房间：从"一整张卡 + 3 行 + 进度条"收成一行——经验条已经在顶部状态区里了
-  function protagRow() {
-    const S = C().S;
-    const gl = D.GENE_LOCKS[S.player.geneLock - 1];
-    return `<div class="card plain tap" data-protag="1">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:24px;line-height:1">⛩</span>
-        <div class="grow" style="flex:1;min-width:0">
-          <div class="t1" style="font-size:var(--fs-1);font-weight:600">${cname('@player')} · 个人房间</div>
-          <div class="t2" style="font-size:var(--fs-sm);color:var(--dim);margin-top:3px">
-            战力 ${fmt(C().playerPower())} · 基因锁 ${S.player.geneLock > 0 ? `${S.player.geneLock}阶·${gl.name}` : '未解锁'} · 转生 ${S.player.reincarnations} 世
-          </div>
-        </div>
-        <span class="dim" style="font-size:18px">›</span>
-      </div>
-    </div>`;
+    <div class="hint mt1" style="text-align:center">养成线在「👥 轮回者 → 🌱 成长」里</div>`;
   }
   function featureBtn(act, label, unlockId, dot) {
     // 图标在上、名字在下的宫格按钮（放置类主界面的通用做法：一眼扫得到功能，点得到区域够大）
@@ -2728,7 +2774,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V7.1</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>无限轮回 V7.2</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -3287,6 +3333,7 @@ window.UI = (function () {
         }
         case 'open-shop': shopModal('god'); break;
         case 'open-buildings': buildingsModal(); break;
+        case 'open-today': todayModal(); break;
         case 'open-authority': authorityModal(); break;
         case 'open-tasks': tasksModal(); break;
         case 'open-genelock': geneLockModal(); break;
@@ -3613,7 +3660,7 @@ window.UI = (function () {
         ♾ 挑战无限回廊，寻找离开的方法<br><br>
         新手补给已发放：◈50,000 · ✦1,000 · 经验模块×20 · 治疗剂×10<br><br>
         <b style="color:var(--gold)">上手就三件事：</b><br>
-        ① 首页最上面的「🗓 今日」卡点「一键收取」——挂机、任务、成就、悬赏，能领的一次全领；<br>
+        ① 点首页的「🗓 今日」横条，里面「一键收取」把挂机、任务、成就、悬赏能领的一次全领；<br>
         ② 点「轮回副本」打进第 1 关，通关后解锁招募；<br>
         ③ 招募里每天有一次<b>免费</b>，别忘了领。<br><br>
         三张招募池花的是<b>三种不同的货币</b>：◈点数抽普通（攒碎片）、✦圣洁晶石抽高级（补图鉴）、◆异界结晶抽限定（定向出当期 UP）。<br>
@@ -3693,8 +3740,8 @@ window.UI = (function () {
       sweepModal, recruitModal, gotoQuest, weeklyHtml, achHtml, reincarnModal, charDetail, equipDetail, geneLockModal,
       idleLinesModal, pickIdleLeader, bountyModal, realmModal,
       beastModal,
-      recruitRatesModal, authorityModal,
-      _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen },
+      recruitRatesModal, authorityModal, todayModal, todayStrip,
+      _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen, growScreen },
     },
   };
 })();

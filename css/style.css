@@ -382,6 +382,30 @@ body {
 /* 首页「更多」小字行已取消（V7.1）：系统入口一律走三列宫格，低频入口收到顶栏图标里。
    对应样式一并删掉，避免留下没人用的类把后来的改动带偏。 */
 
+/* ---------- 首页「今日」横条 ---------- */
+/* 对标产品的主界面只把"每日"做成一个很小的入口，不占正文；四行详情点开再看 */
+.today-strip {
+  display: flex; align-items: center; gap: var(--sp3);
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 10px var(--sp3); margin-bottom: var(--sp2);
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+.today-strip.hot { border-color: #e6b64c55; }
+.today-strip .ts-ico { font-size: 19px; flex: 0 0 auto; opacity: .9; }
+.today-strip .ts-grow { flex: 1; min-width: 0; }
+.today-strip .ts-t1 { font-size: var(--fs-lg); font-weight: 600; }
+.today-strip .ts-t2 { font-size: var(--fs-sm); color: var(--dim); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.today-strip .ts-go { color: var(--dim); font-size: 18px; flex: 0 0 auto; }
+.today-strip.hot .ts-t1 { color: var(--gold); }
+
+/* ---------- 「成长」子页：一行一条养成线 ---------- */
+.grow-row { display: flex; align-items: center; gap: var(--sp3); padding: 11px var(--sp3); }
+.grow-row .gr-ico { font-size: 22px; flex: 0 0 auto; opacity: .92; }
+.grow-row .gr-grow { flex: 1; min-width: 0; }
+.grow-row .gr-t1 { font-size: var(--fs-1); font-weight: 600; }
+.grow-row .gr-t2 { font-size: var(--fs-sm); color: var(--dim); margin-top: 3px; line-height: 1.55; }
+.grow-row .gr-cur { flex: 0 0 auto; font-size: var(--fs-md); color: var(--gold); text-align: right; max-width: 42%; }
+
 /* ---------- 列表工具栏（筛选 / 排序 / 搜索） ---------- */
 .filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .filter-bar .flabel { font-size: 11px; color: var(--dim); flex: 0 0 auto; }
