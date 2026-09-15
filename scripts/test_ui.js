@@ -506,7 +506,9 @@ t('队伍页显示阵型与具名阵列表', () => {
   const html = UI._panels._screens.partyScreen();
   if (!html.includes('阵型')) throw new Error('缺阵型区');
   if (!html.includes('五行归元阵')) throw new Error('缺具名阵');
-  if (!html.includes('万能补位')) throw new Error('缺主角补位说明');
+  // V9.5.8：那句『主角是万能补位』属于过度解释，按父亲大人要求删了；
+  // 这里改成断行为：阵型列表在、且带激活条件（不再拿被删的文案当锚点）
+  if (!html.includes('fm-row') || !html.includes('五行归元阵')) throw new Error('阵型列表不在');
 });
 t('境界面板显示大境 × 小阶（跟着当前血统）', () => {
   const html = UI._panels.realmModal().innerHTML;
