@@ -467,6 +467,15 @@ t('首页顶部是【标签】值 文字行（境界/等级/转生）', () => {
   const html = UI._panels._screens.homeScreen();
   if (!/境界/.test(html) || !/等级/.test(html) || !/转生/.test(html)) throw new Error('缺状态行');
   if (!html.includes('text-rows')) throw new Error('缺文字行容器');
+  // V9.5.3：整块主角卡都可点进角色界面（data-protag 挂在卡片上，不是挂在某一行）
+  {
+    const hero = UI._panels._screens.homeScreen();
+    const cardAt = hero.indexOf('data-sec="hero"');
+    const tagEnd = hero.indexOf('>', cardAt);
+    if (cardAt < 0 || hero.slice(cardAt, tagEnd).indexOf('data-protag="1"') < 0) {
+      throw new Error('主角卡整块不可点（data-protag 没挂在卡片上）');
+    }
+  }
 });
 t('灯阁权限入口在「执灯者 → 成长」子页', () => {
   const html = UI._panels._screens.growScreen();

@@ -4,7 +4,7 @@ window.UI = (function () {
   const C = () => window.Core;
   const $view = () => document.getElementById('view');
   /* 版本号只有这一处：设置页显示它、GM 门禁提示也用它（改版本号时和 index.html/sw.js 一起改，见 scripts/test_ui.js） */
-  const GAME_VER = '9.5.2';
+  const GAME_VER = '9.5.3';
   /* GM 面板是内部工具，但它跟着正式包一起上线了（线上连点 7 次就能开，还能刷货币并导出存档）。
      线上要求 URL 带 ?gm=1 才认，本地开发照旧直接开（V9.5）。 */
   function gmAllowed() {
@@ -665,23 +665,25 @@ window.UI = (function () {
     const spentSkill = (S.player.skillLv || [1, 1, 1]).reduce((s, x) => s + x - 1, 0);
     const sect = C().sectInfo();
     // 参考产品的主界面最上面就是这种【标签】值 的文字行，一行一件事，不做卡片格子
-    return `<div class="card text-rows" data-sec="hero">
-      <div class="row static">
+    /* V9.5.3：整块主角卡都可点（父亲大人要求）——以前只有【主角】那一行的黄字能点，
+       现在把 data-protag 挂到卡片本身，四行随便点哪里都进角色界面。 */
+    return `<div class="card text-rows" data-sec="hero" data-protag="1" style="cursor:pointer">
+      <div class="row">
         <span class="rk">【境界】</span>
         <span class="rv" style="color:${st.hasBloodline ? 'var(--gold)' : 'var(--accent)'}">${st.curName || '未定血统'}</span>
         <span class="rs">${st.hasBloodline ? `第 ${Math.min(st.realm + 1, D.REALM_STAGE_COUNT)} / ${D.REALM_STAGE_COUNT} 阶` : '点【主角】卡里选血统'}</span>
       </div>
-      <div class="row static">
+      <div class="row">
         <span class="rk">【等级】</span>
         <span class="rv">Lv.${S.player.level}</span>
         <span class="rs">EXP ${Math.floor(S.player.exp / expNeed * 100)}%</span>
       </div>
-      <div class="row" data-protag="1">
+      <div class="row">
         <span class="rk">【主角】</span>
         <span class="rv" style="${(S.player.attrPoints || S.player.skillPoints) ? 'color:var(--gold)' : ''}">六维待分 ${S.player.attrPoints || 0} · 技能待加 ${S.player.skillPoints || 0}</span>
         <span class="rs">点开：加点 / 洗点 / 血统 / 境界 ›</span>
       </div>
-      <div class="row static">
+      <div class="row">
         <span class="rk">【转生】</span>
         <span class="rv">${S.player.reincarnations} 世</span>
         <span class="rs">权限 Lv.${au.lv} · 评级 Lv.${sect.lv}</span>
