@@ -470,16 +470,20 @@ body {
 .bg-slot {
   aspect-ratio: 1 / 1; min-height: 62px; border-radius: 10px;
   border: 1px solid var(--line); background: #00000022;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; padding: 3px; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 2px; padding: 5px 6px; overflow: hidden;
   font-family: inherit; color: var(--text); text-align: center;
 }
 .bg-slot.filled { background: var(--panel2); cursor: pointer; }
 .bg-slot.filled:active { background: var(--panel3); }
 /* V9.5.9（父亲大人）：格子里的名字太小看不见 → 放大到 11px，允许折成两行；数量跟着放大到 11px */
 /* V9.5.11（父亲大人）：名字再放大一档 → 13px，两行放得下（32px），超出两行才截断 */
-.bg-slot .bg-name { font-size: 13px; line-height: 1.25; font-weight: 600; word-break: break-all; max-height: 32px; overflow: hidden; }
-.bg-slot .bg-count { font-size: 12px; color: var(--gold); font-weight: 700; }
+/* V9.5.12（父亲大人）：名字占上方（左右留安全边、每行约 4 个字、能断行），数量贴到格子底部。
+   注意：格子里是 flex column + align-items:center，子项默认按内容撑宽 —— 不给 width:100% 就永远不换行，
+   只会把长名字顶出格子（"初级经验模块"当时就是这样被切掉的）。 */
+.bg-slot .bg-name { width: 100%; font-size: 13px; line-height: 1.25; font-weight: 600;
+  word-break: break-all; overflow-wrap: anywhere; max-height: 33px; overflow: hidden; }
+.bg-slot .bg-count { margin-top: auto; font-size: 12px; color: var(--gold); font-weight: 700; }
 .bg-slot .bg-sub { font-size: 10px; color: var(--dim); }
 .bg-slot.add {
   border-style: dashed; border-color: var(--gold); color: var(--gold);
