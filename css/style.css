@@ -486,7 +486,8 @@ body {
 /* V9.5.12（父亲大人）：名字占上方（左右留安全边、每行约 4 个字、能断行），数量贴到格子底部。
    注意：格子里是 flex column + align-items:center，子项默认按内容撑宽 —— 不给 width:100% 就永远不换行，
    只会把长名字顶出格子（"初级经验模块"当时就是这样被切掉的）。 */
-.bg-slot .bg-name { width: 100%; margin: auto 0; font-size: 13px; line-height: 1.25; font-weight: 600;
+.bg-slot .bg-name { width: 100%; margin: auto 0; position: relative; top: 2px;   /* V9.5.18：名称整体下移 2px */
+  font-size: 13px; line-height: 1.25; font-weight: 600;
   word-break: break-all; overflow-wrap: anywhere; max-height: 33px; overflow: hidden; }
 .bg-slot .bg-count { font-size: 12px; color: var(--gold); font-weight: 700; }
 .bg-slot .bg-sub { font-size: 10px; color: var(--dim); }
