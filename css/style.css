@@ -707,7 +707,9 @@ body {
 .fm-row.on .fm-name { color: var(--gold); }
 .fm-row .fm-req { color: var(--dim); }
 .fm-row .fm-buff { margin-left: auto; color: var(--green); }
-.fm-row .fm-on { color: var(--green); font-size: 10px; min-width: 36px; text-align: right; }
+/* V9.5.20（父亲大人）：每一行都留出「已激活」那一列（固定宽度、空着也占位），
+   这样所有加成值都右对齐到同一条线；没激活的加成用灰字。 */
+.fm-row .fm-on { flex: 0 0 auto; width: 44px; color: var(--green); font-size: 10px; text-align: right; }
 
 /* ---------- 结算页奖励逐条浮入 ---------- */
 .b-result .reward-chip { animation: chipIn .32s ease both; }
