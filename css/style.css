@@ -32,7 +32,7 @@
   --radius: 10px;
   --radius-sm: 7px;
   /* 字号阶梯 */
-  --fs-xs: 10px; --fs-sm: 11px; --fs-md: 12px; --fs-lg: 13px; --fs-1: 15px; --fs-2: 17px;
+  --fs-xs: 11px; --fs-sm: 11px;   /* V9.5.21：最小字号抬到 11px（9~10px 的看不清） */ --fs-md: 12px; --fs-lg: 13px; --fs-1: 15px; --fs-2: 17px;
   --nav-h: 62px;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -189,7 +189,7 @@ body {
 .char-card { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; text-align: center; cursor: pointer; position: relative; }
 .char-card .avatar { width: 46px; height: 46px; margin: 0 auto 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; background: #232c42; border: 2px solid var(--line); }
 .char-card .cname { font-size: 13px; font-weight: 600; }
-.char-card .cmeta { font-size: 10px; color: var(--dim); margin-top: 2px; }
+.char-card .cmeta { font-size: 11px; color: var(--dim); margin-top: 2px; }
 .char-card .stars { font-size: 10px; color: var(--gold); letter-spacing: -1px; }
 .char-card .inparty { position: absolute; top: 4px; right: 4px; font-size: 9px; background: var(--accent); border-radius: 6px; padding: 1px 5px; }
 .rarity-N { border-color: #5a6373 !important; }
@@ -203,7 +203,7 @@ body {
 .party-slots { display: flex; gap: 10px; }
 .party-slots .pslot { flex: 1 1 0; min-width: 0; }
 .pos-row-label { margin: 8px 2px 6px; font-size: 12px; font-weight: 600; color: var(--text); display: flex; align-items: baseline; gap: 6px; }
-.pos-row-label span { font-weight: 400; font-size: 10px; color: var(--dim); }
+.pos-row-label span { font-weight: 400; font-size: 11px; color: var(--dim); }
 /* 长按换位：抓起的那块亮起来，其余位置进入"可放下"的提示状态 */
 .pslot .pos-hint { position: absolute; right: 8px; bottom: 6px; font-size: 9px; color: var(--dim); opacity: .7; }
 /* 长按换位：关掉系统长按菜单与文字选择，免得"长按"变成复制/放大镜 */
@@ -213,7 +213,7 @@ body {
 .party-grid.grabbed .pslot.grabbing { border-style: solid; }
 /* 主角占的是 5 格里的普通一格，只是描边带金、写清他站哪一排 */
 .pslot.protag-slot { border-color: var(--gold); background: #e6b64c12; cursor: pointer; }
-.pos-row-label .here { font-weight: 600; font-size: 10px; color: var(--gold); margin-left: auto; }
+.pos-row-label .here { font-weight: 600; font-size: 11px; color: var(--gold); margin-left: auto; }
 /* 拖动中指针压在哪个位置上：那一格（或那一排标题）实心高亮，松手就落在这里 */
 .pslot.drop-target { border-color: var(--gold) !important; border-style: solid !important; box-shadow: 0 0 0 3px #e6b64c66, 0 6px 20px #0009; transform: translateY(-2px); }
 .pos-row-label.drop-target { color: var(--gold); }
@@ -227,11 +227,11 @@ body {
 /* "取消"按钮本体 40px，用伪元素把热区补到 44px（手机上按得准） */
 .drag-bar .btn::after { content: ''; position: absolute; inset: -2px 0; }
 .pslot { background: var(--panel2); border: 1px dashed var(--line); border-radius: 12px; min-height: 96px; padding: 10px; cursor: pointer; position: relative; }
-.pslot .pos-tag { position: absolute; top: 6px; left: 8px; font-size: 10px; color: var(--dim); }
+.pslot .pos-tag { position: absolute; top: 6px; left: 8px; font-size: 11px; color: var(--dim); }
 .pslot.filled { border-style: solid; }
 .pslot .avatar { width: 40px; height: 40px; border-radius: 50%; background: #232c42; display: flex; align-items: center; justify-content: center; font-weight: 700; margin: 8px auto 4px; }
 .pslot .pname { text-align: center; font-size: 13px; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pslot .pmeta { text-align: center; font-size: 10px; color: var(--dim); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pslot .pmeta { text-align: center; font-size: 11px; color: var(--dim); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- 进度条 ---------- */
 .bar { height: 8px; background: #0d1120; border-radius: 6px; overflow: hidden; position: relative; }
@@ -349,7 +349,7 @@ body {
 .world-ico { width: 52px; height: 52px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 24px; line-height: 1; background: #232c42; border: 1px solid var(--line); }
 .stage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .stage-cell { aspect-ratio: 1; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; cursor: pointer; }
-.stage-cell .st { font-size: 9px; color: var(--gold); letter-spacing: -1px; }
+.stage-cell .st { font-size: 10px; color: var(--gold); letter-spacing: -1px; }
 .stage-cell.locked { opacity: .3; pointer-events: none; }
 .stage-cell.boss { border-color: var(--accent); color: var(--accent); }
 .stage-cell.done { background: #1d2b22; border-color: #2f5b41; }
@@ -378,7 +378,7 @@ body {
 .b-field { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; padding: 0 14px; }
 .b-row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
 /* 站位可见化：我方分两行（后排在上、前排在下），敌人优先打前排 */
-.b-line-label { text-align: center; font-size: 10px; color: var(--dim); letter-spacing: 1px; }
+.b-line-label { text-align: center; font-size: 11px; color: var(--dim); letter-spacing: 1px; }
 .b-line-label[data-line="front"] { color: #ffd76a99; }
 .b-seamless {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -386,7 +386,7 @@ body {
   border-radius: 12px; padding: 10px 18px; font-size: 13px; white-space: nowrap;
 }
 .b-potions { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-.b-potions .b-potion-tip { font-size: 10px; color: var(--dim); text-align: center; }
+.b-potions .b-potion-tip { font-size: 11px; color: var(--dim); text-align: center; }
 .b-potions > div:last-child { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 .unit { width: 30%; max-width: 110px; text-align: center; position: relative; transition: transform .1s; }
 .b-row.allies .unit { width: 18%; }
@@ -399,11 +399,11 @@ body {
 .unit.acting .u-avatar { animation: lunge .25s; border-color: var(--gold); }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 @keyframes lunge { 50% { transform: scale(1.12); } }
-.unit .u-name { font-size: 10px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.unit .u-name { font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .unit .bar { height: 6px; margin-top: 2px; }
 .unit .bar.energy { height: 3px; }
 /* 血条下面的百分比：带血进场 / 血线告急一眼看得出来（V9.4） */
-.unit .u-hp { font-size: 9px; color: var(--dim); margin-top: 1px; }
+.unit .u-hp { font-size: 10px; color: var(--dim); margin-top: 1px; }
 .unit .bar.hp.low + .u-hp { color: var(--accent); }
 .floater { position: absolute; left: 50%; top: 0; transform: translateX(-50%); font-weight: 800; font-size: 15px; animation: floatup .8s ease forwards; pointer-events: none; text-shadow: 0 2px 4px #000; z-index: 5; }
 .floater.crit { color: var(--gold); font-size: 19px; }
@@ -495,7 +495,7 @@ body {
   font-size: 13px; line-height: 1.25; font-weight: 600;
   word-break: break-all; overflow-wrap: anywhere; max-height: 33px; overflow: hidden; }
 .bg-slot .bg-count { font-size: 12px; color: var(--gold); font-weight: 700; }
-.bg-slot .bg-sub { font-size: 10px; color: var(--dim); }
+.bg-slot .bg-sub { font-size: 11px; color: var(--dim); }
 .bg-slot.add {
   /* V9.5.16（父亲大人）：不做金色高亮，就是一个灰虚线空框、中间一个 ＋ */
   border: 1px dashed var(--line2); background: transparent; color: var(--dim);
@@ -536,7 +536,7 @@ body {
 .stat-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .stat-6 .cell { background: var(--panel); border-radius: 8px; padding: 8px 4px; text-align: center; }
 .stat-6 .cell .v { font-weight: 700; font-size: 14px; }
-.stat-6 .cell .k { font-size: 10px; color: var(--dim); }
+.stat-6 .cell .k { font-size: 11px; color: var(--dim); }
 /* 属性数值面板（角色卡 / 主角卡共用）：两列一屏列全，比一行一项省一半高度 */
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px var(--sp3); }
 .stat-grid .srow { display: flex; align-items: baseline; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--line-soft); min-width: 0; }
@@ -690,7 +690,7 @@ body {
   border-radius: 8px; padding: 5px 2px; background: var(--panel2);
 }
 .step-chip b { display: block; font-size: 11px; font-weight: 600; }
-.step-chip i { display: block; font-size: 9px; font-style: normal; color: var(--dim); margin-top: 1px; }
+.step-chip i { display: block; font-size: 10px; font-style: normal; color: var(--dim); margin-top: 1px; }
 .step-chip.done { border-color: #5dd39e55; }
 .step-chip.done b { color: var(--green); }
 .step-chip.cur { border-color: #ffd76a; background: linear-gradient(180deg, #ffd76a22, transparent); }
@@ -709,7 +709,7 @@ body {
 .fm-row .fm-buff { margin-left: auto; color: var(--green); }
 /* V9.5.20（父亲大人）：每一行都留出「已激活」那一列（固定宽度、空着也占位），
    这样所有加成值都右对齐到同一条线；没激活的加成用灰字。 */
-.fm-row .fm-on { flex: 0 0 auto; width: 44px; color: var(--green); font-size: 10px; text-align: right; }
+.fm-row .fm-on { flex: 0 0 auto; width: 46px; color: var(--green); font-size: 11px; text-align: right; }
 
 /* ---------- 结算页奖励逐条浮入 ---------- */
 .b-result .reward-chip { animation: chipIn .32s ease both; }
