@@ -62,10 +62,16 @@ window.DATA = (function () {
   const BLOODLINE_UNLOCK_LV = 1;  // 开局第一件事就是选血统（境界线跟着血统走，所以不能拖到 Lv.10）
 
   /* ================= 背包容量 ================= */
-  const BAG_BASE_CAP = 100;
+  // V9.2：背包分三池——道具 / 材料 / 装备，各 50 格起、各自扩容。
+  // 每次扩容 +10 格（背包界面上就是"末尾多出一格＋号"）。
+  const BAG_BASE_ITEM_CAP = 50;   // 道具（消耗品 / 宝箱 / 经验模块 / 血清 / 招募券）
+  const BAG_BASE_MAT_CAP = 50;    // 材料（强化材料 + 兽魂石）
+  const BAG_BASE_EQ_CAP = 50;     // 未穿戴的装备，每件 1 格
+  const BAG_BASE_CAP = 100;       // 老档迁移用（旧的合并池基础值）
   const SWEEP_DAILY_CAP = 60;   // 每日扫荡上限（504 关体量下 30 次太少，2026-09-12 提到 60）
-  const BAG_EXPAND_SIZE = 50;
-  function bagExpandCost(expands) { return Math.round(20000 * Math.pow(1.6, expands)); }
+  const BAG_EXPAND_SIZE = 10;
+  // 每次 +10 格，所以价格曲线比"一次 +50"平缓得多（第一条 1500 点，约挂机 2 小时）
+  function bagExpandCost(expands) { return Math.round(1500 * Math.pow(1.3, expands)); }
 
   const CURRENCIES = [
     { id: 'points',     name: '点数',     icon: '◈', color: '#ffd76a' },
@@ -340,7 +346,7 @@ window.DATA = (function () {
       enemies: '梦境傀儡|锈爪梦魔|呓语幽灵'.split('|'), elite: '噩梦编织者', unlock: 'W06' },
     { id: 'W08', name: '哑雾小镇', theme: 'ghost',  desc: '浓雾中的小镇，雾界随时降临。', hp: 2900, atk: 280, def: 250, mechanic: '浓雾：命中-15%', boss: '雾猎者', bossHp: [347974, 626353, 1113517],
       enemies: '雾中人影|钩索巨影|白面护工'.split('|'), elite: '雾界行刑者', unlock: 'W07' },
-    { id: 'W09', name: '巨兽孤屿', theme: 'bio',  desc: '基因复活的史前霸主，视人类为猎物。', hp: 3400, atk: 320, def: 270, mechanic: '撕裂：流血；群体攻击', boss: '暴君巨兽', bossHp: [419616, 755308, 1342770],
+    { id: 'W09', name: '巨兽孤屿', theme: 'bio',  desc: '被唤醒的史前霸主，视人类为猎物。', hp: 3400, atk: 320, def: 270, mechanic: '撕裂：流血；群体攻击', boss: '暴君巨兽', bossHp: [419616, 755308, 1342770],
       enemies: '迅猛龙|双脊龙|翼龙'.split('|'), elite: '棘背龙', unlock: 'W08' },
     { id: 'W10', name: '毒沼深处', theme: 'bio',    desc: '沼泽深处的巨蟒已变异成灾厄。', hp: 3800, atk: 350, def: 300, mechanic: '中毒：持续掉血；缠绕', boss: '毒沼巨口', bossHp: [501492, 902685, 1604774],
       enemies: '毒沼蟒|沼泽鳄|吸血水蛭'.split('|'), elite: '变异森蚺', unlock: 'W09' },
@@ -423,12 +429,12 @@ window.DATA = (function () {
     { charId: 'C047', name: '虚空刺匕', slot: 'weapon', base: { atk: 330 }, affixes: [{ k: 'critPct', v: 0.08 }, { k: 'critDmg', v: 0.28 }], text: '白夜专属：一击致命' },
   ];
   const EQUIP_NAMES = {
-    weapon:   { bio: ['生化军刀', '脉冲步枪', '基因切割者'], ghost: ['镇魂铃', '驱邪短刃', '缚灵符剑'], mystic: ['秘银法杖', '圣光权杖', '咒纹长剑'], tech: ['磁轨枪', '粒子刀', '湮灭炮'], god: ['灯阁之刃', '轮回权杖', '试炼圣枪'] },
-    armor:    { bio: ['防化作战服', '蜂巢护甲', '再生殖装'], ghost: ['符咒道袍', '怨念披风', '镇宅法衣'], mystic: ['秘陵铠甲', '圣甲护胸', '咒缚长袍'], tech: ['纳米装甲', '反应外骨骼', '相位护盾'], god: ['灯阁战甲', '轮回之袍', '试炼圣铠'] },
-    accessory:{ bio: ['血清注射器', '病毒样本', '基因稳定环'], ghost: ['护身佛珠', '盐晶挂坠', '往生铜钱'], mystic: ['圣甲虫护符', '太阳金环', '安卡十字'], tech: ['战术目镜', '神经增幅器', '能量核心'], god: ['轮回徽记', '灯阁腕表', '试炼徽章'] },
-    head:     { bio: ['防毒面具', '战术头盔', '生化护目镜'], ghost: ['镇魂冠', '驱邪头巾', '符纸额带'], mystic: ['秘银头环', '圣光头盔', '咒纹面甲'], tech: ['战术头盔', '全息面罩', '神经头环'], god: ['灯阁之冕', '轮回头盔', '试炼面甲'] },
-    hands:    { bio: ['防化手套', '战术手套', '基因臂铠'], ghost: ['缚灵手套', '符咒护腕', '镇魂臂甲'], mystic: ['秘银护手', '圣光手套', '咒纹臂环'], tech: ['磁力手套', '粒子臂铠', '能量护腕'], god: ['灯阁护手', '轮回臂铠', '试炼手套'] },
-    legs:     { bio: ['防化护腿', '战术军靴', '生化腿甲'], ghost: ['疾行符靴', '镇魂护腿', '怨灵绑腿'], mystic: ['秘银护腿', '圣光战靴', '咒纹腿甲'], tech: ['磁力战靴', '喷射腿甲', '幻影护腿'], god: ['灯阁战靴', '轮回护腿', '试炼腿甲'] },
+    weapon:   { bio: ['聚合物军刀', '脉冲步枪', '血脉切割者'], ghost: ['镇魂铃', '驱邪短刃', '缚灵符剑'], mystic: ['秘银法杖', '圣光权杖', '咒纹长剑'], tech: ['磁轨枪', '粒子刀', '湮灭炮'], god: ['灯阁之刃', '终焉权杖', '试炼圣枪'] },
+    armor:    { bio: ['防化作战服', '蜂巢护甲', '再生殖装'], ghost: ['符咒道袍', '怨念披风', '镇宅法衣'], mystic: ['秘陵铠甲', '圣甲护胸', '咒缚长袍'], tech: ['纳米装甲', '反应外骨骼', '相位护盾'], god: ['灯阁战甲', '终焉之袍', '试炼圣铠'] },
+    accessory:{ bio: ['血清注射器', '病毒样本', '血脉稳定环'], ghost: ['护身佛珠', '盐晶挂坠', '往生铜钱'], mystic: ['圣甲虫护符', '太阳金环', '安卡十字'], tech: ['战术目镜', '神经增幅器', '能量核心'], god: ['终焉徽记', '灯阁腕表', '试炼徽章'] },
+    head:     { bio: ['防毒面具', '战术头盔', '密封护目镜'], ghost: ['镇魂冠', '驱邪头巾', '符纸额带'], mystic: ['秘银头环', '圣光头盔', '咒纹面甲'], tech: ['战术头盔', '全息面罩', '神经头环'], god: ['灯阁之冕', '终焉头盔', '试炼面甲'] },
+    hands:    { bio: ['防化手套', '战术手套', '血脉臂铠'], ghost: ['缚灵手套', '符咒护腕', '镇魂臂甲'], mystic: ['秘银护手', '圣光手套', '咒纹臂环'], tech: ['磁力手套', '粒子臂铠', '能量护腕'], god: ['灯阁护手', '终焉臂铠', '试炼手套'] },
+    legs:     { bio: ['防化护腿', '战术军靴', '聚合物腿甲'], ghost: ['疾行符靴', '镇魂护腿', '怨灵绑腿'], mystic: ['秘银护腿', '圣光战靴', '咒纹腿甲'], tech: ['磁力战靴', '喷射腿甲', '幻影护腿'], god: ['灯阁战靴', '终焉护腿', '试炼腿甲'] },
   };
   const AFFIX_POOL = {
     atkPct: { name: '攻击力', min: 0.02, max: 0.22, pct: true },
@@ -494,19 +500,19 @@ window.DATA = (function () {
        它的招募不是直接花货币，而是花"券"；券可以从商店买、也能从玩法里掉。
        好处是"打副本 → 掉券 → 去抽"自己成了一条循环，不用先攒够一大笔货币才敢点招募。
        我们三个池子各配一张券，抽的时候「有券先用券，没券才花货币」，规则只有这一条。 */
-    ticket_normal: { name: '引灯招募券', type: 'ticket', where: 'recruit', pool: 'normal', use: '在「执灯者招募」点普通池抽卡时自动先用它', desc: '普通招募 1 次（没券时会自动改花 ◈点数）', src: '副本战斗、扫荡、挂机、每日任务' },
-    ticket_adv:    { name: '圣契招募令', type: 'ticket', where: 'recruit', pool: 'advanced', use: '在「执灯者招募」点高级池抽卡时自动先用它', desc: '高级招募 1 次（没券时会自动改花 ✦圣洁晶石）', src: '精英/Boss 掉落、限时悬赏、每周任务、兑换大厅' },
-    ticket_lim:    { name: '异界征召令', type: 'ticket', where: 'recruit', pool: 'limited', use: '在「执灯者招募」点限定池抽卡时自动先用它', desc: '限定招募 1 次（没券时会自动改花 ◆异界结晶）', src: '深井、地狱难度、周常全清、异界商店' },
+    ticket_normal: { name: '引灯招募券', type: 'ticket', where: 'recruit', pool: 'normal', use: '在「招募伙伴」点普通池招募时自动先用它', desc: '普通招募 1 次（没券时会自动改花 ◈点数）', src: '副本战斗、扫荡、挂机、每日任务' },
+    ticket_adv:    { name: '圣契招募令', type: 'ticket', where: 'recruit', pool: 'advanced', use: '在「招募伙伴」点高级池招募时自动先用它', desc: '高级招募 1 次（没券时会自动改花 ✦圣洁晶石）', src: '精英/Boss 掉落、限时悬赏、每周任务、兑换大厅' },
+    ticket_lim:    { name: '异界征召令', type: 'ticket', where: 'recruit', pool: 'limited', use: '在「招募伙伴」点限定池招募时自动先用它', desc: '限定招募 1 次（没券时会自动改花 ◆异界结晶）', src: '深井、地狱难度、周常全清、异界商店' },
     heal_s: { name: '小型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.2 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 20% 生命', src: '灯阁市集、副本战斗掉落' },
     heal_m: { name: '中型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.4 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 40% 生命', src: '灯阁市集、副本战斗掉落' },
     heal_l: { name: '大型治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 0.7 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队回复 70% 生命', src: '副本战斗掉落（第 5 关起）、周常奖励' },
     buff_muscle: { name: '肌肉强化剂', type: 'consumable', where: 'explore', effect: { atkPct: 0.15 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队攻击 +15%', desc: '副本探索中使用：本次探索全队攻击 +15%', src: '灯阁市集、精英/Boss 掉落' },
     buff_nerve: { name: '神经刺激剂', type: 'consumable', where: 'explore', effect: { spdPct: 0.20 }, use: '副本探索中，点探索界面的增益按钮，本次探索全队速度 +20%', desc: '副本探索中使用：本次探索全队速度 +20%', src: '灯阁市集、精英/Boss 掉落' },
-    exp_s: { name: '初级经验模块', type: 'exp', where: 'character', exp: 500, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+500 EXP', src: '灯阁市集、副本战斗掉落、每日任务' },
-    exp_m: { name: '中级经验模块', type: 'exp', where: 'character', exp: 2000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+2,000 EXP', src: '灯阁市集、副本战斗掉落、每日/周常奖励' },
-    exp_l: { name: '高级经验模块', type: 'exp', where: 'character', exp: 10000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+10,000 EXP', src: '灯阁市集（通关 W04 后解锁）、精英/Boss 掉落、周常奖励' },
-    exp_xl: { name: '超级经验模块', type: 'exp', where: 'character', exp: 50000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+50,000 EXP', src: '灯阁市集（通关 W07 后解锁）、地狱 Boss 掉落、周常全清奖励' },
-    exp_xxl: { name: '究极经验模块', type: 'exp', where: 'character', exp: 200000, use: '背包里点这张道具卡，选一名招募角色使用', desc: '对招募角色使用：+200,000 EXP', src: '灯阁市集（通关 W15 后解锁）、W15+ 守关 Boss、周常全清、斗法台高阶' },
+    exp_s: { name: '初级经验模块', type: 'exp', where: 'character', exp: 500, use: '背包里点这张道具卡，选一名伙伴使用', desc: '对伙伴使用：+500 EXP', src: '灯阁市集、副本战斗掉落、每日任务' },
+    exp_m: { name: '中级经验模块', type: 'exp', where: 'character', exp: 2000, use: '背包里点这张道具卡，选一名伙伴使用', desc: '对伙伴使用：+2,000 EXP', src: '灯阁市集、副本战斗掉落、每日/周常奖励' },
+    exp_l: { name: '高级经验模块', type: 'exp', where: 'character', exp: 10000, use: '背包里点这张道具卡，选一名伙伴使用', desc: '对伙伴使用：+10,000 EXP', src: '灯阁市集（通关 W04 后解锁）、精英/Boss 掉落、周常奖励' },
+    exp_xl: { name: '超级经验模块', type: 'exp', where: 'character', exp: 50000, use: '背包里点这张道具卡，选一名伙伴使用', desc: '对伙伴使用：+50,000 EXP', src: '灯阁市集（通关 W07 后解锁）、地狱 Boss 掉落、周常全清奖励' },
+    exp_xxl: { name: '究极经验模块', type: 'exp', where: 'character', exp: 200000, use: '背包里点这张道具卡，选一名伙伴使用', desc: '对伙伴使用：+200,000 EXP', src: '灯阁市集（通关 W15 后解锁）、W15+ 守关 Boss、周常全清、斗法台高阶' },
     /* 探索增益的"后三档"：治疗剂管回血，这三支管打出去（对标别人的"丹药"矩阵）。
        品质越高给得越多，但都只在一次探索里生效，不改变长期数值。 */
     heal_x: { name: '全效治疗剂', type: 'consumable', where: 'explore', effect: { healPct: 1.0 }, use: '副本探索中，点探索界面的药剂按钮，全队回血', desc: '副本探索中使用：全队完全恢复生命', src: '灯阁市集、W10+ 守关 Boss、斗法台、深井商店' },
@@ -560,7 +566,7 @@ window.DATA = (function () {
       type: 'serum',
       serum: { key: s.key, per: s.per, max: s.max, bloodline: s.bloodline },
       where: 'character',
-      use: `背包里点这张卡，选一名${s.bloodline ? `「${s.bloodline}」血统的` : ''}执灯者喂下；支持 1 / 10 / 全部`,
+      use: `背包里点这张卡，选一名${s.bloodline ? `「${s.bloodline}」血统的` : ''}伙伴喂下；支持 1 / 10 / 全部`,
       desc: `${tag}${SERUM_KEYS[s.key] || s.key} 永久 +${(s.per * 100).toFixed(1)}%（每人最多 ${s.max} 支）`,
       src: '炼化台：用装备强化材料 + 点数炼化',
     };
@@ -570,13 +576,13 @@ window.DATA = (function () {
   /* ================= 货币图鉴 ================= */
   const CURRENCY_INFO = {
     points:       { use: '强化装备、普通招募、背包扩容、灯阁市集、建筑升级、药园播种、驯服坐骑', gain: '挂机、副本战斗、扫荡、任务、分解装备外的主要产出' },
-    story:        { use: '故事商店（角色碎片、材料、装备箱）', gain: '挂机每30分钟、副本事件、首通奖励' },
+    story:        { use: '故事商店（伙伴碎片、材料、装备箱）', gain: '挂机每30分钟、通关奖励、每日/每周任务' },
     otherworld:   { use: '装备强化、异界商店（高阶装备箱）、限定招募（定向出当期 UP）、灯阁权限投资、秘术阁、法宝、高阶坐骑', gain: '分解装备、副本战斗、扫荡、悬赏、斗法台' },
-    holy:         { use: '高级招募（SR 起抽、50 抽保底 SSR、优先给还没有的角色）、灯阁权限投资', gain: '主线任务、首通奖励、登录奖励、限时悬赏' },
-    skillChip:    { use: '招募角色技能升级', gain: '副本战斗、扫荡、灯阁市集兑换' },
-    bloodCrystal: { use: '血统选择与升级（主角与招募角色）', gain: 'Boss战、困难/地狱难度、深井' },
+    holy:         { use: '高级招募（SR 起抽、50 抽保底 SSR、优先给还没有的伙伴）、灯阁权限投资', gain: '主线任务、通关奖励、登录奖励、限时悬赏' },
+    skillChip:    { use: '伙伴技能升级', gain: '副本战斗、扫荡、灯阁市集兑换' },
+    bloodCrystal: { use: '血统选择与升级（主角与伙伴）', gain: 'Boss战、困难/地狱难度、深井' },
     corridor:     { use: '深井商店（稀有道具）', gain: '深井层数奖励、斗法台守擂成功' },
-    rp:           { use: '转生天赋加点（永久属性）', gain: '转生时按轮回进度结算' },
+    rp:           { use: '转生天赋加点（永久属性）', gain: '转生时按当时的进度结算' },
   };
 
   /* ================= 图鉴收集奖励 ================= */
@@ -590,15 +596,15 @@ window.DATA = (function () {
 
   /* ================= 玩法指南（设置页 ❓ 入口） ================= */
   const GUIDE_CHAPTERS = [
-    { id: 'flow', title: '① 一场轮回怎么打', body: [
+    { id: 'flow', title: '① 一场探索怎么打', body: [
       '主线→推荐路线：灯阁领挂机 → 残域选世界 → 选关卡 → **直接开打** → 拿奖励回灯阁。没有"先选路线"这一层。',
-      '每关是 1~3 波连续战斗：1~4 关 1 波、5~8 关 2 波、9~12 关 3 波；第 4/8 关最后一波是精英，第 12 关是守关 Boss。点关卡就自动开打第一波，之后点底部按钮打下一波。',
-      '队伍血量在波与波之间继承，不会自动回满：注意界面上方的血条，随时点治疗剂补血。全队重伤就算失败，已拿到的奖励不会丢。',
-      '每关是"一口气打到底"：一波打完自动接下一波，中间不插别的东西。血量波间继承，要补血就在结算页点治疗剂。',
-      '打不过就不要硬上：先回灯阁领挂机收益、用经验模块喂角色、强化装备，再回来。',
+      '每关是 1~3 波连续战斗：1~4 关 1 波、5~8 关 2 波、9~12 关 3 波；第 4/8 关最后一波是精英，第 12 关是守关 Boss。',
+      '**一口气打到底**：点关卡就开打，一波打完自动接下一波，中间不插事件、不插补给箱，也不用你按"开打第 N 波"。',
+      '队伍血量在波与波之间继承，不会自动回满：波间结算页上就有血条和药剂，觉得吃紧就点一瓶。全队重伤算失败，已经拿到的奖励不会丢。',
+      '打不过就不要硬上：先回灯阁领挂机收益、用经验模块喂伙伴、强化装备，再回来。',
     ] },
     { id: 'party', title: '② 队伍与站位', body: [
-      '上阵一共 5 格：**前排 2 格、后排 3 格**（固定不变）。主角必上阵，他自己占其中 1 格，另外 4 格给招募到的角色。',
+      '上阵一共 5 格：**前排 2 格、后排 3 格**（固定不变）。主角必上阵，他自己占其中 1 格，另外 4 格给招募到的伙伴。',
       '站位决定被打概率：**敌人优先攻击前排**，前排没人了才会打后排。所以前排适合坦度高、能扛的，后排适合脆皮输出与治疗。',
       '**谁站哪一格由你说了算**：队伍页上 **长按**任意一格把他「抓起」，**按住拖到目标格子松手就放下**——落在谁身上就和谁换，落在空格就是搬过去，同排换顺序、跨排换前后都行；直接拖到「前排 / 后排」那行字上也能整排搬人（手指不方便拖动时，抓起后点一下目标位置也一样）。抓起来之后点顶部金色提示条上的「取消」就放回去。',
       '**主角也不例外**：主角那张牌长按起来一样能拖，拖到后排（第 3~5 格）他就站后排，拖回前排（第 1~2 格）就站前排。他够肉就放前排帮队伍挡刀，带的是输出装就放后排躲伤害。',
@@ -609,21 +615,21 @@ window.DATA = (function () {
     ] },
     { id: 'equip', title: '③ 装备与强化', body: [
       '装备 6 种品质：N / R / SR / SSR / UR，品质越高基础值和词条越多。',
-      '主角和每名招募角色都是 6 个槽位：武器 / 头部 / 胸甲 / 手部 / 腿部 / 饰品，六个部位都能穿。',
+      '主角和每名伙伴都是 6 个槽位：武器 / 头部 / 胸甲 / 手部 / 腿部 / 饰品，六个部位都能穿。',
       '强化最高 +20，消耗对应等级的强化材料（不够时用点数代用）+ 异界结晶；强化失败不会降级。',
       '材料按强化等级分 5 档：+0~4 基础金属、+5~9 强化合金、+10~14 异界合金、+15~19 虚空晶体、+20 灯阁残片。',
       'T4/T5 材料从 W04 / W05 之后的精英和 Boss 掉；通关 W04 / W06 后商店也会上架，不用死刷。',
       '同世界套装 2 / 4 / 6 件激活额外效果（6 件效果需要全身同世界套装）；职业套装限对应定位穿戴（主角算战士）。',
-      '重复装备可以在装备页「批量分解」换成异界结晶；不想被分解的装备点详情里的 🔒 锁上。',
+      '装备都在**背包 → 装备**那一栏（道具和装备分开占格子）：重复装备可以「批量分解」换成异界结晶；不想被分解的点详情里的 🔒 锁上。',
       '懒得一件件配装？队伍页有「一键最优装备」和 3 组编队预设。',
     ] },
     { id: 'currency', title: '④ 八种货币怎么花', body: [
       '每种货币只干一件事，记不住就点顶栏那一排货币里的「▤ 全部货币」看完整图鉴（用途 + 主要来源）。',
       '最常用的三种：◈点数（强化 / 招募 / 建筑 / 商店）、✦圣洁晶石（抽卡 / 灯阁权限）、◆异界结晶（强化 / 异界商店 / 灯阁权限）。',
-      '高级货币除了抽卡，还有一条长线出口——「🔑 灯阁权限」（见第 ⑬ 章）：投进去就永久生效，转生也不清空。',
+      '高级货币除了抽卡，还有一条长线出口——「🔑 灯阁权限」（见第 ⑪ 章）：投进去就永久生效，转生也不清空。',
     ] },
     { id: 'gene', title: '⑤ 血统与铭刻', body: [
-      '招募角色的血统是固定的；主角开局就选一次血统，选完不能改——因为**境界线跟着血统走**（见第 ⑮ 章）。',
+      '伙伴的血统是固定的；主角开局就选一次血统，选完不能改——因为**境界线跟着血统走**（见第 ⑬ 章）。',
       '血统升级消耗血统结晶 + 点数，提升幅度很大，是中期主要成长线。',
       '铭刻 5 阶，靠通关进度 + 玩家等级 + 血统结晶解锁，每阶全队属性加成。',
     ] },
@@ -642,22 +648,22 @@ window.DATA = (function () {
       '5. 扫荡已通关的关卡拿材料（每天 60 次）＋ 斗法台 5 次（结晶与徽记最稳的来源）。',
       '懒得一项项点？点首页最下面「挂机」那块里的「一键收取」：挂机、任务、周常、成就、图鉴里所有已经达成、躺着等点的奖励，一次全收。',
     ] },
-    { id: 'recruit', title: '⑨ 三张招募池，花的是三种钱', body: [
-      '普通招募（◈点数）：日常池，只出 N / R / SR，重复角色转碎片。花的是挂机能刷的点数，定位是攒碎片升星。',
-      '高级招募（✦圣洁晶石）：主力池，SR 起抽，50 抽内必出 SSR、100 抽内必出 UR，而且优先给「你还没有的角色」——缺图鉴就抽它。',
-      '限定招募（◆异界结晶）：定向池，本期只出「当期 UP」所属阵营的角色，SSR 里一半是当期 UP，50 抽内必出当期 UP。想要某个特定的人，就盯着它抽。',
+    { id: 'recruit', title: '⑧ 三张招募池，花的是三种钱', body: [
+      '普通招募（◈点数）：日常池，只出 N / R / SR，重复伙伴转碎片。花的是挂机能刷的点数，定位是攒碎片升星。',
+      '高级招募（✦圣洁晶石）：主力池，SR 起抽，50 抽内必出 SSR、100 抽内必出 UR，而且优先给「你还没有的伙伴」——缺图鉴就抽它。',
+      '限定招募（◆异界结晶）：定向池，本期只出「当期 UP」所属阵营的伙伴，SSR 里一半是当期 UP，50 抽内必出当期 UP。想要某个特定的人，就盯着它抽。',
       '保底三个池分开关账：高级池和限定池各自数自己的 SSR / UR / UP 次数，换池不会清零，也不会串。',
       '**招募券**：每个池配一张券（引灯招募券 / 圣契招募令 / 异界征召令），从副本掉落、悬赏、每日与每周任务、登录、商店都能拿。抽的时候**有券先用券，券不够才扣货币**；十连要么给 10 张券、要么给足货币，不混着扣。',
-      '想知道每一档到底多少概率？招募页最下面有「📊 招募概率公示」，逐池列清每一档出率、保底抽数、还差几抽触发保底。',
-      '每天有一次免费招募（走普通池出率），同样计入主线与每日任务，别忘了领。',
+      '想知道每一档到底多少概率？「招募伙伴」页最下面有「📊 招募概率公示」，逐池列清每一档出率、保底抽数、还差几抽触发保底。',
+      '每天有一次免费招募，出率和普通池完全一样，同样计入主线与每日任务，别忘了领。',
     ] },
-    { id: 'idle', title: '⑩ 挂机分工：让板凳角色去干活', body: [
+    { id: 'idle', title: '⑨ 挂机分工：让板凳伙伴去干活', body: [
       '首页「挂机」那块点「派人分工」，可以给 4 条产线各派 1 名领队：闭关修炼（经验）、灵材采集（强化材料）、外围探索（点数）、灯阁守卫（异界结晶）。',
       '每条线看领队的**对应那一维**（不是战力）：闭关看精神、采集看肌肉、探索看神经、守卫看免疫，对应维值越高产出越高（最高 +150%）；不派领队这条线就不产出。',
-      '上阵主力不能派去挂机——所以这里正好是"板凳角色"的用处，练了的人不会白练。',
+      '上阵主力不能派去挂机——所以这里正好是"板凳伙伴"的用处，练了的人不会白练。',
       '产线收益和挂机收益一起累计，在首页「一键收取」或挂机卡的领取按钮里结算。',
     ] },
-    { id: 'bounty', title: '⑪ 限时悬赏与境界', body: [
+    { id: 'bounty', title: '⑩ 限时悬赏与境界', body: [
       '限时悬赏有截止时间，到点作废：达成后手动领奖，奖励是圣洁晶石 / 异界结晶 / 血统结晶这类硬通货。',
       '目标是**按你的当前进度生成的**：推进当前世界、等级再高 5 级、强化次数翻一档，剩下的位置按你缺什么（深井层数 / SSR 数量 / 伴生体 / 渡劫）补。四条全部结束后开新一期，会重新按那时的进度生成。',
       '首页「养成」段里「日常」那一组的「限时悬赏」会显示最快到期的那条还剩多久，别让它白白过期。',
@@ -665,20 +671,20 @@ window.DATA = (function () {
       '渡劫失败只扣材料与点数，等级不掉，可以反复挑战——但失败也照扣，所以别在材料不够的时候硬渡。',
       '境界面板按"大境界一行、行内四个小阶"排列，一眼看得到自己走到哪一格、离下一格还差多少。',
     ] },
-    { id: 'authority', title: '⑬ 灯阁权限：高级货币的长线出路', body: [
+    { id: 'authority', title: '⑪ 灯阁权限：高级货币的长线出路', body: [
       '对标别人的"洞府"：花 ✦圣洁晶石 + ◆异界结晶向灯阁换**永久授权**，10 级，投入一次永久生效，转生也不清空。',
       '和「基地建设」分工不同——建筑花的是挂机就能刷的 ◈点数，逐级堆到 50 级；灯阁权限花的是稀缺的高级货币，所以给的多是"倍率"：挂机产出、挂机经验、离线上限、离线效率、每日扫荡次数。',
       '满 10 级额外给全队全属性 +5%，是这条线的收尾奖励。',
       '入口：首页「养成」那一组里的「灯阁权限」（「👥 执灯者 → 🌱 成长」子页里也有同一项）。',
     ] },
-    { id: 'sect', title: '⑭ 灯阁评级 · 秘术阁 · 游历奇遇', body: [
+    { id: 'sect', title: '⑫ 灯阁评级 · 秘术阁 · 游历奇遇', body: [
       '这三条是照着别人的「宗门等级 / 秘术 / 游历」做的，作用各不相同：',
       '**灯阁评级**（对标宗门等级）：不用你点。打关卡首通 +12/+26/+48（普通/困难/地狱），重复刷减半，每打赢一场 +2，挂机每分钟 +1.2。升一级全队（含主角）全属性 +0.5%，永久生效、转生保留。等价于"推图顺便变强"。',
       '**秘术阁**（对标 KeJi）：12 条线，每条每级只加 0.2%~0.5%，但可以一直修到顶（合 550 级）。前 8 条加战斗（攻/生/防/速/暴击/暴伤/技能/闪避），后 4 条加挂机经济（产出/经验/掉落/离线效率）。升级只花 ◆异界结晶——这是给高级货币的第二条长线出口，抽卡之外的钱有地方放。',
       '**游历奇遇**（对标 YouLi）：挂机每累计 10 分钟，路上就会冒一次随机奇遇（在线、离线都算），共 12 种，有捡材料、遇前辈、挖矿脉、得招募令等。攒满会挂在首页「游历」那一段的进度条上，**不会过期丢东西**，回来点一下就行。',
       '入口：首页「养成」那一组里的「灯阁评级」「秘术阁」，游历奇遇在首页「游历」那一组的进度条上，点名字就是完整面板。',
     ] },
-    { id: 'bloodline', title: '⑮ 血统与境界线：换了血统就换了一套境界', body: [
+    { id: 'bloodline', title: '⑬ 血统与境界线：换了血统就换了一套境界', body: [
       '境界不是一条所有人共用的阶梯，而是**跟着血统走**：选了血族，你就是血奴→血仆→血卫→血将→血侯→血王→血皇→血帝→血祖；选了修真，才是炼气→筑基→金丹→元婴→化神→炼虚→合体→大乘→渡劫。',
       '每条血统都是 9 大境 × 4 小阶（初期 / 中期 / 后期 / 大圆满），合计 36 阶。**第 1 阶就是这条线的第 1 境·初期**，不存在"凡体"这种还没入门的占位。',
       '血统在开局就选（不可更改），所以境界线从进游戏那一刻就确定；选完之后，境界页显示的就是你这条线的全部 36 格。',
@@ -707,7 +713,7 @@ window.DATA = (function () {
     ] },
     { id: 'mount', title: '⑰ 坐骑与求签', body: [
       '**坐骑**和法宝是"一硬一软"的两条主角线：法宝给效果（吸血 / 开场能量 / 减伤），坐骑给**基础数值**（攻击 / 生命 / 防御 / 速度）。',
-      '坐骑有一处和法宝不一样：**它是全队加成，招募角色也吃**。所以资源紧的时候先买坐骑，收益比只加主角一人的东西更划算。',
+      '坐骑有一处和法宝不一样：**它是全队加成，伙伴也吃**。所以资源紧的时候先买坐骑，收益比只加主角一人的东西更划算。',
       '驯服坐骑要 ◈点数 + 强化材料，高阶坐骑另加 ◆异界结晶——这是点数、材料、结晶三条资源同时有出口的地方，也是背包里囤的材料不会变废的原因。',
       '同时只骑 1 匹，随时能换；换一匹数字立刻变，不用重练。',
       '**求签**是每天上线第一件事：摇一签看今天的手气。签文分大吉 / 上吉 / 中吉 / 小吉 / 末吉五档，给**当天的挂机加成**（+6% ~ +30%）和一笔硬通货。',
@@ -716,86 +722,6 @@ window.DATA = (function () {
     ] },
   ];
 
-  /* ================= 随机事件（副本节点） ================= */
-  // effect: {points, holy, story, otherworld, skillChip, bloodCrystal, item, healPct, hurtPct, battle, buff}
-  const EVENTS = [
-    { id: 'E01', title: '废弃实验室', desc: '你发现一间废弃的实验室，操作台上还放着一个上锁的样品箱。', choices: [
-      { text: '撬开样品箱', result: '箱子里是完好的补给品。', effect: { points: 300, item: 'heal_m' } },
-      { text: '搜索实验记录', result: '记录里夹着一张灯阁兑换券碎片。', effect: { story: 30 } },
-      { text: '谨慎离开', result: '安全离开，但一无所获。', effect: {} } ] },
-    { id: 'E02', title: '垂死的执灯者', desc: '一名其他小队的执灯者倒在血泊中，他抓住你的脚踝。', choices: [
-      { text: '救治他', result: '他将全部积蓄托付给你。', effect: { points: 500, holy: 20 } },
-      { text: '搜刮他的装备', result: '你拿走了他的物资，但负罪感让队伍士气下降。', effect: { points: 800, hurtPct: 0.1 } },
-      { text: '离开', result: '你装作没看见。', effect: {} } ] },
-    { id: 'E03', title: '灯阁补给箱', desc: '一个印着灯纹的金属箱，似乎还有电。', choices: [
-      { text: '暴力破拆', result: '触发了防御电击！但拿到了补给。', effect: { points: 400, hurtPct: 0.08 } },
-      { text: '破解密码', result: '密码是今天的日期。箱子弹开了。', effect: { otherworld: 40, item: 'exp_s' } },
-      { text: '无视', result: '多一事不如少一事。', effect: {} } ] },
-    { id: 'E04', title: '诡异的神龛', desc: '角落里供着一尊看不清脸的神像，香炉里还插着三炷香。', choices: [
-      { text: '上香祭拜', result: '一股暖流涌遍全身。', effect: { healPct: 0.3 } },
-      { text: '拿走供品', result: '神像的眼睛似乎动了一下……', effect: { points: 600, hurtPct: 0.15 } },
-      { text: '快步离开', result: '背后的烛火熄灭了。', effect: {} } ] },
-    { id: 'E05', title: '隐藏的军火库', desc: '墙上的暗门后是一间小型军火库。', choices: [
-      { text: '全副武装', result: '队伍战力短暂提升！', effect: { buff: { atkPct: 0.15 }, points: 200 } },
-      { text: '只拿值钱货', result: '换了不少点数。', effect: { points: 700 } },
-      { text: '撤离', result: '可能是陷阱，你没有冒险。', effect: {} } ] },
-    { id: 'E06', title: '迷雾中的哭声', desc: '浓雾深处传来小女孩的哭声。', choices: [
-      { text: '循声查看', result: '是陷阱！一只怨灵扑向队伍。', effect: { battle: 'elite' } },
-      { text: '撒盐结界绕行', result: '哭声渐渐远去。你在路边捡到了别人遗失的物资。', effect: { item: 'heal_s', points: 150 } },
-      { text: '原地等待雾散', result: '浪费了时间，但安全。', effect: { healPct: 0.1 } } ] },
-    { id: 'E07', title: '自动贩售机', desc: '一台老式贩售机，屏幕上闪着"点数支付"。', choices: [
-      { text: '购买饮料（-100点）', result: '冰凉的饮料让全队精神一振。', effect: { points: -100, healPct: 0.2 } },
-      { text: '踹开取货口', result: '机器报警了！但掉出了一堆零钱。', effect: { points: 250, hurtPct: 0.05 } },
-      { text: '离开', result: '你忍住了口渴。', effect: {} } ] },
-    { id: 'E08', title: '安全屋', desc: '一间加固过的安全屋，里面有床铺和净水。', choices: [
-      { text: '休整一小时', result: '全队恢复了状态。', effect: { healPct: 0.4 } },
-      { text: '快速搜刮后离开', result: '找到了前人藏起来的结晶。', effect: { otherworld: 25 } } ] },
-    { id: 'E09', title: '神秘商人', desc: '戴着防毒面具的商人拦住你们："有好货，看看？"', choices: [
-      { text: '购买技能芯片（-400点）', result: '芯片是正品。', effect: { points: -400, skillChip: 30 } },
-      { text: '购买血统结晶（-600点）', result: '结晶散发着微光。', effect: { points: -600, bloodCrystal: 20 } },
-      { text: '转身就走', result: '商人在背后耸了耸肩。', effect: {} } ] },
-    { id: 'E10', title: '血迹斑斑的日记', desc: '地上有一本日记，最后一页写着："别相信钟声。"', choices: [
-      { text: '仔细阅读', result: '你提前避开了前方的埋伏，并找到了暗格。', effect: { story: 40, points: 200 } },
-      { text: '烧掉日记', result: '火焰中传来一声叹息。你感到莫名的心安。', effect: { healPct: 0.15 } },
-      { text: '无视', result: '钟声在你身后响起……', effect: { hurtPct: 0.1 } } ] },
-    { id: 'E11', title: '通风管道', desc: '狭窄的通风管道，可能通向捷径，也可能通向巢穴。', choices: [
-      { text: '钻进去', result: '你绕过了一大群敌人，还捡到了掉落物。', effect: { points: 350, item: 'mat_t1' } },
-      { text: '往里面扔燃烧瓶', result: '里面传来凄厉的嘶吼，随后安静了。', effect: { points: 500, story: 20 } },
-      { text: '走大路', result: '稳妥但绕远。', effect: {} } ] },
-    { id: 'E12', title: '共振水晶', desc: '一块悬浮的异界水晶，与队伍的装备产生共振。', choices: [
-      { text: '吸收能量', result: '装备被强化之力浸润。', effect: { otherworld: 60 } },
-      { text: '敲碎带走', result: '碎裂的水晶割伤了手。', effect: { otherworld: 90, hurtPct: 0.08 } } ] },
-    { id: 'E13', title: '同类的尸体', desc: '一具执灯者的尸体，手里紧紧攥着什么。', choices: [
-      { text: '掰开他的手', result: '是一颗圣洁晶石。', effect: { holy: 30 } },
-      { text: '安葬他', result: '你花了点时间，但灯阁似乎记录了你的善举。', effect: { story: 50 } } ] },
-    { id: 'E14', title: '失控的防御系统', desc: '自动炮塔突然转向你们！', choices: [
-      { text: '强行突破', result: '队伍受了点伤，但拆下了值钱的零件。', effect: { hurtPct: 0.12, points: 600 } },
-      { text: '黑入系统', result: '炮塔现在为你们开路。', effect: { buff: { atkPct: 0.1 } } },
-      { text: '绕道', result: '多花了些时间。', effect: {} } ] },
-    { id: 'E15', title: '镜中人', desc: '一面落地镜，镜中的"你们"露出了诡异的微笑。', choices: [
-      { text: '打碎镜子', result: '镜片后藏着一间暗室！', effect: { holy: 15, points: 300 } },
-      { text: '与镜中人对视', result: '恐惧攫住了心脏……', effect: { hurtPct: 0.1, story: 40 } },
-      { text: '用布盖住', result: '安全通过。', effect: {} } ] },
-    { id: 'E16', title: '陷阱走廊', desc: '地板上满是触发式陷阱的痕迹。', choices: [
-      { text: '小心拆除', result: '拆下的机关能卖个好价钱。', effect: { points: 450 } },
-      { text: '冲刺通过', result: '几支暗箭擦着头皮飞过！', effect: { hurtPct: 0.1, points: 200 } },
-      { text: '退回去绕路', result: '浪费了时间。', effect: {} } ] },
-    { id: 'E17', title: '受伤的研究员', desc: '一名幸存的研究员，他知道这个世界的秘密。', choices: [
-      { text: '护送他离开', result: '他给了你一份完整的区域地图和补给。', effect: { story: 60, item: 'heal_m' } },
-      { text: '逼问情报', result: '他惊恐地说出了Boss的弱点位置。', effect: { buff: { atkPct: 0.12 }, story: 20 } },
-      { text: '不管他', result: '身后传来惨叫，你没有回头。', effect: {} } ] },
-    { id: 'E18', title: '灯阁广播', desc: '广播里响起灯阁的声音，冷得像铁："检测到执灯者，投放补给。"', choices: [
-      { text: '前往投放点', result: '补给箱里有好东西！', effect: { holy: 25, item: 'exp_m' } },
-      { text: '原地待命', result: '补给被别的队伍抢走了，但你保存了体力。', effect: { healPct: 0.1 } } ] },
-    { id: 'E19', title: '地下黑市摊位', desc: '废墟中的黑市摊位，老板是个独眼老人。', choices: [
-      { text: '买装备箱（-800点）', result: '箱子沉甸甸的。', effect: { points: -800, item: 'box_r' } },
-      { text: '买药（-200点）', result: '货真价实的治疗剂。', effect: { points: -200, item: 'heal_l' } },
-      { text: '离开', result: '老人眯起眼睛看着你们离开。', effect: {} } ] },
-    { id: 'E20', title: '诅咒宝箱', desc: '一个华丽的宝箱，锁孔里渗出黑雾。', choices: [
-      { text: '直接打开', result: '黑雾灼伤了你，但财宝是真的。', effect: { hurtPct: 0.15, holy: 40 } },
-      { text: '先净化再开', result: '安全的拿到了财物。', effect: { points: 400, otherworld: 30 } },
-      { text: '不碰它', result: '宝箱在你身后发出磨牙声。', effect: {} } ] },
-  ];
 
   /* ================= 血统 / 铭刻 ================= */
   /* ================= 主角（玩家）独立成长 ================= */
@@ -808,7 +734,7 @@ window.DATA = (function () {
     skills: {
       s1: { name: '求生突刺', desc: '对单体造成 180% 伤害', cd: 3, type: 'dmg', mult: 1.8, target: 'enemy' },
       s2: { name: '潜能爆发', desc: '自身攻击+30%、暴击+15%，持续 3 回合', cd: 5, type: 'buff', buff: { atkPct: 0.3, critPct: 0.15, turns: 3 }, target: 'self' },
-      ult: { name: '基因解放', desc: '对单体造成 400% 伤害并回复伤害 30% 的生命', type: 'dmg', mult: 4.0, lifesteal: 0.3, target: 'enemy' },
+      ult: { name: '血脉解放', desc: '对单体造成 400% 伤害并回复伤害 30% 的生命', type: 'dmg', mult: 4.0, lifesteal: 0.3, target: 'enemy' },
       passive: { name: '执灯者直觉', desc: '闪避 +5%，铭刻每阶全属性额外 +3%' },
     },
   };
@@ -907,7 +833,7 @@ window.DATA = (function () {
     { id: 'training', name: '训练室',     base: 800,  desc: '每级：挂机经验 +3%' },
     { id: 'medical',  name: '医疗室',     base: 700,  desc: '每级：离线效率 +1%、离线上限 +12分钟' },
     { id: 'workshop', name: '装备工坊',   base: 900,  desc: '每级：装备强化费用 -1%（最多-40%）' },
-    { id: 'geneLab',  name: '基因实验室', base: 1200, desc: '每级：血统升级费用 -1%（最多-40%）' },
+    { id: 'geneLab',  name: '血统实验室', base: 1200, desc: '每级：血统升级费用 -1%（最多-40%）' },
   ];
   const buildingCost = (id, lv) => {
     const b = BUILDINGS.find(x => x.id === id);
@@ -982,7 +908,7 @@ window.DATA = (function () {
      它的挂机不是"只涨数字"：挂机过程中会随机掉出"游历事件"，点一下拿东西。
      意义是让离线收益变成"有东西可看"，而不是回家只看到一条进度条。
      我们原来只有副本探索里的随机事件，挂机这边是空的，所以补上这一池。
-     effect 的键与 EVENTS / applyRewardObj 完全一致，不再另造一套规格。 */
+     effect 的键与 applyRewardObj 完全一致，不再另造一套规格。 */
   const TRAVELS = [
     { id: 'tv01', ico: '🍃', name: '灵草偶得',   w: 16, desc: '挂机路上顺手采到一株灵草。', effect: { points: 800, item: 'mat_t1' } },
     { id: 'tv02', ico: '💧', name: '灵泉洗髓',   w: 12, desc: '一口灵泉，喝下去浑身通透。', effect: { story: 20 } },
@@ -1077,7 +1003,7 @@ window.DATA = (function () {
     { id: 'fb05', name: '破军戟', rarity: 'SR',  cost: 3600,  eff: { atkPct: 0.10, critDmg: 0.15 },        desc: '攻击 +10%、暴击伤害 +15%' },
     { id: 'fb06', name: '太虚镜', rarity: 'SSR', cost: 12000, eff: { evaPct: 0.08, skillPct: 0.12 },       desc: '闪避 +8%、技能伤害 +12%' },
     { id: 'fb07', name: '天罡印', rarity: 'SSR', cost: 12000, eff: { atkPct: 0.14, dmgReduce: 0.05 },      desc: '攻击 +14%、减伤 +5%' },
-    { id: 'fb08', name: '轮回盘', rarity: 'UR',  cost: 40000, eff: { atkPct: 0.10, hpPct: 0.10, defPct: 0.10, spdPct: 0.10 }, desc: '全属性 +10%（主角专属）' },
+    { id: 'fb08', name: '终焉之盘', rarity: 'UR',  cost: 40000, eff: { atkPct: 0.10, hpPct: 0.10, defPct: 0.10, spdPct: 0.10 }, desc: '全属性 +10%（主角专属）' },
     // 补齐到 20 件：R 是随手的，SR 是中期目标，SSR/UR 是结晶的主要出口
     { id: 'fb09', name: '铜镜',   rarity: 'R',   cost: 900,   eff: { defPct: 0.05 },                  desc: '防御 +5%' },
     { id: 'fb10', name: '木傀儡', rarity: 'R',   cost: 900,   eff: { hpPct: 0.06 },                   desc: '生命 +6%' },
@@ -1179,7 +1105,7 @@ window.DATA = (function () {
       rates: { N: 0.46, R: 0.36, SR: 0.18 },
       cost: { points: 5000 }, ten: { points: 45000 },
       ticket: 'ticket_normal',
-      desc: '日常池：只出 N / R / SR，重复角色转碎片。花的是挂机能刷的点数，用来攒碎片升星。有「引灯招募券」时先扣券。',
+      desc: '日常池：只出 N / R / SR，重复伙伴转碎片。花的是挂机能刷的点数，用来攒碎片升星。有「引灯招募券」时先扣券。',
       tag: '攒碎片',
     },
     advanced: {
@@ -1187,7 +1113,7 @@ window.DATA = (function () {
       rates: { SR: 0.72, SSR: 0.25, UR: 0.03 },
       cost: { holy: 100 }, ten: { holy: 900 },
       ticket: 'ticket_adv',
-      desc: '主力池：SR 起抽，50 抽内必出 SSR、100 抽内必出 UR，并且优先给「你还没有的角色」。有「圣契招募令」时先扣券。',
+      desc: '主力池：SR 起抽，50 抽内必出 SSR、100 抽内必出 UR，并且优先给「你还没有的伙伴」。有「圣契招募令」时先扣券。',
       tag: '补图鉴',
       prioritizeNew: true,
     },
@@ -1196,7 +1122,7 @@ window.DATA = (function () {
       rates: { SR: 0.62, SSR: 0.33, UR: 0.05 },
       cost: { otherworld: 60 }, ten: { otherworld: 540 },
       ticket: 'ticket_lim',
-      desc: '定向池：本期只出「当期 UP」所属阵营的角色，SSR 里一半是当期 UP，50 抽内必出当期 UP。有「异界征召令」时先扣券。',
+      desc: '定向池：本期只出「当期 UP」所属阵营的伙伴，SSR 里一半是当期 UP，50 抽内必出当期 UP。有「异界征召令」时先扣券。',
       tag: '定向 UP',
       upRatio: 0.5,
     },
@@ -1204,8 +1130,8 @@ window.DATA = (function () {
   // 概率公示：直接把"每一档到底多少概率、保底怎么算"写成给人看的文字，和 rates 同源。
   // 对标《道友修仙》——它在招募界面明写「招募到 37% 血脉修士的概率为 5%，25% 血脉的概率为 15%…」。
   const pityText = pool => {
-    if (pool === 'normal') return '本池没有保底：出率固定，重复角色转碎片，用来攒升星材料。';
-    if (pool === 'advanced') return `每抽累计 1 次保底：满 ${PITY.SSR} 抽必出 SSR、满 ${PITY.UR} 抽必出 UR；出更高稀有度会同时清空对应计数。SSR / UR 优先给「你还没有的角色」。`;
+    if (pool === 'normal') return '本池没有保底：出率固定，重复伙伴转碎片，用来攒升星材料。';
+    if (pool === 'advanced') return `每抽累计 1 次保底：满 ${PITY.SSR} 抽必出 SSR、满 ${PITY.UR} 抽必出 UR；出更高稀有度会同时清空对应计数。SSR / UR 优先给「你还没有的伙伴」。`;
     return `每抽累计 1 次保底：满 ${PITY.SSR} 抽必出 SSR、满 ${PITY.UR} 抽必出 UR、满 ${PITY_UP} 抽必出当期 UP。SSR 档里有 ${Math.round(RECRUIT_POOLS.limited.upRatio * 100)}% 直接是当期 UP。`;
   };
   const PITY = { SSR: 50, UR: 100 };
@@ -1277,7 +1203,7 @@ window.DATA = (function () {
       push('corridor', { n: 10 }, '深井初探', '深井到达第 10 层', 168,
         { holy: 1200, bloodCrystal: 30 });
     } else if (ssrN < 3) {
-      push('ssr', { n: 3 }, '强者如林', '拥有 3 名 SSR 及以上执灯者', 168,
+      push('ssr', { n: 3 }, '强者如林', '拥有 3 名 SSR 及以上伙伴', 168,
         { holy: 1500, bloodCrystal: 40 });
     } else if (beasts < 3) {
       push('beast', { n: 3 }, '兽栏初成', '孵化 3 只伴生体', 168,
@@ -1287,7 +1213,7 @@ window.DATA = (function () {
         { holy: 1200, bloodCrystal: 30 });
     } else {
       const next = Math.min(60, owned + 3);
-      push('chars', { n: next }, '广纳英才', `拥有 ${next} 名执灯者`, 168,
+      push('chars', { n: next }, '广纳英才', `拥有 ${next} 名伙伴`, 168,
         { holy: 1500, points: 80000, item: 'ticket_lim' });
     }
     return out;
@@ -1373,7 +1299,7 @@ window.DATA = (function () {
     { id: 'bs09', name: '燧石兽',   rarity: 'SR',  elem: '火', pct: { atkPct: 0.045, critPct: 0.015 } },
     { id: 'bs10', name: '山河巨灵', rarity: 'SR',  elem: '土', pct: { hpPct: 0.050, dmgReduce: 0.030 } },
     { id: 'bs11', name: '灯阁残影', rarity: 'SSR', elem: '金', pct: { atkPct: 0.070, skillPct: 0.050 } },
-    { id: 'bs12', name: '轮回之种', rarity: 'SSR', elem: '土', pct: { hpPct: 0.070, dmgReduce: 0.050, lifesteal: 0.030 } },
+    { id: 'bs12', name: '不息之种', rarity: 'SSR', elem: '土', pct: { hpPct: 0.070, dmgReduce: 0.050, lifesteal: 0.030 } },
   ];
   const beastById = id => BEASTS.find(b => b.id === id) || null;
   const BEAST_RARITY_RATE = { N: 0.50, R: 0.30, SR: 0.17, SSR: 0.03 };
@@ -1435,8 +1361,8 @@ window.DATA = (function () {
       { item: 'ticket_lim', name: '异界征召令', price: 180, stock: 2 },
     ] },
     story: { name: '故事商店', currency: 'story', items: [
-      { shardRandom: 'R', shardCount: 10, name: '随机R角色碎片×10', price: 100, stock: -1 },
-      { shardRandom: 'SR', shardCount: 10, name: '随机SR角色碎片×10', price: 300, stock: -1 },
+      { shardRandom: 'R', shardCount: 10, name: '随机R伙伴碎片×10', price: 100, stock: -1 },
+      { shardRandom: 'SR', shardCount: 10, name: '随机SR伙伴碎片×10', price: 300, stock: -1 },
       { item: 'box_sr', name: '世界装备箱', price: 200, stock: -1 },
       { item: 'mat_t1', name: '世界材料×50', price: 50, count: 50, stock: -1 },
       { item: 'exp_m', name: '中级经验模块×2', price: 150, count: 2, stock: -1 },
@@ -1445,8 +1371,8 @@ window.DATA = (function () {
       { item: 'ticket_normal', name: '引灯招募券', price: 250, stock: 3 },
     ] },
     corridor: { name: '深井商店', currency: 'corridor', items: [
-      { shardRandom: 'SR', shardCount: 10, name: 'SR角色碎片×10', price: 100, stock: -1 },
-      { shardRandom: 'SSR', shardCount: 5, name: 'SSR角色碎片×5', price: 300, stock: -1 },
+      { shardRandom: 'SR', shardCount: 10, name: 'SR伙伴碎片×10', price: 100, stock: -1 },
+      { shardRandom: 'SSR', shardCount: 5, name: 'SSR伙伴碎片×5', price: 300, stock: -1 },
       { currencyGain: { skillChip: 100 }, name: '技能芯片×100', price: 150, stock: -1 },
       { currencyGain: { bloodCrystal: 100 }, name: '血统结晶×100', price: 200, stock: -1 },
       { item: 'exp_xl', name: '超级经验模块', price: 120, stock: -1 },
@@ -1486,21 +1412,21 @@ window.DATA = (function () {
     { id: 'a_boss10', cat: '战斗', name: '屠龙者', desc: '击杀 10 次守关 Boss', check: S => S.stats.bosses >= 10, reward: { otherworld: 200 } },
     { id: 'a_boss50', cat: '战斗', name: 'Boss 猎人', desc: '击杀 50 次守关 Boss', check: S => S.stats.bosses >= 50, reward: { holy: 300, bloodCrystal: 200 } },
     { id: 'a_hell1', cat: '战斗', name: '地狱归来', desc: '通关任意关卡的地狱难度', check: S => Object.values(S.worlds).some(w => w.stages.hell.some(s => s > 0)), reward: { holy: 200, otherworld: 300 } },
-    { id: 'a_run50', cat: '战斗', name: '轮回老手', desc: '累计通关 50 次副本关卡', check: S => S.stats.runs >= 50, reward: { points: 30000 } },
+    { id: 'a_run50', cat: '战斗', name: '残域老手', desc: '累计通关 50 次副本关卡', check: S => S.stats.runs >= 50, reward: { points: 30000 } },
     { id: 'a_lv100', cat: '养成', name: '登峰造极', desc: '玩家等级达到 Lv.100', check: S => S.player.level >= 100, reward: { holy: 500, otherworld: 500 } },
     { id: 'a_gene5', cat: '养成', name: '完全解锁', desc: '铭刻解锁到 5 阶', check: S => S.player.geneLock >= 5, reward: { holy: 500, bloodCrystal: 500 } },
     { id: 'a_enh50', cat: '养成', name: '铁匠', desc: '累计强化 50 次装备', check: S => S.stats.enhances >= 50, reward: { points: 20000, otherworld: 200 } },
     { id: 'a_enh20', cat: '养成', name: '完美强化', desc: '拥有一件 +20 装备', check: S => Object.values(S.equips).some(e => e.enhance >= 20), reward: { holy: 300, otherworld: 500 } },
-    { id: 'a_char10', cat: '收集', name: '小队成形', desc: '拥有 10 名执灯者', check: S => Object.keys(S.chars).length >= 10, reward: { points: 15000 } },
-    { id: 'a_char30', cat: '收集', name: '大型队伍', desc: '拥有 30 名执灯者', check: S => Object.keys(S.chars).length >= 30, reward: { holy: 400, points: 40000 } },
-    { id: 'a_ssr1', cat: '收集', name: '命运相遇', desc: '获得第 1 名 SSR 执灯者', check: S => Object.keys(S.chars).some(id => (charById[id] || {}).rarity === 'SSR'), reward: { holy: 200 } },
-    { id: 'a_ur1', cat: '收集', name: '超越者', desc: '获得第 1 名 UR 执灯者', check: S => Object.keys(S.chars).some(id => (charById[id] || {}).rarity === 'UR'), reward: { holy: 500, bloodCrystal: 300 } },
+    { id: 'a_char10', cat: '收集', name: '小队成形', desc: '拥有 10 名伙伴', check: S => Object.keys(S.chars).length >= 10, reward: { points: 15000 } },
+    { id: 'a_char30', cat: '收集', name: '大型队伍', desc: '拥有 30 名伙伴', check: S => Object.keys(S.chars).length >= 30, reward: { holy: 400, points: 40000 } },
+    { id: 'a_ssr1', cat: '收集', name: '命运相遇', desc: '获得第 1 名 SSR 伙伴', check: S => Object.keys(S.chars).some(id => (charById[id] || {}).rarity === 'SSR'), reward: { holy: 200 } },
+    { id: 'a_ur1', cat: '收集', name: '超越者', desc: '获得第 1 名 UR 伙伴', check: S => Object.keys(S.chars).some(id => (charById[id] || {}).rarity === 'UR'), reward: { holy: 500, bloodCrystal: 300 } },
     { id: 'a_world3', cat: '挑战', name: '走出巢穴', desc: '通关 3 个世界的普通难度', check: S => WORLDS.filter(w => S.worlds[w.id] && S.worlds[w.id].stages.normal.every(s => s > 0)).length >= 3, reward: { holy: 300 } },
     { id: 'a_floor50', cat: '挑战', name: '深井 50 层', desc: '深井历史最高 50 层', check: S => S.corridor.best >= 50, reward: { corridor: 100, points: 20000 } },
     { id: 'a_floor100', cat: '挑战', name: '深井 100 层', desc: '深井历史最高 100 层', check: S => S.corridor.best >= 100, reward: { corridor: 300, holy: 400 } },
     { id: 'a_floor200', cat: '挑战', name: '深井守望者', desc: '深井历史最高 200 层', check: S => S.corridor.best >= 200, reward: { corridor: 800, holy: 800 } },
-    { id: 'a_reincarn', cat: '挑战', name: '轮回不止', desc: '完成 1 次转生', check: S => S.player.reincarnations >= 1, reward: { holy: 300, bloodCrystal: 300 } },
-    { id: 'a_codex20', cat: '收集', name: '图鉴过半', desc: '图鉴收集 20 名角色', check: S => S.codex.chars.length >= 20, reward: { points: 30000, holy: 200 } },
+    { id: 'a_reincarn', cat: '挑战', name: '转生不止', desc: '完成 1 次转生', check: S => S.player.reincarnations >= 1, reward: { holy: 300, bloodCrystal: 300 } },
+    { id: 'a_codex20', cat: '收集', name: '图鉴过半', desc: '图鉴收集 20 名伙伴', check: S => S.codex.chars.length >= 20, reward: { points: 30000, holy: 200 } },
   ];
   const LOGIN_REWARDS = [
     { holy: 100, item: 'ticket_normal' }, { points: 10000, item: 'ticket_normal' },
@@ -1511,12 +1437,11 @@ window.DATA = (function () {
   const STARTER = {
     points: 50000, holy: 1000,
     items: { exp_s: 20, heal_s: 10 },
-    chars: ['C001'],   // 开局只有主角
   };
 
   /* ================= 功能解锁（随关卡进度） ================= */
   const UNLOCKS = [
-    { id: 'recruit',   name: '执灯者招募', world: 'W01', stage: 1,  tip: '通关 菌毯巢穴·第1关 解锁' },
+    { id: 'recruit',   name: '招募伙伴', world: 'W01', stage: 1,  tip: '通关 菌毯巢穴·第1关 解锁' },
     { id: 'shop',      name: '兑换大厅',   world: 'W01', stage: 2,  tip: '通关 菌毯巢穴·第2关 解锁' },
     { id: 'enhance',   name: '装备强化',   world: 'W01', stage: 3,  tip: '通关 菌毯巢穴·第3关 解锁' },
     { id: 'buildings', name: '基地建设',   world: 'W01', stage: 4,  tip: '通关 菌毯巢穴·第4关 解锁' },
@@ -1539,7 +1464,7 @@ window.DATA = (function () {
       check: S => S.worlds.W01 && S.worlds.W01.stages.normal[0] > 0 },
     { id: 'q03', name: '第一位同伴', desc: '进行 1 次招募', reward: { points: 2000 },
       check: S => S.stats.recruits >= 1 },
-    { id: 'q04', name: '并肩作战', desc: '在队伍中上阵 1 名招募角色', reward: { story: 50 },
+    { id: 'q04', name: '并肩作战', desc: '在队伍中上阵 1 名伙伴', reward: { story: 50 },
       check: S => S.party.filter(id => id && id !== '@player').length >= 1 },
     { id: 'q05', name: '深入蜂巢', desc: '通关 菌毯巢穴·第2关', reward: { points: 2000 }, unlock: 'shop',
       check: S => S.worlds.W01 && S.worlds.W01.stages.normal[1] > 0 },
@@ -1557,7 +1482,7 @@ window.DATA = (function () {
       check: S => S.corridor.floor >= 2 },
     { id: 'q12', name: '新的恐怖', desc: '通关 潜影窟·第1关', reward: { bloodCrystal: 50 }, unlock: 'bloodline',
       check: S => S.worlds.W02 && S.worlds.W02.stages.normal[0] > 0 },
-    { id: 'q13', name: '血脉觉醒', desc: '升级 1 次血统（主角或招募角色）', reward: { points: 5000 },
+    { id: 'q13', name: '血脉觉醒', desc: '升级 1 次血统（主角或伙伴）', reward: { points: 5000 },
       check: S => S.player.bloodlineLv >= 1 || Object.values(S.chars).some(c => c.bloodlineLv >= 1) },
     { id: 'q14', name: '潜影之后', desc: '通关 潜影窟·第12关', reward: { holy: 300, otherworld: 200 },
       check: S => S.worlds.W02 && S.worlds.W02.stages.normal[11] > 0 },
@@ -1695,13 +1620,13 @@ window.DATA = (function () {
     ATTR_NAMES, RARITIES, RARITY_COLOR, STAR_MULT, RARITY_MAXSTAR, STAR_COST, DUP_SHARDS,
     FACTIONS, FACTION_COUNTER, EXP_TABLE, LEVEL_POINTS, CURRENCIES,
     ATTR_META, ATTR_POINTS_PER_LV, ATTR_POINT_VALUE, BLOODLINE_UNLOCK_LV,
-    BAG_BASE_CAP, BAG_EXPAND_SIZE, bagExpandCost, SWEEP_DAILY_CAP,
+    BAG_BASE_CAP, BAG_BASE_ITEM_CAP, BAG_BASE_MAT_CAP, BAG_BASE_EQ_CAP, BAG_EXPAND_SIZE, bagExpandCost, SWEEP_DAILY_CAP,
     BLOODLINE_SKILLS, KIND_NAMES, CLASS_SETS, SIGNATURE_EQUIPS, makeSignatureEquip,
     ROLE_KIND, ATK_ATTR, characters, charById,
     WORLDS, DIFFICULTY, FIRST_CLEAR,
     EQUIP_SLOTS, EQUIP_RARITY_MULT, DECOMPOSE_GAIN, ENHANCE_RATE, SETS, AFFIX_POOL, makeEquip,
     RECRUIT_SLOTS, PLAYER_SLOTS, DROP_SLOTS, PROTAGONIST,
-    ITEMS, EVENTS,
+    ITEMS,
     BLOODLINES, BLOODLINE_MAX, bloodlineCost, GENE_LOCKS,
     BUILDINGS, buildingCost,
     SECT_MAX, SECT_PCT_PER_LV, sectExpNeed, sectBonusPct, SECT_EXP,

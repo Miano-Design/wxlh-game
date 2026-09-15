@@ -165,7 +165,7 @@ window.UI = (function () {
 
   // 3) 防连点：同一个小按钮 300ms 内只吃一次点击（连点会重复扣资源的那种）
   const GUARD_SEL = 'button, .nav-item, .pill, [data-act], [data-stage], [data-world],'
-    + ' [data-char], [data-item], [data-quick], [data-pick], [data-target], [data-serumtarget], [data-eq], [data-eqd],'
+    + ' [data-char], [data-item], [data-pick], [data-target], [data-serumtarget], [data-eq], [data-eqd],'
     + ' [data-buy], [data-refine], [data-pull1], [data-pull10], [data-free], [data-sstage], [data-stimes], [data-potion],'
     + ' [data-attr], [data-lvup], [data-roster], [data-cur], [data-claim], [data-mclaim], [data-ach], [data-codex]';
   function installClickGuard() {
@@ -367,14 +367,14 @@ window.UI = (function () {
         <h3>收集进度 <span class="sub">${cs.owned} / ${cs.total}</span></h3>
         <div class="bar exp" style="margin:6px 0 10px"><i style="width:${Math.min(100, cs.owned / cs.total * 100)}%"></i></div>
         ${cs.rewards.map(r => `<div class="list-row" style="${r.claimed ? 'opacity:.5' : ''}">
-          <div class="grow"><div class="t1">收集 ${r.n} 名角色</div>
+          <div class="grow"><div class="t1">收集 ${r.n} 名伙伴</div>
           <div class="t2">${rewardText(r.reward)}</div></div>
           ${r.claimed ? '<button class="btn small" disabled>已领</button>'
             : r.reached ? `<button class="btn small primary" data-codex="${r.n}">领取</button>`
             : `<button class="btn small" disabled>还差 ${r.n - cs.owned}</button>`}
         </div>`).join('')}
       </div>
-      <div class="section-title">全部角色（${cs.total}）</div>
+      <div class="section-title">全部伙伴（${cs.total}）</div>
       <div class="char-grid">
         ${D.characters.map(ch => {
           const got = S.codex.chars.includes(ch.id);
@@ -388,7 +388,7 @@ window.UI = (function () {
           </div>`;
         }).join('')}
       </div>`;
-    const w = showPanel(wrap, '角色图鉴', body);
+    const w = showPanel(wrap, '伙伴图鉴', body);
     w.querySelectorAll('[data-codex]').forEach(b => b.onclick = () => {
       const r = C().claimCodexReward(+b.dataset.codex);
       toast(r.msg);
@@ -398,8 +398,9 @@ window.UI = (function () {
   }
 
   /* ================= 顶栏 / 导航 ================= */
-  // 底部只留 4 格：「队伍 / 角色 / 装备」本质是同一个东西（我的人 + 我的装备），
-  // 合并成一个「执灯者」页签用胶囊切子页；腾出来的位置给背包（原来的弹窗是二级入口）。
+  // 底部 4 格：灯阁 / 残域 / 执灯者 / 背包。
+  // V9.2：「执灯者」页只放"人"（队伍 / 伙伴 / 成长），"物"（装备）挪进「背包」，
+  // 背包自己再分 道具 / 材料 / 装备 三栏，道具与装备各占各的格子、各自扩容。
   const TABS = [
     { id: 'home', name: '灯阁' },
     { id: 'dungeon', name: '残域' },
@@ -408,14 +409,19 @@ window.UI = (function () {
   ];
   const ROSTER_TABS = [
     { id: 'party', name: '队伍' },
-    { id: 'chars', name: '角色' },
-    { id: 'equip', name: '装备' },
+    { id: 'chars', name: '伙伴' },
     { id: 'grow', name: '成长' },
   ];
-  // 旧的三个页签名一律当作「执灯者」的子页，这样任务"前往"、每日跳转、引导高亮都不用改
-  const TAB_ALIAS = { party: 'roster', chars: 'roster', equip: 'roster' };
+  const BAG_TABS = [
+    { id: 'item', name: '道具' },
+    { id: 'mat', name: '材料' },
+    { id: 'equip', name: '装备' },
+  ];
+  // 旧页签名当子页处理（任务"前往"、每日跳转、引导高亮都靠这张表，不用改各处调用）
+  const TAB_ALIAS = { party: 'roster', chars: 'roster', equip: 'bag' };
   let curTab = 'home';
   let rosterView = 'party';
+  let bagView = 'item';
   const rosterScroll = {};   // 三个子页各自记住滚动位置，来回切不丢
   let pendingScroll = null;  // 渲染完要恢复到的位置（切子页用）
   function renderTopbar() {
@@ -484,10 +490,11 @@ window.UI = (function () {
   }
   function refresh() { renderTopbar(); renderNavbar(); }
   function setTab(id) {
-    // 旧页签名（party / chars / equip）都落到「执灯者」，并顺手把子页切过去
+    // 旧页签名（party / chars 归「执灯者」，equip 归「背包」）顺手把子页切过去
     const sub = (id === 'party' || id === 'chars' || id === 'equip') ? id : null;
     curTab = TAB_ALIAS[id] || id;
-    if (sub) rosterView = sub;
+    if (sub === 'equip') bagView = 'equip';
+    else if (sub) rosterView = sub;
     dungeonView = { page: 'worlds' };
     batchMode = false; batchSel.clear();
     cancelGrab(true);                     // 换页时清掉"抓起"状态与拖动监听，别把上次的高亮带过去
@@ -514,9 +521,9 @@ window.UI = (function () {
       if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, y);
     } else if (keepScroll && scrollY > 0 && typeof window.scrollTo === 'function') window.scrollTo(0, scrollY);
   }
-  // 「执灯者」= 队伍编成 / 角色图鉴 / 装备仓库，三个子页共用一条顶部胶囊
+  // 「执灯者」= 队伍编成 / 伙伴图鉴 / 成长线，子页共用一条顶部胶囊
   function rosterScreen() {
-    const sub = { party: partyScreen, chars: charsScreen, equip: equipScreen, grow: growScreen }[rosterView] || partyScreen;
+    const sub = { party: partyScreen, chars: charsScreen, grow: growScreen }[rosterView] || partyScreen;
     return `<div class="pill-tabs mb3">
         ${ROSTER_TABS.map(t => `<div class="pill ${rosterView === t.id ? 'active' : ''}" data-roster="${t.id}">${t.name}</div>`).join('')}
       </div>
@@ -553,7 +560,7 @@ window.UI = (function () {
         desc: `每天 ${D.ARENA_DAILY} 次镜像擂台，守擂者按你的战力换算，赢一场升一台拿结晶与徽记` },
       { act: 'open-mount', unlock: null, ico: '🐎', name: '坐骑',
         cur: `已驯服 ${C().mountState().own.length} / ${D.MOUNTS.length} 匹`,
-        desc: '花 ◈点数 + 材料驯服，全队（含招募角色）永久加数值；同时只骑 1 匹，随时换' },
+        desc: '花 ◈点数 + 材料驯服，全队（含伙伴）永久加数值；同时只骑 1 匹，随时换' },
       { act: 'open-sign', unlock: null, ico: '🎋', name: '求签',
         cur: C().signState().canDraw ? '今日还没求签' : `今日【${C().signState().tier}】`,
         desc: '每天免费摇一签，签文给当天的挂机加成 + 一笔硬通货，隔天自动失效' },
@@ -664,7 +671,7 @@ window.UI = (function () {
         <span class="rs">点开：加点 / 洗点 / 血统 / 境界 ›</span>
       </div>
       <div class="row static">
-        <span class="rk">【轮回】</span>
+        <span class="rk">【转生】</span>
         <span class="rv">${S.player.reincarnations} 世</span>
         <span class="rs">权限 Lv.${au.lv} · 评级 Lv.${sect.lv}</span>
       </div>
@@ -742,6 +749,7 @@ window.UI = (function () {
       ['open-garden', '药园', `${gardenBusy} 块在用`],
       ['open-arena', '斗法台', `第 ${arena.floor} 台 · 剩 ${arena.left} 次`],
       ['open-mount', '坐骑', mountOwn ? `${mountOwn}/${D.MOUNTS.length} 匹` : '去驯一匹'],
+      ['open-refine', '炼化台', '装备材料炼血清'],
       ['open-authority', '灯阁权限', `Lv.${au.lv}/${au.max}`, 'buildings'],
       ['open-buildings', '基地建设', `合计 Lv.${bLv}`, 'buildings'],
       ['open-genelock', '铭刻', gl, 'geneLock'],
@@ -754,14 +762,14 @@ window.UI = (function () {
       ['open-tasks', '每日任务', '主线 / 日常 / 周常', 'tasks'],
       ['open-ach', '成就', '长线目标', null, achDot],
       ['open-sign', '求签', signToday ? `今日【${signToday.tier}】` : '今日还没求'],
-      ['open-recruit', '执灯者招募', C().freeRecruitAvailable() ? '今日免费 1 抽' : '攒碎片升星', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable()],
+      ['open-recruit', '招募伙伴', C().freeRecruitAvailable() ? '今日免费 1 抽' : '攒碎片升星', 'recruit', C().isUnlocked('recruit') && C().freeRecruitAvailable()],
       ['open-shop', '兑换大厅', '三档商店', 'shop'],
     ];
     return `<div class="section-title" data-sec="grow">养成</div>
       ${tileGrid(lines)}
       <div class="grid-title">日常</div>
       ${tileGrid(daily)}`
-      + '<div class="hint mt2">血统与境界属于角色自身：点上面【主角】那张卡，在里面选血统 / 渡劫。这里与「执灯者 → 成长」是同一批养成线的总览。</div>';
+      + '<div class="hint mt2">血统与境界属于主角自身：点上面【主角】那张卡，在里面选血统 / 渡劫。这里与「执灯者 → 成长」是同一批养成线的总览。</div>';
   }
   /* 游历：只放「游历奇遇」本身——挂机路上随机冒出来的奇遇，进度条就是它的唯一入口。 */
   function travelBlock() {
@@ -940,6 +948,7 @@ window.UI = (function () {
       hpPct: {},        // charId → 0~1
       buffs: {},
       kills: 0,
+      deaths: 0,        // 整关累计阵亡波数：星级评价按"整关有没有人倒下"算，不只看最后一波
     };
     S.party.filter(Boolean).forEach(id => { run.hpPct[id] = 1; });   // 主角就在 S.party 里
     persistRun();
@@ -996,21 +1005,6 @@ window.UI = (function () {
       if (usePotion(el.dataset.potion) && after) after();
     });
   }
-  // 波间结算页上的"血条 + 药剂"：自动推进时玩家就在这一格里补血 / 上增益
-  function waveExtraInner() {
-    const potions = potionBarHtml();
-    return `<div style="display:flex;gap:6px;margin:0 0 8px">${partyHpHtml()}</div>`
-      + (potions || '<div style="font-size:10px;color:var(--dim);text-align:center">背包里没有探索用道具（灯阁市集可买治疗剂 / 强化剂）</div>');
-  }
-  function waveExtraHtml() {
-    return `<div data-waveextra style="width:100%;max-width:340px">${waveExtraInner()}</div>`;
-  }
-  // 下一波叫什么（结算页按钮上写出来，别让玩家猜还剩几波）
-  function nextWaveLabel() {
-    if (!run) return '继续';
-    const n = run.wave + 2;   // run.wave 是 0 起的当前波，还没 +1
-    return n >= run.waves.length ? `继续 · 最后一波` : `继续 · 第 ${n} 波`;
-  }
   function runScreen() {
     if (!run) return worldsList();
     const w = D.WORLDS.find(x => x.id === run.worldId);
@@ -1035,7 +1029,7 @@ window.UI = (function () {
         <div style="display:flex;gap:6px">${partyHpHtml()}</div>
         ${potionBar}
         ${Object.keys(run.buffs).length ? `<div style="margin-top:8px;font-size:11px;color:var(--green)">本关增益：${Object.entries(run.buffs).map(([k, v]) => `${D.CONSUMABLE_TAG[k] || k}+${Math.round(v * 100)}%`).join(' ')}</div>` : ''}
-        <div class="hint mt2">进关之后一口气打到最后一波，中间自动推进、不插别的东西；血量波间继承不会自动回满，血线低了就在结算页或这里点治疗剂。</div>
+        <div class="hint mt2">进关之后一口气打到最后一波：每波打完直接接下一波，不弹结算页。血量波间继承不会自动回满，打到一半血线低了，就在战斗界面底部那条「战备补给」里点治疗剂（喝了从下一波进场生效）。</div>
       </div>
       <div class="card"><h3>本关波次</h3>${waveList}</div>
       <div style="height:84px"></div>
@@ -1251,7 +1245,7 @@ window.UI = (function () {
     const fbCount = Object.entries(fb.count).map(([f, n]) => `${f}×${n}`).join(' ');
     return `
       <div class="card">
-        <h3>⚔️ 轮回小队 <span class="sub">总战力 ${fmt(C().teamPower())}（主角必上阵）</span></h3>
+        <h3>⚔️ 灯阁小队 <span class="sub">总战力 ${fmt(C().teamPower())}（主角必上阵）</span></h3>
         ${grabbed !== null ? `<div class="drag-bar">已抓起「${gname}」 · 拖到别的位置松手放下
           <button class="btn small ghost" data-grab-cancel="1">取消</button></div>` : ''}
         <div class="party-grid${gcls}">
@@ -1298,8 +1292,8 @@ window.UI = (function () {
             <button class="btn small ghost" data-remove="${id}">下阵</button>
           </div>`;
         }).join('')}
-        ${S.party.filter(id => id && id !== '@player').length ? '' : `<div class="empty">还没有招募角色上阵。上阵共 5 格（前 2 后 3），主角占 1 格，还能再上 4 名队友。</div>
-          <button class="btn primary block mt3" data-act="open-recruit">✦ 去招募角色</button>`}
+        ${S.party.filter(id => id && id !== '@player').length ? '' : `<div class="empty">还没有伙伴上阵。上阵共 5 格（前 2 后 3），主角占 1 格，还能再上 4 名队友。</div>
+          <button class="btn primary block mt3" data-act="open-recruit">✦ 去招募伙伴</button>`}
       </div>
       <div class="card">
         <h3>🧩 阵型 <span class="sub">主角是"万能补位"</span></h3>
@@ -1393,7 +1387,7 @@ window.UI = (function () {
       <div class="card">
         <h3>📊 属性面板 <span class="sub">装备 / 血统 / 境界 / 铭刻都已算进来</span></h3>
         ${statGrid(st)}
-        <div class="hint mt2">主角与招募角色成长体系独立：随玩家等级成长、无星级碎片、6 装备槽、血统自选、铭刻每阶全属性额外 +3%。</div>
+        <div class="hint mt2">主角与伙伴的成长体系独立：随玩家等级成长、无星级碎片、6 装备槽、血统自选、铭刻每阶全属性额外 +3%。</div>
       </div>
       <div class="card"><button class="btn small ghost block" data-rename="1">✏️ 修改名字</button></div>
     `);
@@ -1465,7 +1459,7 @@ window.UI = (function () {
   function pickPartyChar(slotIdx) {
     const S = C().S;
     const owned = Object.keys(S.chars);
-    const w = modal('选择上阵角色', owned.map(id => {
+    const w = modal('选择上阵伙伴', owned.map(id => {
       const ch = D.charById[id];
       const c = S.chars[id];
       const inParty = S.party.includes(id);
@@ -1474,7 +1468,7 @@ window.UI = (function () {
         <div class="grow"><div class="t1">${rarityTag(ch.rarity)} ${cname(id)}</div><div class="t2">Lv.${c.lv} · ${ch.role} · ${ch.faction} · 战力${fmt(C().power(id))}</div></div>
         ${inParty ? '<span class="tag">已上阵</span>' : ''}
       </div>`;
-    }).join('') || '<div class="empty">还没有角色，去招募吧</div>');
+    }).join('') || '<div class="empty">还没有伙伴，去招募吧</div>');
     w.querySelectorAll('[data-pick]').forEach(el => {
       el.onclick = () => {
         const id = el.dataset.pick;
@@ -1536,9 +1530,9 @@ window.UI = (function () {
       </div>`;
     }).join('');
     if (cards) return cards;
-    if (Object.keys(S.chars).length) return '<div class="empty" style="grid-column:1/-1">没有符合条件的角色</div>';
-    return `<div class="empty" style="grid-column:1/-1">还没有招募到任何角色</div>
-      <button class="btn primary block" style="grid-column:1/-1" data-act="open-recruit">✦ 去招募角色</button>`;
+    if (Object.keys(S.chars).length) return '<div class="empty" style="grid-column:1/-1">没有符合条件的伙伴</div>';
+    return `<div class="empty" style="grid-column:1/-1">还没有招募到任何伙伴</div>
+      <button class="btn primary block" style="grid-column:1/-1" data-act="open-recruit">✦ 去招募伙伴</button>`;
   }
   // 只重画网格：搜名字时输入框不会失焦，也不会整页闪
   function paintCharGrid(root) {
@@ -1603,12 +1597,12 @@ window.UI = (function () {
         <div class="btn-row">
           <button class="btn small" data-starup="1" ${c.star >= maxStar ? 'disabled' : ''}>升星${starCost ? `（碎片 ${starCost}）` : ''}</button>
         </div>
-        <div class="hint mt2">重复招募到同一名角色会转成她的碎片；星级决定成长上限与技能强度。</div>
+        <div class="hint mt2">重复招募到同一名伙伴会转成她的碎片；星级决定成长上限与技能强度。</div>
       </div>
       <div class="card">
         <h3>🎯 六维属性 <span class="sub">固定成长 · 不用加点</span></h3>
         ${attrGrid(st.attrs)}
-        <div class="hint mt2">招募角色的六维由稀有度、等级、星级决定；越往上练，六维越高。</div>
+        <div class="hint mt2">伙伴的六维由稀有度、等级、星级决定；越往上练，六维越高。</div>
       </div>
       <div class="card">
         <h3>⚡ 技能 <span class="sub">芯片 ▣${fmt(S.cur.skillChip)}</span></h3>
@@ -1697,7 +1691,7 @@ window.UI = (function () {
         <button class="btn small" data-use="${k}" data-n="10" ${n >= 10 ? '' : 'disabled'}>用 10</button>
         <button class="btn small gold" data-use="${k}" data-n="0">全用</button>
       </div>`).join('') || '<div class="empty">没有经验道具</div>'}
-      <button class="btn ghost block mt4" data-back>‹ 返回角色</button>`);
+      <button class="btn ghost block mt4" data-back>‹ 返回伙伴</button>`);
     w.querySelector('[data-back]').onclick = () => charDetail(id, 0, w);
     w.querySelectorAll('[data-use]').forEach(b => b.onclick = () => {
       const want = +b.dataset.n;
@@ -1745,13 +1739,13 @@ window.UI = (function () {
         <div class="t2">${equipBrief(eq)}${equippedBy ? ` · ${cname(equippedBy[0])}装备中` : ''}</div>
         ${eq.uid === curUid ? '<div class="t2" style="color:var(--gold)">当前穿戴中</div>' : (list.length && curEq ? `<div class="t2">对比：${equipDelta(curEq, eq)}</div>` : '')}</div>
       </div>`;
-    }).join('') || '<div class="empty">背包中没有该角色可穿戴的此部位装备</div>'}
-      <button class="btn ghost block mt4" data-back>‹ 返回角色</button>`);
+    }).join('') || '<div class="empty">背包中没有该伙伴可穿戴的此部位装备</div>'}
+      <button class="btn ghost block mt4" data-back>‹ 返回伙伴</button>`);
     w.querySelector('[data-back]').onclick = () => backFn(w);
     w.querySelectorAll('[data-eq]').forEach(el => el.onclick = () => {
       const from = C().equipWearer(el.dataset.eq);
       if (C().equipItem(charId, el.dataset.eq)) toast(from && from !== charId ? `已装备（从 ${cname(from)} 身上取下）` : '已装备');
-      else toast('该角色无法穿戴此装备');
+      else toast('该伙伴无法穿戴此装备');
       backFn(w);
     });
     return w;
@@ -1785,7 +1779,9 @@ window.UI = (function () {
     if (eq.set) return `<span class="tag" style="color:#6ec6ff;border-color:#6ec6ff">${D.SETS[eq.set] ? D.SETS[eq.set].name : '世界套装'}</span>`;
     return '<span class="tag">普通</span>';
   }
-  function equipScreen() {
+  // 装备仓库（V9.2 起住在「背包 → 装备」）：卡片只留名字 + 强化 + 类型 + 谁在穿，
+  // 属性词条挪进详情卡，列表不再一行塞一大串数字。
+  function equipScreen(embedded) {
     const S = C().S;
     const list = C().inventoryEquips();
     const filters = [['all', '全部'], ['weapon', '武器'], ['armor', '胸甲'], ['head', '头部'], ['hands', '手部'], ['legs', '腿部'], ['accessory', '饰品'], ['SSR', 'SSR+']];
@@ -1803,28 +1799,27 @@ window.UI = (function () {
         const canSel = !equippedBy && !eq.lock;
         return `<div class="list-row ${canSel ? (batchSel.has(eq.uid) ? 'sel' : '') : 'no-sel'}" ${canSel ? `data-beq="${eq.uid}"` : ''} style="cursor:${canSel ? 'pointer' : 'default'}">
           <span class="sel-box">✓</span>
-          <span class="tag">${D.EQUIP_SLOTS[eq.slot]}</span>
           <div class="grow"><div class="t1 rtext-${eq.rarity}">${eq.lock ? '🔒' : ''}${eq.name} +${eq.enhance}</div>
-          <div class="t2">${equipCatTag(eq)} ${equipBrief(eq)}${eq.lock ? ' · <span style="color:var(--gold)">已锁定，不参与分解</span>' : ''}${equippedBy ? ` · <span style="color:var(--green)">${cname(equippedBy[0])}装备中</span>` : ''}</div></div>
+          <div class="t2">${D.EQUIP_SLOTS[eq.slot]} · ${equipCatTag(eq)}${eq.lock ? ' · <span style="color:var(--gold)">已锁定</span>' : ''}${equippedBy ? ` · <span style="color:var(--green)">${cname(equippedBy[0])}装备中</span>` : ''}</div></div>
         </div>`;
       }
       return `<div class="list-row" data-eqd="${eq.uid}" style="cursor:pointer">
-        <span class="tag">${D.EQUIP_SLOTS[eq.slot]}</span>
         <div class="grow"><div class="t1 rtext-${eq.rarity}">${eq.lock ? '🔒 ' : ''}${eq.name} +${eq.enhance}</div>
-        <div class="t2">${equipCatTag(eq)} ${equipBrief(eq)}${equippedBy ? ` · <span style="color:var(--green)">${cname(equippedBy[0])}</span>` : ''}</div></div>
+        <div class="t2">${D.EQUIP_SLOTS[eq.slot]} · ${equipCatTag(eq)}${equippedBy ? ` · <span style="color:var(--green)">${cname(equippedBy[0])}装备中</span>` : ''}</div></div>
+        <span style="color:var(--dim)">›</span>
       </div>`;
     }).join('');
     return `
       <div class="pill-tabs" style="margin-bottom:6px">${catFilters.map(([k, n]) => `<div class="pill ${equipCatFilter === k ? 'active' : ''}" data-ecat="${k}">${n}</div>`).join('')}</div>
       <div class="pill-tabs">${filters.map(([k, n]) => `<div class="pill ${equipFilter === k ? 'active' : ''}" data-efilter="${k}">${n}</div>`).join('')}</div>
       <div data-eqpage="1" style="display:flex;align-items:center;font-size:11px;color:var(--dim);margin:2px 2px 8px">
-        <span>背包 ${list.length} 件</span>
+        <span>装备 ${list.length} 件</span>
         <span style="margin-left:auto"></span>
         ${batchMode
           ? '<span style="color:var(--gold)">批量分解中 · 点选装备，装备中的不可选</span>'
           : '<button class="btn small" data-batchon>🧹 批量分解</button>'}
       </div>
-      ${rows || '<div class="empty">背包空空如也，去副本打装备吧</div>'}
+      ${rows || '<div class="empty">还没有装备，去副本打吧</div>'}
       ${shown.length > 80 ? '<div class="empty">仅显示前 80 件</div>' : ''}
       ${batchMode ? `
         <div style="height:116px"></div>
@@ -1869,7 +1864,7 @@ window.UI = (function () {
       </div>
       <div class="section-title">操作</div>
       <div class="btn-row">
-        <button class="btn small" data-equipto="1">装备给角色</button>
+        <button class="btn small" data-equipto="1">装备给伙伴</button>
         <button class="btn small ${eq.lock ? 'primary' : 'ghost'}" data-lock="1">${eq.lock ? '🔒 已锁定' : '🔓 锁定保护'}</button>
         <button class="btn small ghost" data-decomp="1" ${eq.lock ? 'disabled' : ''}>分解（◆${D.DECOMPOSE_GAIN[eq.rarity] + eq.enhance * 3}）</button>
       </div>
@@ -1914,11 +1909,11 @@ window.UI = (function () {
           ${charAvatar(id, 36)}
           <div class="grow"><div class="t1">${cname(id)}${wearer === id ? ' <span class="tag" style="color:var(--gold)">当前穿戴</span>' : ''}</div><div class="t2">Lv.${S.chars[id].lv} · ${ch.role}</div></div>
         </div>`;
-      }).join('') || '<div class="empty">没有可穿戴该装备的角色</div>');
+      }).join('') || '<div class="empty">没有可穿戴该装备的伙伴</div>');
       w2.querySelectorAll('[data-to]').forEach(el => el.onclick = () => {
         const from = C().equipWearer(uid);
         if (C().equipItem(el.dataset.to, uid)) toast(from && from !== el.dataset.to ? `已装备（从 ${cname(from)} 身上取下）` : '已装备');
-        else toast('该角色无法穿戴此装备');
+        else toast('该伙伴无法穿戴此装备');
         closeModal(w2);
         render();
       });
@@ -1934,7 +1929,7 @@ window.UI = (function () {
   function recruitModal(wrap) {
     const S = C().S;
     const free = C().freeRecruitAvailable();
-    const w = showPanel(wrap, '执灯者招募', `
+    const w = showPanel(wrap, '招募伙伴', `
       <div class="card mb3">
         <h3>每日免费 <span class="sub">${free ? '今日可领' : '明天再来'}</span></h3>
         <div class="hint mb2">一天一次，免费招募同样计入主线与每日任务。</div>
@@ -2060,7 +2055,7 @@ window.UI = (function () {
   function ssrPickModal(wrap) {
     const ssrs = D.characters.filter(c => c.rarity === 'SSR' && !c.hidden);
     const w = showPanel(wrap, 'SSR 自选（剩 ' + C().S.ssrTicket + ' 张）', `
-      <div class="note mb3">选一名 SSR 执灯者入队；已拥有的角色会转成碎片。</div>
+      <div class="note mb3">选一名 SSR 伙伴入队；已拥有的伙伴会转成碎片。</div>
       <div class="char-grid">${ssrs.map(ch => `
       <div class="char-card rarity-SSR" data-pickssr="${ch.id}">${charAvatar(ch.id)}<div class="cname">${esc(ch.name)}</div><div class="cmeta">${ch.role} · ${ch.faction}</div></div>`).join('')}</div>
       <button class="btn ghost block mt4" data-back>‹ 返回招募</button>`);
@@ -2290,7 +2285,7 @@ window.UI = (function () {
     const body = `
       <div class="card" style="border-color:#e6b64c44">
         <h3>坐骑 <span class="sub">已驯服 ${st.own.length} / ${D.MOUNTS.length} 匹</span></h3>
-        <div class="note">坐骑给的是<b>基础数值</b>（攻击 / 生命 / 防御 / 速度），<b>全队通用，招募角色也吃</b>。
+        <div class="note">坐骑给的是<b>基础数值</b>（攻击 / 生命 / 防御 / 速度），<b>全队通用，伙伴也吃</b>。
           同时只骑 1 匹，随时能换；花 ◈点数 + 强化材料驯服，高阶坐骑额外花 ◆异界结晶。</div>
         <div class="kv mt2"><span class="k">当前乘骑</span><span style="color:var(--gold)">${on ? `${on.name}（${on.desc}）` : '未乘骑'}</span></div>
       </div>
@@ -2378,7 +2373,7 @@ window.UI = (function () {
         <div class="card" style="border-color:#e6b64c66">
           <h3>选择血统 <span class="sub">选定后不可更改</span></h3>
           <div class="note">血统决定两件事：<b>你走哪一条境界线</b>（血族走血奴→血仆→血卫…，修真走炼气→筑基→金丹…），
-            以及升级血统时主角色吃到的属性方向。选完立刻生效，境界线从第 1 境·初期 开始算。</div>
+            以及升级血统时主角吃到的属性方向。选完立刻生效，境界线从第 1 境·初期 开始算。</div>
         </div>
         ${Object.entries(D.BLOODLINES).map(([id, bl]) => `
           <div class="card">
@@ -2623,7 +2618,7 @@ window.UI = (function () {
     const body = `
       <div style="font-size:12px;color:var(--dim);line-height:1.75;margin-bottom:10px">
         4 条产线各派 <b>1 名领队</b>：领队战力越高，这条线产出越高（最高 +150%）。
-        上阵主力不能派去挂机，「板凳上的执灯者」在这里发挥作用；没派领队的产线不产出。
+        上阵主力不能派去挂机，「板凳上的伙伴」在这里发挥作用；没派领队的产线不产出。
       </div>
       ${rows.map(r => {
       const leader = r.leaderId;
@@ -2636,10 +2631,10 @@ window.UI = (function () {
                <div class="grow"><div class="t1">${cname(leader)}</div><div class="t2">${r.line.attrName} ${r.attrValue} · 战力 ${fmt(C().power(leader))}</div></div>
                <button class="btn small ghost" data-idleclear="${r.line.id}">撤下</button>
              </div>`
-          : `<button class="btn small block" data-idlepick="${r.line.id}" ${bench.length ? '' : 'disabled'}>${bench.length ? '＋ 派一名领队' : '没有可派的角色（先去招募）'}</button>`}
+          : `<button class="btn small block" data-idlepick="${r.line.id}" ${bench.length ? '' : 'disabled'}>${bench.length ? '＋ 派一名领队' : '没有可派的伙伴（先去招募）'}</button>`}
       </div>`;
     }).join('')}
-      <div style="font-size:11px;color:var(--dim);line-height:1.7">可派角色：${bench.length} 名（未上阵的执灯者）。产出的收益和挂机收益一起，在首页「一键收取」里结算。</div>`;
+      <div style="font-size:11px;color:var(--dim);line-height:1.7">可派伙伴：${bench.length} 名（未上阵的伙伴）。产出的收益和挂机收益一起，在首页「一键收取」里结算。</div>`;
     const w = showPanel(wrap, '挂机分工', body);
     w.querySelectorAll('[data-idlepick]').forEach(b => b.onclick = () => pickIdleLeader(b.dataset.idlepick, w));
     w.querySelectorAll('[data-idleclear]').forEach(b => b.onclick = () => {
@@ -2655,7 +2650,7 @@ window.UI = (function () {
     const line = D.IDLE_LINES.find(l => l.id === lineId);
     const bench = Object.keys(S.chars).filter(id => !S.party.includes(id));
     const body = `
-      <div class="note mb3">选一名执灯者派往「${line.name}」，战力越高产出越高。</div>
+      <div class="note mb3">选一名伙伴派往「${line.name}」，战力越高产出越高。</div>
       ${bench.map(id => {
       const used = D.IDLE_LINES.find(l => l.id !== lineId && S.idle.lines[l.id] === id);
       return `<div class="list-row" data-idlelead="${id}" style="cursor:pointer${used ? ';opacity:.5' : ''}">
@@ -2663,7 +2658,7 @@ window.UI = (function () {
         <div class="grow"><div class="t1">${rarityTag(D.charById[id].rarity)} ${cname(id)}</div>
         <div class="t2">Lv.${S.chars[id].lv} · ${line.attrName} ${Math.round(((C().effectiveStats(id) || {}).attrs || {})[line.attr] || 0)} · 战力 ${fmt(C().power(id))}${used ? ` · 已在「${used.name}」` : ''}</div></div>
       </div>`;
-    }).join('') || '<div class="empty">没有可派的角色</div>'}
+    }).join('') || '<div class="empty">没有可派的伙伴</div>'}
       <button class="btn ghost block mt4" data-back>‹ 返回挂机分工</button>`;
     const w = showPanel(wrap, '派遣领队', body);
     w.querySelector('[data-back]').onclick = () => idleLinesModal(w);
@@ -2923,7 +2918,7 @@ window.UI = (function () {
     if (qid === 'q04') {
       setTab('party');
       // 注意：主角默认就占着第 1 格，所以这里指向"前排"这一整排，别指向某个具体格子（可能正好是主角）
-      coachmark('[data-row="front"]', '点空位把招募到的角色放进队伍。上阵共 5 格（前 2 后 3），主角占其中一格，还能再上 4 名队友；想换位置就长按任意一格抓起，按住拖到别的位置松手放下——主角也能拖到后排。');
+      coachmark('[data-row="front"]', '点空位把招募到的伙伴放进队伍。上阵共 5 格（前 2 后 3），主角占其中一格，还能再上 4 名队友；想换位置就长按任意一格抓起，按住拖到别的位置松手放下——主角也能拖到后排。');
       return;
     }
     if (qid === 'q07') {
@@ -2945,7 +2940,7 @@ window.UI = (function () {
     if (key === 'idle1') { setTab('home'); coachmark('[data-act="claim-all"]', '挂机满 60 秒就能领，离线期间也会累积收益。'); return; }
     if (key === 'enhance1') { setTab('equip'); coachmark('[data-eqd], [data-eqpage]', '点一件装备进去强化，成功或失败都算完成一次。'); return; }
     if (key === 'recruit1') { setTab('home'); setTimeout(() => openRecruit(), 250); return; }
-    if (key === 'item1') { setTab('home'); setTimeout(() => bagModal(), 250); return; }
+    if (key === 'item1') { setTab('bag'); return; }
     setTab('dungeon');
   }
   const DAILY_MAIN_GO = { battle5: '残域打一场', idle1: '灯阁领挂机', enhance1: '装备页强化', recruit1: '招募 1 次', dungeon1: '残域通关一关', item1: '背包用道具' };
@@ -3114,9 +3109,9 @@ window.UI = (function () {
     const rpGain = Math.floor(100 * Math.pow(n, 1.15));
     const w = showPanel(wrap, '转生', `
       <div class="card">
-        <h3>轮回转生 <span class="sub">已转生 ${S.player.reincarnations} 次</span></h3>
+        <h3>转生 <span class="sub">已转生 ${S.player.reincarnations} 次</span></h3>
         <div class="note">
-          重置玩家等级与世界进度，保留角色/装备/血统/铭刻/天赋。<br>
+          重置玩家等级与世界进度，保留伙伴/装备/血统/铭刻/天赋。<br>
           下次转生获得 <b style="color:var(--gold)">♾${rpGain}</b> 转生点。
         </div>
         <div style="font-size:11px;margin-top:8px;color:${can ? 'var(--green)' : 'var(--accent)'}">
@@ -3142,7 +3137,7 @@ window.UI = (function () {
     `);
     w.querySelector('[data-reinc]').onclick = () => {
       closeModal(w);
-      confirmBox('确认转生', '转生将重置玩家等级与世界进度（角色、装备、血统、铭刻、天赋保留）。确定？', () => {
+      confirmBox('确认转生', '转生将重置玩家等级与世界进度（伙伴、装备、血统、铭刻、天赋保留）。确定？', () => {
         const r = C().reincarnate();
         if (r.ok) { toast(`第 ${r.count} 次转生完成！获得 ♾${r.rp}`, 3000); }
         reincarnModal(); refresh(); render();
@@ -3185,50 +3180,71 @@ window.UI = (function () {
     };
     return w;
   }
-  // 背包正文：页签与弹窗共用同一份模板，两处永远长一样（避免"页签版"和"弹窗版"漂移）
-  function bagBody() {
+  // 背包正文：页签与弹窗共用同一份模板，两处永远长一样（避免"页签版"和"弹窗版"漂移）。
+  // V9.2：三池（道具 / 材料 / 装备），各 50 格起；格子排成网格，**最后一格是「＋」扩容按钮**，
+  // 点一下 +10 格（于是扩到 60 格时，第 61 格就是新的「＋」）。格子只写名字和数量，点进去才是介绍与用法。
+  const BAG_POOLS = {
+    item: { label: '道具', capKey: 'itemCap', expKey: 'itemExpands' },
+    mat: { label: '材料', capKey: 'matCap', expKey: 'matExpands' },
+    equip: { label: '装备', capKey: 'eqCap', expKey: 'eqExpands' },
+  };
+  // 空格子（占位，保持网格整齐）
+  const bagEmptyCell = () => '<div class="bg-slot"></div>';
+  function bagPoolGrid(pool) {
     const S = C().S;
-    const entries = Object.entries(S.items).filter(([, n]) => n > 0);
-    const usage = C().bagUsage();
-    const expandCost = D.bagExpandCost(S.bag.expands);
+    const cfg = BAG_POOLS[pool];
+    const cap = S.bag[cfg.capKey];
+    const expands = S.bag[cfg.expKey] || 0;
+    const cost = D.bagExpandCost(expands);
+    let cells = [];
+    if (pool === 'equip') {
+      const S0 = C().S;
+      const worn = equippedUidSet(S0);
+      // 格子里只放"没穿在身上的"：穿在身上的装备不占背包格（在下面那张总览表里看）
+      const list = C().inventoryEquips().filter(eq => !worn.has(eq.uid));
+      cells = list.slice(0, cap).map(eq => {
+        const who = Object.entries(S0.equipped).find(([, slots]) => Object.values(slots).includes(eq.uid));
+        return `<button class="bg-slot filled" data-eqd="${eq.uid}">
+          <span class="bg-name rtext-${eq.rarity}">${eq.lock ? '🔒' : ''}${eq.name}</span>
+          <span class="bg-sub">+${eq.enhance}${who ? ' · ' + cname(who[0]) : ''}</span></button>`;
+      });
+    } else {
+      const isMat = k => (D.ITEMS[k] || {}).type === 'material';
+      const stacks = Object.entries(S.items).filter(([k, n]) => n > 0 && (pool === 'mat' ? isMat(k) : !isMat(k)));
+      cells = stacks.slice(0, cap).map(([k, n]) => `<button class="bg-slot filled" data-item="${k}">
+        <span class="bg-name">${D.ITEMS[k].name}</span><span class="bg-count">×${n}</span></button>`);
+    }
+    // 空的补到 cap 个，再加上"第 cap+1 格：＋扩容"
+    while (cells.length < cap) cells.push(bagEmptyCell());
+    const used = pool === 'equip' ? C().bagUsage().eqUsed : (pool === 'mat' ? C().bagUsage().matUsed : C().bagUsage().itemStacks);
+    const full = used >= cap;
     return `
-      <div class="kv" style="margin-bottom:4px"><span class="k">容量</span><span>${usage.used} / ${usage.cap}</span></div>
-      <div class="bar exp mb3"><i style="width:${Math.min(100, usage.used / usage.cap * 100)}%;${usage.used / usage.cap > 0.9 ? 'background:var(--accent)' : ''}"></i></div>
-      <div class="btn-row" style="margin-bottom:12px">
-        <button class="btn small" data-expand="1">🎒 扩容 +${D.BAG_EXPAND_SIZE} 格（◈${fmt(expandCost)}）</button>
-        <button class="btn small" data-refine-open="1">⚗️ 炼化台</button>
+      <div class="bg-head">
+        <span>${cfg.label}格</span>
+        <span class="sub">${used} / ${cap}${full ? ' · 满了' : ''}</span>
       </div>
-      <div class="section-title">货币 <span style="font-size:11px;font-weight:400">（点一下看用途）</span></div>
-      <div class="cur-chips">
-        ${D.CURRENCIES.map(c => `<button class="cur-chip" data-cur="${c.id}"><span style="color:${c.color}">${c.icon}</span><b>${fmt(S.cur[c.id])}</b></button>`).join('')}
-      </div>
-      <div class="section-title">道具（${usage.itemStacks} 种 · 装备 ${usage.eqCount} 件在装备页）</div>
-      <div class="bag-grid">
-        ${entries.map(([k, n]) => {
-          const it = D.ITEMS[k];
-          if (!it) return '';
-          // 能批量用的（宝箱 / 经验模块 / 血清）直接在卡片上给快捷键，
-          // 不必"进详情 → 选数量"走三层；长说明仍在详情卡里
-          const batchable = it.type === 'box' || it.type === 'exp' || it.type === 'serum';
-          const verb = it.type === 'box' ? '开' : it.type === 'exp' ? '喂' : it.type === 'serum' ? '服' : '用';
-          const isTicket = it.type === 'ticket';
-          const second = Math.min(10, n);
-          return `<div class="bag-card" data-item="${k}" style="cursor:pointer${it.type === 'box' ? ';border-color:var(--gold)' : ''}">
-            <div class="bico">${itemIcon(it, k)}</div>
-            <div class="bname">${it.name}</div>
-            <div class="bcount">×${n}</div>
-            ${isTicket ? `<div class="bquick"><button class="qbtn" data-gorecruit="1">去招募</button></div>`
-            : batchable ? `<div class="bquick">
-              <button class="qbtn" data-quick="${k}:1">${verb}1</button>
-              ${n > 1 ? `<button class="qbtn" data-quick="${k}:${second}">${verb}${second}</button>` : ''}
-            </div>` : ''}
-          </div>`;
-        }).join('') || '<div class="empty" style="grid-column:1/-1">背包是空的</div>'}
-      </div>
-      <div style="font-size:11px;color:var(--dim);margin-top:10px">点卡片看用途与用法；卡片上的「开/喂/服 N」是直接用，批量还有 1 / 10 / 全部（详情卡里）。每种道具占 1 格，未装备的装备每件占 1 格。</div>`;
+      <div class="bg-grid">
+        ${cells.join('')}
+        <button class="bg-slot add" data-expand="${pool}">＋<i>+${D.BAG_EXPAND_SIZE}</i><u>◈${fmt(cost)}</u></button>
+      </div>`;
   }
-  // 背包作为一级页签
-  function bagScreen() { return bagBody(); }
+  function bagBody(which) {
+    const view = which || (curTab === 'bag' ? bagView : 'item');
+    if (view === 'equip') {
+      return `<div class="card mb3">${bagPoolGrid('equip')}</div>
+        <div class="hint mb2">装备格满了以后，新掉落的装备会自动分解成 ◆异界结晶。点一件看属性与强化。</div>
+        ${equipScreen(true)}`;
+    }
+    return `<div class="card mb3">${bagPoolGrid(view === 'mat' ? 'mat' : 'item')}</div>
+      <div class="hint">点格子看用途与用法（批量使用在详情里：1 / 10 / 全部）。空格子留着以后装东西，末尾的「＋」是扩容。</div>`;
+  }
+  // 背包作为一级页签：三栏共用一条顶部胶囊
+  function bagScreen() {
+    return `<div class="pill-tabs mb3">
+        ${BAG_TABS.map(t => `<div class="pill ${bagView === t.id ? 'active' : ''}" data-bagview="${t.id}">${t.name}</div>`).join('')}
+      </div>
+      ${bagBody(bagView)}`;
+  }
   // 背包绑定：asDrawer=true 时是"弹窗里的背包"，否则是页签里的背包（返回行为不同）
   function bindBag(root, asDrawer) {
     const refresh = () => { renderTopbar(); if (asDrawer) bagModal(root); else render(); };
@@ -3241,20 +3257,20 @@ window.UI = (function () {
       if (asDrawer) bagModal(root);
       else { closeModal(w); render(); }
     };
-    const expand = root.querySelector('[data-expand]');
-    if (expand) expand.onclick = () => { const r = C().buyBagCap(); toast(r.msg); refresh(); };
-    const refineBtn = root.querySelector('[data-refine-open]');
-    if (refineBtn) refineBtn.onclick = () => refineModal(null, backToBag);
+    root.querySelectorAll('[data-expand]').forEach(b => b.onclick = () => {
+      const r = C().buyBagCap(b.dataset.expand);
+      if (r.ok) toast(r.msg); else failToast(r.msg, b);
+      refresh();
+    });
+    root.querySelectorAll('[data-bagview]').forEach(el => el.onclick = () => {
+      bagView = el.dataset.bagview;
+      if (asDrawer) bagModal(root); else render();
+    });
     root.querySelectorAll('[data-cur]').forEach(el => el.onclick = () => {
       if (asDrawer) currencyModal(el.dataset.cur, root, w2 => bagModal(w2));
       else currencyModal(el.dataset.cur);
     });
     root.querySelectorAll('[data-item]').forEach(el => el.onclick = () => itemDetail(el.dataset.item, null, backToBag));
-    root.querySelectorAll('[data-quick]').forEach(b => b.onclick = ev => {
-      ev.stopPropagation();
-      const [k, v] = b.dataset.quick.split(':');
-      quickUse(k, +v, backToBag, asDrawer ? root : null);
-    });
     // 招募券：直接从背包跳去招募（券本来就是在这里花掉的，别让玩家自己找入口）
     root.querySelectorAll('[data-gorecruit]').forEach(b => b.onclick = ev => {
       ev.stopPropagation();
@@ -3263,22 +3279,6 @@ window.UI = (function () {
     });
   }
   // 卡片上的快捷键：宝箱直接开，经验模块/血清先选目标
-  function quickUse(itemId, count, backToBag, drawerRoot) {
-    const it = D.ITEMS[itemId];
-    if (!it) return;
-    if (it.type === 'box') {
-      const r = C().openBoxes(itemId, count);
-      if (!r.ok) { failToast(r.msg || '开箱失败'); return; }
-      sfx('box');
-      const chips = (r.equips || []).map(e => `<span class="reward-chip rtext-${e.rarity}">${itemIcon(it)} ${e.name} +${e.enhance}</span>`);
-      if (r.sold) chips.push(`<span class="reward-chip">◆+${fmt(r.soldGain)}（自动分解 ${r.sold} 件）</span>`);
-      renderTopbar();
-      lootPanel(`开箱结果（×${r.count}）`, chips.join(''), w => backToBag(w), drawerRoot);
-      return;
-    }
-    if (it.type === 'exp') return pickExpTarget(itemId, count, null, backToBag);
-    if (it.type === 'serum') return pickSerumTarget(itemId, count, null, backToBag);
-  }
   function bagModal(wrap) {
     const w = showPanel(wrap, '背包', bagBody());
     bindBag(w, true);
@@ -3291,7 +3291,7 @@ window.UI = (function () {
     const goBack = backFn || (w2 => bagModal(w2));
     if (!it) return goBack(wrap);
     const n = S.items[itemId] || 0;
-    const where = { explore: '副本探索中', character: '角色培养页', anywhere: '随时' }[it.where] || '—';
+    const where = { explore: '副本探索中', character: '伙伴培养页', anywhere: '随时' }[it.where] || '—';
     let actions = '';
     if (it.type === 'box') {
       actions = `<div class="btn-row">
@@ -3305,7 +3305,7 @@ window.UI = (function () {
         <button class="btn small" data-exp="10" ${n >= 10 ? '' : 'disabled'}>用 10 个</button>
         <button class="btn small gold" data-exp="0" ${n >= 1 ? '' : 'disabled'}>全部用（${n}）</button>
       </div>
-      <div class="hint mt1">先选角色，再确认数量。</div>`;
+      <div class="hint mt1">先选伙伴，再确认数量。</div>`;
     } else if (it.type === 'serum') {
       const sd = it.serum || {};
       actions = `<div class="btn-row">
@@ -3314,7 +3314,7 @@ window.UI = (function () {
         <button class="btn small gold" data-serum="0" ${n >= 1 ? '' : 'disabled'}>全部用（${n}）</button>
       </div>
       <div style="font-size:11px;color:var(--dim);margin-top:6px;line-height:1.7">
-        永久生效，不是临时增益。${sd.bloodline ? `只有「${sd.bloodline}」血统能用；` : '任何执灯者（含主角）都能用；'}每人每种上限 ${sd.max} 支。
+        永久生效，不是临时增益。${sd.bloodline ? `只有「${sd.bloodline}」血统能用；` : '任何伙伴（含主角）都能用；'}每人每种上限 ${sd.max} 支。
       </div>`;
     } else if (it.type === 'consumable') {
       actions = run
@@ -3332,12 +3332,9 @@ window.UI = (function () {
         </div>`;
     }
     const body = `
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
-        <div style="font-size:38px">${itemIcon(it)}</div>
-        <div>
-          <div><b style="font-size:16px">${it.name}</b></div>
-          <div style="font-size:12px;color:var(--dim);margin-top:3px">持有 ×${n}</div>
-        </div>
+      <div class="card mb3" style="display:flex;align-items:baseline;gap:10px">
+        <b style="font-size:16px">${it.name}</b>
+        <span style="margin-left:auto;color:var(--gold);font-weight:700">×${n}</span>
       </div>
       <div class="card mb3">
         <h3>说明</h3>
@@ -3400,7 +3397,7 @@ window.UI = (function () {
     if (go) go.onclick = () => { closeModal(w); setTab('dungeon'); };
     return w;
   }
-  // 经验道具：先选角色
+  // 经验道具：先选伙伴
   function pickExpTarget(itemId, count, wrap, backFn) {
     const S = C().S;
     const owned = Object.keys(S.chars);
@@ -3413,7 +3410,7 @@ window.UI = (function () {
       return;
     }
     const body = `
-      <div class="note mb3">选择要吃「${D.ITEMS[itemId].name} ×${count}」的角色</div>
+      <div class="note mb3">选择要吃「${D.ITEMS[itemId].name} ×${count}」的伙伴</div>
       ${owned.map(id => {
         const ch = D.charById[id], c = S.chars[id];
         return `<div class="list-row" data-target="${id}" style="cursor:pointer">
@@ -3435,7 +3432,7 @@ window.UI = (function () {
     });
     return w;
   }
-  // 血清：先选执灯者（血统血清只列对应血统的人）
+  // 血清：先选伙伴（血统血清只列对应血统的人）
   function pickSerumTarget(itemId, count, wrap, backFn) {
     const S = C().S;
     const it = D.ITEMS[itemId];
@@ -3455,7 +3452,7 @@ window.UI = (function () {
     const usable = rows.filter(r => !sd.bloodline || r.bl === sd.bloodline);
     const body = `
       <div class="note mb3">
-        选择要吃「${it.name} ×${count}」的执灯者 —— <b>永久生效</b>
+        选择要吃「${it.name} ×${count}」的伙伴 —— <b>永久生效</b>
       </div>
       ${usable.length ? usable.map(r => {
         const taken = C().serumTaken(r.id, serumId);
@@ -3464,7 +3461,7 @@ window.UI = (function () {
           <div class="grow"><div class="t1">${r.label}</div>
           <div class="t2">${r.sub} · 已服 ${taken}/${sd.max}${full ? ' · 已满' : ''}</div></div>
         </div>`;
-      }).join('') : `<div class="empty">没有可用对象：这支血清只有「${sd.bloodline}」血统能用（先去角色页觉醒血统）</div>`}
+      }).join('') : `<div class="empty">没有可用对象：这支血清只有「${sd.bloodline}」血统能用（先去伙伴页觉醒血统）</div>`}
       <button class="btn ghost block mt4" data-back>‹ 返回</button>`;
     const w = showPanel(wrap, '使用血清', body);
     w.querySelector('[data-back]').onclick = () => goBack(w);
@@ -3483,7 +3480,7 @@ window.UI = (function () {
     const goBack = onBack || (w2 => bagModal(w2));
     const body = `
       <div style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:10px">
-        血清是<b>永久强化剂</b>：喂给某名执灯者后永久加属性，每人每种有上限。
+        血清是<b>永久强化剂</b>：喂给某名伙伴后永久加属性，每人每种有上限。
         血统血清只有对应血统能用——先觉醒血统，再决定喂给谁。
       </div>
       ${D.SERUMS.map(s => {
@@ -3566,21 +3563,37 @@ window.UI = (function () {
         </div>
       </div>
       <div class="card">
-        <h3>角色列表</h3>
+        <h3>存档与备份</h3>
+        <div class="hint mb2">进度只存在这台设备里。换设备、清缓存之前先「导出」一份，或者存进下面的存档槽。</div>
+        <div class="btn-row">
+          <button class="btn small" data-save-export="1">📤 导出存档</button>
+          <button class="btn small" data-save-import="1">📥 导入存档</button>
+        </div>
+        <div class="hint mt3 mb2">手动存档槽（三格互不影响，随时存、随时读）：</div>
+        ${C().slotInfo().map(s => `
+          <div class="list-row">
+            <div class="grow"><div class="t1">存档槽 ${s.slot}</div>
+            <div class="t2">${s.exists && s.meta ? `Lv.${s.meta.level} · 深井 ${s.meta.floor} 层 · ${s.meta.time ? new Date(s.meta.time).toLocaleString() : '—'}` : '空'}</div></div>
+            <button class="btn small" data-slot-save="${s.slot}">存入</button>
+            <button class="btn small ghost" data-slot-load="${s.slot}" ${s.exists ? '' : 'disabled'}>读取</button>
+          </div>`).join('')}
+      </div>
+      <div class="card">
+        <h3>主角列表</h3>
         ${C().protagonistList().map(p => `
           <div class="list-row" style="${p.current ? 'border-color:var(--gold)' : ''}">
             <div class="grow"><div class="t1">${esc(p.name)} ${p.current ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)">当前</span>' : ''}</div>
             <div class="t2">Lv.${p.level} · ${p.bloodline ? p.bloodline + '血统 Lv.' + p.bloodlineLv : '未觉醒血统'}</div></div>
             ${p.current ? '' : `<button class="btn small" data-switchprotag="${p.altIndex}">切换</button>`}
           </div>`).join('')}
-        <div style="font-size:11px;color:var(--dim);margin:8px 0">新建角色从 Lv.1 开始，可体验不同血统路线；世界进度、货币、队伍不受影响</div>
-        <button class="btn small block" data-newprotag="1">➕ 新建角色</button>
+        <div style="font-size:11px;color:var(--dim);margin:8px 0">新建主角从 Lv.1 开始，可体验不同血统路线；世界进度、货币、队伍不受影响</div>
+        <button class="btn small block" data-newprotag="1">➕ 新建主角</button>
       </div>
       <div class="card">
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V9.1</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V9.2</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -3611,6 +3624,58 @@ window.UI = (function () {
       if (k === 'sfx' && C().S.settings.sfx !== false) sfx('success');
       settingsModal(w);
     });
+    /* ---------- 存档导出 / 导入 / 存档槽 ---------- */
+    const saveExport = w.querySelector('[data-save-export]');
+    if (saveExport) saveExport.onclick = () => {
+      const json = C().exportSave();
+      const m = modal('导出存档', `
+        <div class="hint mb2">全选下面这段文字复制走（存到备忘录 / 网盘都行），下次粘进「导入存档」就能接着玩。</div>
+        <textarea id="exp-ta" readonly style="width:100%;height:150px;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px;font-size:11px;line-height:1.5;outline:none;word-break:break-all">${esc(json)}</textarea>
+        <div class="btn-row mt3"><button class="btn small primary" data-copy>📋 复制</button><button class="btn small ghost" data-close>关闭</button></div>`, { center: true });
+      const ta = m.querySelector('#exp-ta');
+      ta.onclick = () => ta.select();
+      m.querySelector('[data-copy]').onclick = () => {
+        ta.select();
+        let done = false;
+        try { done = document.execCommand && document.execCommand('copy'); } catch (e) { done = false; }
+        if (navigator.clipboard && !done) { navigator.clipboard.writeText(json).then(() => toast('已复制')).catch(() => toast('复制失败，请手动全选')); }
+        else toast(done ? '已复制' : '复制失败，请手动全选');
+      };
+      m.querySelector('[data-close]').onclick = () => closeModal(m);
+    };
+    const saveImport = w.querySelector('[data-save-import]');
+    if (saveImport) saveImport.onclick = () => {
+      const m = modal('导入存档', `
+        <div class="hint mb2">把导出的存档内容粘到下面，确认后<b style="color:var(--accent)">当前进度会被覆盖</b>。</div>
+        <textarea id="imp-ta" placeholder="在这里粘贴存档内容…" style="width:100%;height:150px;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px;font-size:11px;line-height:1.5;outline:none;word-break:break-all"></textarea>
+        <div class="btn-row mt3"><button class="btn small primary" data-doimport>确认导入</button><button class="btn small ghost" data-close>取消</button></div>`, { center: true });
+      m.querySelector('[data-close]').onclick = () => closeModal(m);
+      m.querySelector('[data-doimport]').onclick = () => {
+        const txt = (m.querySelector('#imp-ta').value || '').trim();
+        if (!txt) { toast('先粘贴存档内容'); return; }
+        confirmBox('确认导入', '当前进度将被这段存档覆盖，确定？', () => {
+          const r = C().importSave(txt);
+          closeModal(m);
+          if (!r.ok) { toast(r.msg || '导入失败'); return; }
+          toast('导入成功');
+          setTab('home');
+        });
+      };
+    };
+    w.querySelectorAll('[data-slot-save]').forEach(b => b.onclick = () => {
+      const n = +b.dataset.slotSave;
+      confirmBox('存入存档槽', `把当前进度存进「存档槽 ${n}」？该槽原有的内容会被覆盖。`, () => {
+        toast(C().saveSlot(n) ? `已存入存档槽 ${n}` : '保存失败（存储空间不足？）');
+        settingsModal(w);
+      });
+    });
+    w.querySelectorAll('[data-slot-load]').forEach(b => b.onclick = () => {
+      const n = +b.dataset.slotLoad;
+      confirmBox('读取存档槽', `用「存档槽 ${n}」覆盖当前进度？当前进度不会自动备份。`, () => {
+        if (C().loadSlot(n)) { toast(`已读取存档槽 ${n}`); setTab('home'); }
+        else toast('读取失败');
+      });
+    });
     w.querySelectorAll('[data-act]').forEach(el => el.onclick = () => {
       const a = el.dataset.act;
       if (a === 'open-guide') guideModal(null, w);
@@ -3623,10 +3688,10 @@ window.UI = (function () {
     });
     w.querySelector('[data-newprotag]').onclick = () => {
       closeModal(w);
-      const nw = modal('新建角色', `
-        <div class="note mb3">当前角色会被保留，可随时切回。新角色从 Lv.1 开始，用于体验不同的血统路线。</div>
-        <input id="np-input" maxlength="12" placeholder="输入新角色名字（12字内）" style="width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:15px;outline:none;margin-bottom:12px" />
-        <button class="btn primary block" data-ok>创建并开始轮回</button>`, { center: true });
+      const nw = modal('新建主角', `
+        <div class="note mb3">当前主角会被保留，可随时切回。新主角从 Lv.1 开始，用于体验不同的血统路线。</div>
+        <input id="np-input" maxlength="12" placeholder="输入新主角名字（12字内）" style="width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:15px;outline:none;margin-bottom:12px" />
+        <button class="btn primary block" data-ok>创建并开始探索</button>`, { center: true });
       nw.querySelector('[data-ok]').onclick = () => {
         const r = C().createProtagonist(nw.querySelector('#np-input').value);
         toast(r.msg, 2400);
@@ -3648,7 +3713,6 @@ window.UI = (function () {
   // 只对胜利生效，失败页不自动跳；没有主按钮（最后一关打完）时也不自动，避免把人越推越远。
   const AUTO_NEXT_SEC = 5;
   // 副本"波间结算"的倒计时：比整关结算短，副本是一路打到底的
-  const WAVE_AUTO_SEC = 3;
   function autoNextIndex(win, acts) {
     if (!win || !acts || !acts.length) return -1;
     return acts.findIndex(a => a.primary);
@@ -3732,17 +3796,26 @@ window.UI = (function () {
       </div>
       <div class="b-field">
         <div class="b-row enemies"></div>
-        <div class="b-row allies"></div>
+        <div class="b-line-label" data-line="back">我方后排</div>
+        <div class="b-row allies back"></div>
+        <div class="b-line-label" data-line="front">我方前排 · 敌人优先打这里</div>
+        <div class="b-row allies front"></div>
       </div>
       <div id="battle-log"></div>
-      <div class="b-controls"><button class="btn block" data-skip>跳过 ⏩</button></div>`;
+      <div class="b-controls">
+        <div class="b-potions" data-bpotions></div>
+        <button class="btn block" data-skip>跳过 ⏩</button>
+      </div>`;
     root.appendChild(overlay);
     // 单位状态
     const units = {};
     const start = res.frames[0];
     start.allies.concat(start.enemies).forEach(u => { units[u.uid] = Object.assign({}, u); });
     const eRow = overlay.querySelector('.enemies');
-    const aRow = overlay.querySelector('.allies');
+    // 我方按站位排成两行：上排后排、下排前排——和队伍页排的一模一样，
+    // 这样"谁在挨打"一眼看得出来（之前是一整条平铺，站位等于看不见）。
+    const aBackRow = overlay.querySelector('.allies.back');
+    const aFrontRow = overlay.querySelector('.allies.front');
     function unitHtml(u) {
       return `<div class="unit ${u.side === 'enemy' ? 'enemy' : ''} ${u.isBoss ? 'boss' : ''}" id="u-${u.uid}">
         <div class="u-avatar">${esc(u.name[0])}</div>
@@ -3752,7 +3825,8 @@ window.UI = (function () {
       </div>`;
     }
     eRow.innerHTML = start.enemies.map(unitHtml).join('');
-    aRow.innerHTML = start.allies.map(unitHtml).join('');
+    aFrontRow.innerHTML = start.allies.filter(u => u.position === 'front').map(unitHtml).join('');
+    aBackRow.innerHTML = start.allies.filter(u => u.position !== 'front').map(unitHtml).join('');
     const logBox = overlay.querySelector('#battle-log');
     const nameOf = uid => (units[uid] || {}).name || '?';
     function log(text) {
@@ -3797,6 +3871,18 @@ window.UI = (function () {
     }
     const energyMap = {};
     let speed = S.settings.speed;
+    /* 战备补给条：副本里随时能喝，但一场战斗的帧是"开打前一次算完"的，
+       所以喝下去的药从**下一波**进场时生效（血线低就趁这波还没打完先喝）。 */
+    const potBox = overlay.querySelector('[data-bpotions]');
+    function paintPotions() {
+      if (!potBox) return;
+      const bar = run ? potionBarHtml() : '';
+      if (!bar) { potBox.innerHTML = ''; return; }
+      const lastWave = run.wave >= run.waves.length - 1;
+      potBox.innerHTML = `<div class="b-potion-tip">战备补给 · 喝了从${lastWave ? '下一轮' : '下一波'}进场生效</div>${bar}`;
+      bindPotionButtons(overlay, paintPotions);
+    }
+    paintPotions();
     overlay.querySelector('[data-speedbtn]').onclick = ev => {
       speed = speed >= 3 ? 1 : speed + 1;
       S.settings.speed = speed; C().save();
@@ -3854,7 +3940,7 @@ window.UI = (function () {
         }
         case 'summon': log(`🕯 ${f.text}`); break;
         case 'rule': log(`👁 ${f.text}`); break;
-        case 'instantkill': floater(f.target, '☠ 即死', 'crit'); break;
+        case 'nearDeath': floater(f.target, '⚠ 濒死', 'crit'); break;
       }
     }
     function finish() {
@@ -3869,6 +3955,21 @@ window.UI = (function () {
       const outcome = cfg.onEnd(res.win, res, units) || {};
       const rewards = outcome.rewards || [];
       const acts = outcome.actions || [];
+      /* 波与波之间**不弹结算页**：这一波打完直接接下一波（父亲大人 2026-09-15 定）。
+         只在战斗画面上停一瞬，飘一行"第 N 波已通过"，然后自己接着打。
+         用过的药剂已经在 run.hpPct / run.buffs 里，下一波进场时自然带上。 */
+      if (outcome.seamless && res.win) {
+        if (outcome.log && outcome.log.length) log('📦 本波收获：' + outcome.log.join(' · '));
+        const tip = document.createElement('div');
+        tip.className = 'b-seamless';
+        tip.textContent = outcome.sub || '本波通过，继续推进…';
+        overlay.appendChild(tip);
+        setTimeout(() => {
+          overlay.remove();
+          if (outcome.after) outcome.after();
+        }, outcome.seamlessMs || 900);
+        return;
+      }
       // 倒计时目标：胜利时优先"主按钮"（默认就是「下一关」）。
       // 关闭设置里的「结算自动进下一关」后，autoIdx 直接算作 -1，不显示倒计时。
       const autoIdx = C().S.settings.autoNext !== false ? autoNextIndex(res.win, acts) : -1;
@@ -3929,65 +4030,6 @@ window.UI = (function () {
     setTimeout(step, 400);
   }
 
-  /* ================= 随机事件 ================= */
-  /* 随机遭遇面板。
-     ⚠️ V8.9 起**副本里不再触发它**（父亲大人要求副本"纯粹点"：波间不插事件、不插补给箱），
-     所以现在没有调用方。数据和这个面板都留着——以后想把它接到「游历奇遇」或别的玩法上，
-     直接 showEvent(D.EVENTS[i], onDone) 就行；事件里 eff.battle 的战斗分支也还是好的。 */
-  function showEvent(ev, onDone) {
-    const S0 = C().S;
-    // 需要花钱的选项：余额不足就先禁用，别让玩家点了才发现扣成 0
-    const lackOf = eff => Object.entries(eff || {}).filter(([k, v]) => v < 0 && (S0.cur[k] || 0) < -v).map(([k]) => curName(k));
-    const w = modal(ev.title, `
-      <div class="event-desc">${esc(ev.desc)}</div>
-      <div class="event-choices">
-        ${ev.choices.map((c, i) => {
-          const lack = lackOf(c.effect);
-          return `<button class="btn block" data-choice="${i}" ${lack.length ? 'disabled' : ''}>${esc(c.text)}${lack.length ? `（${lack.join('、')}不足）` : ''}</button>`;
-        }).join('')}
-      </div>
-    `, { sticky: true, center: true });
-    w.querySelectorAll('[data-choice]').forEach(b => b.onclick = () => {
-      const ch = ev.choices[+b.dataset.choice];
-      const eff = ch.effect || {};
-      const S = C().S;
-      const gains = [];
-      ['points', 'holy', 'story', 'otherworld', 'skillChip', 'bloodCrystal'].forEach(k => {
-        if (!eff[k]) return;
-        const before = S.cur[k] || 0;
-        C().addCur(k, eff[k]);
-        gains.push(`${curIcon(k)}${eff[k] > 0 ? '+' : ''}${eff[k]}${eff[k] < 0 && before < -eff[k] ? '（不足，已扣至 0）' : ''}`);
-      });
-      if (eff.item) { C().addItem(eff.item); gains.push(`🎁${D.ITEMS[eff.item].name}`); }
-      if (eff.healPct && run) {
-        Object.keys(run.hpPct).forEach(id => { run.hpPct[id] = Math.min(1, run.hpPct[id] + eff.healPct); });
-        gains.push(`全队恢复 ${Math.round(eff.healPct * 100)}%`);
-      }
-      if (eff.hurtPct && run) {
-        Object.keys(run.hpPct).forEach(id => { run.hpPct[id] = Math.max(0.05, run.hpPct[id] - eff.hurtPct); });
-        gains.push(`全队受伤 ${Math.round(eff.hurtPct * 100)}%`);
-      }
-      if (eff.buff && run) {
-        Object.entries(eff.buff).forEach(([k, v]) => { run.buffs[k] = (run.buffs[k] || 0) + v; });
-        gains.push('获得探索增益');
-      }
-      if (run) persistRun();
-      closeModal(w);
-      const proceed = () => {
-        if (eff.battle && run) {
-          doNodeBattle('elite', () => onDone && onDone());
-        } else if (onDone) onDone();
-      };
-      const wr = modal('事件结果', `
-        <div class="event-desc">${esc(ch.result)}</div>
-        ${gains.length ? `<div class="reward-chips mt3">${gains.map(g => `<span class="reward-chip">${g}</span>`).join('')}</div>` : ''}
-        <button class="btn primary block mt4" data-go>继续</button>
-      `, { sticky: true, center: true });
-      wr.querySelector('[data-go]').onclick = () => { closeModal(wr); proceed(); };
-      refresh();
-    });
-  }
-
   /* ================= 副本战斗流程 ================= */
   function rewardChips(got) {
     return got.map(g => {
@@ -3995,6 +4037,15 @@ window.UI = (function () {
       if (g.k === 'exp') return `EXP+${fmt(g.v)}`;
       if (g.k === 'item') return `🎒${D.ITEMS[g.v].name}${g.n > 1 ? '×' + g.n : ''}`;
       return `${curIcon(g.k)}+${fmt(g.v)}${g.sold ? '(自动分解)' : ''}`;
+    });
+  }
+  // 同一批掉落，换成一行纯文字（无缝连波时写进战斗日志用）
+  function waveLogLines(got) {
+    return (got || []).map(g => {
+      if (g.k === 'equip') return `🗡${g.v.name}+${g.v.enhance}`;
+      if (g.k === 'exp') return `EXP+${fmt(g.v)}`;
+      if (g.k === 'item') return `${D.ITEMS[g.v].name}×${g.n || 1}`;
+      return `${curName(g.k)}+${fmt(g.v)}`;
     });
   }
   function doNodeBattle(kind, onDone, premadeEnemies) {
@@ -4014,6 +4065,8 @@ window.UI = (function () {
         window.Core.addCharExp(C().S.party.filter(Boolean), g.rewards.exp);
         C().addPlayerBattleExp(Math.round(g.rewards.exp * 0.5));
         C().battleSettle({}, true, kind === 'elite');
+        // 中间波倒了人也算进本关战绩（否则前两波全灭、最后一波翻盘照样三星）
+        if (Object.values(units).some(u => u.side === 'ally' && u.hp <= 0)) run.deaths = (run.deaths || 0) + 1;
         // 更新队伍血量
         start_allies(units);
         function start_allies(units) {
@@ -4024,21 +4077,11 @@ window.UI = (function () {
         persistRun();
         C().save();
         return {
-          rewards: rewardChips(g.got),
-          // 波间结算：血条 + 药剂 + 「继续」倒计时——不再有"开打第 N 波"这种要按的按钮
-          extraHtml: waveExtraHtml(),
-          onExtra: panel => {
-            const paint = () => {
-              const box = panel.querySelector('[data-waveextra]');
-              if (box) box.innerHTML = waveExtraInner();
-              bindPotionButtons(panel, paint);
-            };
-            bindPotionButtons(panel, paint);
-          },
-          actions: [{ label: nextWaveLabel(), primary: true, run: () => afterWave() }],
-          autoSec: WAVE_AUTO_SEC,
-          closeLabel: '收下奖励',
-          after: () => { refresh(); onDone && onDone(); },
+          // 一刀不落地接着打：不弹结算页、不用按"下一波"，直接进下一波
+          seamless: true,
+          sub: `第 ${run.wave + 1}/${run.waves.length} 波已通过`,
+          log: waveLogLines(g.got),
+          after: () => afterWave(),
         };
       },
     });
@@ -4051,8 +4094,9 @@ window.UI = (function () {
     return doNodeBattle(run.waves[run.wave], () => afterWave());
   }
   /* 一波打完：直接推进到下一波，一路打到底。
-     父亲大人 2026-09-15 定：副本要"纯粹"——不要"开打第 N 波 / 最后一波"这种要按的按钮，
-     也不要在波间插随机事件 / 补给箱。补血与增益挪到波间结算页上（血条 + 药剂就在那儿）。 */
+     父亲大人 2026-09-15 定：副本要"纯粹"、要**无缝**——既不要"开打第 N 波"这种要按的按钮，
+     也不要每波停下来弹一次结算页。这一波结束直接在战斗画面上接下一波；
+     补血 / 上增益走战斗界面底部那条"战备补给"，喝了从下一波进场生效。 */
   function afterWave() {
     if (!run) return;
     run.wave++;
@@ -4082,8 +4126,8 @@ window.UI = (function () {
         window.Core.addCharExp(C().S.party.filter(Boolean), g.rewards.exp * 2);
         C().addPlayerBattleExp(g.rewards.exp);
         C().battleSettle({}, true, isBoss);
-        // 星级：1星保底；无人阵亡+1；回合≤20+1
-        const anyDead = Object.values(units).some(u => u.side === 'ally' && u.hp <= 0);
+        // 星级：1星保底；整关无人阵亡+1；决战回合≤20 再+1
+        const anyDead = (run.deaths || 0) > 0 || Object.values(units).some(u => u.side === 'ally' && u.hp <= 0);
         let stars = 1 + (anyDead ? 0 : 1) + (res.rounds <= 20 ? 1 : 0);
         const comp = C().stageComplete(run.worldId, run.diff, run.stageIdx, stars);
         const chips = rewardChips(g.got);
@@ -4210,6 +4254,7 @@ window.UI = (function () {
         case 'open-travel': travelModal(); break;
         case 'open-bloodline': bloodlineModal(); break;
         case 'open-garden': gardenModal(); break;
+        case 'open-refine': refineModal(); break;
         case 'open-arena': arenaModal(); break;
         case 'open-fabao': fabaoModal(); break;
         case 'open-mount': mountModal(); break;
@@ -4228,9 +4273,9 @@ window.UI = (function () {
             const r = C().claimQuest(cur.q.id);
             if (r.ok) {
               toast(`完成主线【${cur.q.name}】`, 2200);
-              const next = C().currentQuest();
-              if (next && next.q.unlock) {
-                setTimeout(() => modal('🔓 新功能解锁', `<div style="text-align:center;padding:10px;font-size:14px">${next.q.unlock.split(',').map(id => (D.UNLOCKS.find(u => u.id === id) || {}).name).filter(Boolean).join(' · ')} 已解锁！</div>`, { center: true }), 400);
+              // 弹的是"这条任务真正解锁了什么"（由 claimQuest 返回，不再去读下一条任务的字段）
+              if (r.unlocked && r.unlocked.length) {
+                setTimeout(() => modal('🔓 新功能解锁', `<div style="text-align:center;padding:10px;font-size:14px">${r.unlocked.join(' · ')} 已解锁！</div>`, { center: true }), 400);
               }
             }
           }
@@ -4249,7 +4294,7 @@ window.UI = (function () {
         case 'open-ach': tasksModal('ach'); break;
         case 'auto-equip': {
           const r = C().autoEquipBest();
-          toast(r.changed ? `已为 ${r.members} 名成员重新分配 ${r.changed} 处装备（含从没上阵的角色身上取下的）` : '当前已是最优配置', 2600);
+          toast(r.changed ? `已为 ${r.members} 名成员重新分配 ${r.changed} 处装备（含从没上阵的伙伴身上取下的）` : '当前已是最优配置', 2600);
           sfx('coin');
           render(); renderTopbar();
           break;
@@ -4404,14 +4449,14 @@ window.UI = (function () {
         <button class="btn small" data-gm="worlds">解锁全部世界</button>
         <button class="btn small" data-gm="clearworld">当前世界普通全通</button>
         <button class="btn small" data-gm="plvup">主角(玩家) Lv+10</button>
-        <button class="btn small" data-gm="lvup">全体角色 Lv+10</button>
+        <button class="btn small" data-gm="lvup">全体伙伴 Lv+10</button>
         <button class="btn small" data-gm="skill">全体技能升满</button>
         <button class="btn small" data-gm="equip">获得 5 件 SSR 装备</button>
         <button class="btn small" data-gm="gene">铭刻 +1 阶</button>
         <button class="btn small" data-gm="floor">深井 +10 层</button>
         <button class="btn small" data-gm="recruit">✦ +900（十连）</button>
       </div>
-      <div style="font-size:11px;color:var(--dim);margin-top:12px">玩家Lv.${S.player.level} · 铭刻${S.player.geneLock} · 深井${S.corridor.floor}层 · 角色${Object.keys(S.chars).length}</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:12px">玩家Lv.${S.player.level} · 铭刻${S.player.geneLock} · 深井${S.corridor.floor}层 · 伙伴${Object.keys(S.chars).length}</div>
     `);
     w.querySelectorAll('[data-gm]').forEach(b => b.onclick = () => {
       const act = b.dataset.gm;
@@ -4492,8 +4537,8 @@ window.UI = (function () {
       <div class="event-desc">
         你被神秘存在选中，成为了<b style="color:var(--accent)">执灯者</b>。<br><br>
         在这里，你将：<br>
-        🌀 进入残域执行轮回任务<br>
-        👥 招募执灯者，组建五人小队（主角必上阵）<br>
+        🌀 进入残域执行探索任务<br>
+        👥 招募伙伴，组建五人小队（主角必上阵）<br>
         🧬 解锁血统与铭刻，突破极限<br>
         ♾ 挑战深井，寻找离开的方法<br><br>
         新手补给已发放：◈50,000 · ✦1,000 · 经验模块×20 · 治疗剂×10<br><br>
@@ -4503,21 +4548,21 @@ window.UI = (function () {
         ③ 点「残域」选第 1 关，点进去就直接开打，通关后解锁招募；招募里每天有一次<b>免费</b>，别忘了领。<br><br>
         三张招募池花的是<b>三种不同的货币</b>：◈点数抽普通（攒碎片）、✦圣洁晶石抽高级（补图鉴）、◆异界结晶抽限定（定向出当期 UP）。<br>
         首页最下面「设置」里的「玩法指南」有完整说明（货币、套装、挂机分工、副本打法、血统与境界、限时悬赏、深井、周常都在里面）。<br><br>
-        <b>如果下一场轮回真的会死，你会带谁进去？</b>
+        <b>如果下一场探索真的会死，你会带谁进去？</b>
       </div>
-      <button class="btn primary block mt4" data-start>签订轮回契约</button>
+      <button class="btn primary block mt4" data-start>签订灯阁契约</button>
     `, { sticky: true, center: true });
     w.querySelector('[data-start]').onclick = () => { closeModal(w); showCharCreate(); };
   }
   const RANDOM_NAMES = ['夜行者', '渡鸦', '白泽', '北辰', '惊蛰', '拾荒者', '阿岚', '无常', '青槐', '孤鸿', '墨白', '临渊'];
   function showCharCreate() {
     const w = modal('创建你的执灯者', `
-      <div class="event-desc" style="margin-bottom:12px">灯阁需要一个名字来记录你的轮回。这个名字将伴随你进入每一个世界。</div>
+      <div class="event-desc" style="margin-bottom:12px">灯阁需要一个名字来记录你的行程。这个名字将伴随你进入每一个世界。</div>
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <input id="cc-name" maxlength="12" placeholder="输入你的名字（12字内）" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:15px;outline:none" />
         <button class="btn" data-dice style="flex:0 0 auto">🎲</button>
       </div>
-      <button class="btn primary block" data-confirm>以这个名字进入轮回</button>
+      <button class="btn primary block" data-confirm>以这个名字进入残域</button>
     `, { sticky: true, center: true });
     const input = w.querySelector('#cc-name');
     const roll = () => { input.value = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)]; };

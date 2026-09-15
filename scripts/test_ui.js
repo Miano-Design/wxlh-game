@@ -127,17 +127,24 @@ t('副本一口气打到底：波间不插事件 / 补给箱，打完自动进�
     if (src.indexOf(k) >= 0) throw new Error('副本界面还在写「' + k + '」');
   });
 });
-t('波间结算页带血条 + 药剂 + 自动继续（自动推进也不丢补血手段）', () => {
+t('波间无缝衔接：不弹结算页，补血手段搬到战斗界面底部', () => {
   const src = fs.readFileSync('js/ui.js', 'utf8');
-  const i = src.indexOf("extraHtml: waveExtraHtml()");
-  if (i < 0) throw new Error('波间结算页没有血条 / 药剂那一格');
-  const seg = src.slice(i, i + 600);
-  ['bindPotionButtons', 'actions:', 'afterWave()', 'autoSec: WAVE_AUTO_SEC'].forEach(k => {
-    if (seg.indexOf(k) < 0) throw new Error('波间结算页缺：' + k);
+  const i = src.indexOf('seamless: true');
+  if (i < 0) throw new Error('打完一波没有走无缝衔接');
+  const seg = src.slice(i, i + 420);
+  ['waveLogLines', 'afterWave()', 'sub:'].forEach(k => {
+    if (seg.indexOf(k) < 0) throw new Error('无缝衔接缺：' + k);
   });
-  if (src.indexOf('function waveExtraInner') < 0 || src.indexOf('function partyHpHtml') < 0) {
-    throw new Error('缺血条 / 药剂的共用渲染');
+  // finish() 里要真的识别 seamless 并直接接下一波，不能又画一个结算面板
+  const j = src.indexOf('if (outcome.seamless && res.win)');
+  if (j < 0) throw new Error('finish() 没有处理无缝衔接（还会弹结算页）');
+  if (src.slice(j, j + 400).indexOf('outcome.after') < 0) throw new Error('无缝衔接没有接上后续动作');
+  // 药剂改成战斗界面底部那条战备补给
+  if (src.indexOf('data-bpotions') < 0) throw new Error('战斗界面缺战备补给条');
+  if (src.indexOf('function paintPotions') < 0 || src.indexOf('function bindPotionButtons') < 0) {
+    throw new Error('缺药剂条的渲染 / 绑定');
   }
+  if (src.indexOf('extraHtml: waveExtraHtml()') >= 0) throw new Error('波间结算页还在');
 });
 t('战斗快照带 charId（波间血量继承的前提，不然每波都满血开打）', () => {
   Core.addChar('C021');
@@ -291,7 +298,7 @@ t('旧页签名映射到「执灯者」子页', () => {
 });
 t('V8.6：今日卡已撤，每天要做的事都摊在首页上', () => {
   const html = UI._panels._screens.homeScreen();
-  ['一键收取', '限时悬赏', '每日任务', '执灯者招募'].forEach(k => {
+  ['一键收取', '限时悬赏', '每日任务', '招募伙伴'].forEach(k => {
     if (html.indexOf(k) < 0) throw new Error('首页缺少：' + k);
   });
   if (html.indexOf('open-today') >= 0) throw new Error('「今日」入口还留着');
@@ -348,9 +355,19 @@ panel('血统（已选）', () => {
   return UI._panels.bloodlineModal();
 });
 
-t('背包卡片带快捷批量按钮', () => {
-  const html = UI._panels._screens.bagScreen();
-  if (html.indexOf('data-quick') < 0) throw new Error('背包卡没有快捷按钮');
+t('背包是三池格子制：格子里只写名字数量，末尾一格是「＋」扩容', () => {
+  const screen = UI._panels._screens.bagScreen();
+  if (screen.indexOf('bg-grid') < 0) throw new Error('背包不是格子制');
+  ['item', 'mat', 'equip'].forEach(k => {
+    if (screen.indexOf('data-bagview="' + k + '"') < 0) throw new Error('缺分栏：' + k);
+  });
+  if (screen.indexOf('class="bg-slot add"') < 0) throw new Error('网格末尾缺少「＋」扩容格');
+  if (screen.indexOf('货币') >= 0) throw new Error('背包里还留着货币那一块（顶栏已经有「全部货币」了）');
+  if (screen.indexOf('炼化台') >= 0) throw new Error('炼化台还留在背包（应该搬到主页养成段）');
+  // 道具池那一栏（背包弹窗走的就是它）末尾必须是 data-expand="item"
+  const body = UI._panels.bagModal().innerHTML;
+  if (body.indexOf('data-expand="item"') < 0) throw new Error('道具池末尾缺少「＋」扩容格');
+  if (body.indexOf('＋') < 0) throw new Error('扩容格没有加号');
 });
 t('角色页带排序与搜索', () => {
   const html = UI._panels._screens.charsScreen();
@@ -363,9 +380,9 @@ t('悬赏面板写明"过期作废"', () => {
 
 
 // ---- V7.0 世界观移植：券 / 概率公示 / 灯阁权限 / 阵型 / 顶部状态区 ----
-t('首页顶部是【标签】值 文字行（境界/等级/轮回）', () => {
+t('首页顶部是【标签】值 文字行（境界/等级/转生）', () => {
   const html = UI._panels._screens.homeScreen();
-  if (!/境界/.test(html) || !/等级/.test(html) || !/轮回/.test(html)) throw new Error('缺状态行');
+  if (!/境界/.test(html) || !/等级/.test(html) || !/转生/.test(html)) throw new Error('缺状态行');
   if (!html.includes('text-rows')) throw new Error('缺文字行容器');
 });
 t('灯阁权限入口在「执灯者 → 成长」子页', () => {
@@ -406,15 +423,25 @@ t('境界面板显示大境 × 小阶（跟着当前血统）', () => {
   if (!html.includes('大圆满')) throw new Error('缺小阶名');
   if (!html.includes('36')) throw new Error('缺总阶数');
 });
-t('背包里的招募券有"去招募"快捷键', () => {
+t('招募券在背包格子里能看见，点进详情有「去招募」', () => {
   Core.addItem('ticket_adv', 2);
-  const html = UI._panels.bagModal().innerHTML;
-  if (!html.includes('圣契招募令')) throw new Error('券不在背包里');
-  if (!html.includes('去招募')) throw new Error('缺快捷键');
+  const bag = UI._panels.bagModal().innerHTML;
+  if (!bag.includes('圣契招募令')) throw new Error('券不在背包格子里');
+  const det = UI._panels.itemDetail('ticket_adv').innerHTML;
+  if (!det.includes('去「高级招募」使用')) throw new Error('详情里缺去招募的入口');
 });
 t('道具详情-招募券', () => UI._panels.itemDetail('ticket_lim'));
 
 // ---- V8.2：胜利结算自动进下一关（5 秒倒计时） ----
+t('战斗界面按站位分前后两行（队伍页排的位在战斗里看得见）', () => {
+  const src = fs.readFileSync('js/ui.js', 'utf8');
+  ['b-row allies back', 'b-row allies front', 'b-line-label'].forEach(k => {
+    if (src.indexOf(k) < 0) throw new Error('战斗界面缺站位行：' + k);
+  });
+  if (src.indexOf("u.position === 'front'") < 0) throw new Error('没有按 position 分行的代码');
+  const css = fs.readFileSync('css/style.css', 'utf8');
+  if (css.indexOf('.b-line-label') < 0) throw new Error('缺站位行的样式');
+});
 t('倒计时 5 秒', () => { if (UI.AUTO_NEXT_SEC !== 5) throw new Error('不是 5 秒：' + UI.AUTO_NEXT_SEC); });
 t('胜利时自动目标＝主按钮（下一关）', () => {
   const acts = [{ label: '↻ 再来一次' }, { label: '› 下一关', primary: true }];
@@ -740,7 +767,7 @@ t('移动端热区：图标按钮都补到 ≥44px', () => {
   // 视觉尺寸可以小，但必须用伪元素把点击区域补到 44px，否则手机上很难点
   // V8.6：.tb-icon 已随顶栏图标一起去掉；.cur-chip 的热区从 -9px 收到 -2px
   //（补 9px 会盖到上一行名字和下面正文，手机上会点错）
-  const pairs = [['.sheet .close-x::after', '-5px'], ['.back-x::after', '-2px'], ['.cur-chip::after', '-2px'], ['.drag-bar .btn::after', '-2px'], ['.bag-card .qbtn::after', '-2px']];
+  const pairs = [['.sheet .close-x::after', '-5px'], ['.back-x::after', '-2px'], ['.cur-chip::after', '-2px'], ['.drag-bar .btn::after', '-2px']];
   pairs.forEach(([sel, inset]) => {
     if (!css.includes(sel)) throw new Error('缺热区补齐规则：' + sel);
     const block = css.slice(css.indexOf(sel));
@@ -870,7 +897,7 @@ t('游历段只放游历奇遇；悬赏 / 每日 / 成就 / 求签 / 招募 / �
   const iTravel = html.indexOf('data-sec="travel"');
   if (iGrow < 0 || iTravel < 0) throw new Error('缺养成段或游历段');
   if (iGrow > iTravel) throw new Error('养成段排在游历段后面了');
-  ['限时悬赏', '每日任务', '成就', '求签', '执灯者招募', '兑换大厅'].forEach(k => {
+  ['限时悬赏', '每日任务', '成就', '求签', '招募伙伴', '兑换大厅', '炼化台'].forEach(k => {
     const i = html.indexOf(k);
     if (i < 0) throw new Error('首页缺入口：' + k);
     if (i > iTravel) throw new Error(k + ' 被放进「游历」段了（应该收在「养成」段的日常里）');

@@ -203,35 +203,6 @@ window.Dungeon = (function () {
     out.push(finalKind(stage));
     return out;
   }
-  // 波与波之间的插曲概率（补给箱 / 随机遭遇）。
-  // ⚠️ V8.9 起副本改成一口气打到底，这两个概率**已经没人用**了（保留常量只是留个调参位）。
-  const WAVE_EVENT_CHANCE = 0.28;
-  const WAVE_CHEST_CHANCE = 0.24;
-
-  // 宝箱节点奖励
-  function nodeReward(type, worldId, diff, stage) {
-    const Core = window.Core;
-    if (type === 'chest') {
-      const cap = D.stageDropCap(stage);
-      const rarity = D.capRarity(D.rollRarity(diff, Math.random() < 0.3 ? 'SR' : null), cap);
-      const res = Core.grantEquip(worldId, rarity);
-      const pts = Math.round(100 * rewardMult(diff));
-      Core.addCur('points', pts);
-      // 补给宝箱 45% 额外掉一件探索消耗品
-      let item = null;
-      const chestBoost = Core.graceDropMult ? Core.graceDropMult() : 1;
-      if (Math.random() < Math.min(1, 0.45 * chestBoost)) {
-        const pool = stage <= 4 ? ['heal_s', 'heal_m']
-          : stage <= 8 ? ['heal_m', 'buff_muscle', 'buff_nerve', 'heal_l']
-          : ['heal_l', 'def_shield', 'atk_surge', 'spd_surge', 'heal_x'];
-        const pick = pool[Math.floor(Math.random() * pool.length)];
-        if (Core.addItem(pick)) item = pick;
-      }
-      return { points: pts, equip: res.equip || null, sold: res.sold, gain: res.gain, item };
-    }
-    return null;
-  }
-
   // 扫荡
   function sweep(worldId, diff, stage, times) {
     const Core = window.Core;
@@ -251,5 +222,5 @@ window.Dungeon = (function () {
     return { ok: true, total, count: n, capped: n < times };
   }
 
-  return { makeEnemies, battleRewards, grantRewards, finalKind, wavePlan, nodeReward, sweep, diffMult, stageMult, THEME_FACTION, WAVE_EVENT_CHANCE, WAVE_CHEST_CHANCE };
+  return { makeEnemies, battleRewards, grantRewards, finalKind, wavePlan, sweep, diffMult, stageMult, THEME_FACTION };
 })();

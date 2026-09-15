@@ -8,7 +8,8 @@ window.Battle = (function () {
     W02: { enemySpd: 1.2, onEnemyHit(t) { if (Math.random() < 0.30) addStatus(t, 'bleed', 2); }, note: '突袭/流血' },
     W03: { onEnemyHit(t) { if (Math.random() < 0.25) addStatus(t, 'weak', 2); }, note: '恐惧' },
     W04: { onEnemyHit(t) { if (Math.random() < 0.15) addStatus(t, 'stun', 1); }, bossRevive: true, note: '陷阱/复活' },
-    W05: { onEnemyHit(t, frames) { if (Math.random() < 0.03 && t.hp > 1) { t.hp = 1; frames.push({ type: 'instantkill', target: t.uid }); } }, note: '即死判定' },
+    // 效果是"打到只剩 1 点血"（濒死），不是真的秒杀——飘字也跟着改成"濒死"（V9.2 对齐）
+    W05: { onEnemyHit(t, frames) { if (Math.random() < 0.03 && t.hp > 1) { t.hp = 1; frames.push({ type: 'nearDeath', target: t.uid }); } }, note: '濒死判定' },
     W06: { enemyShield: 0.2, note: '护盾' },
     W07: { onEnemyHit(t) { if (Math.random() < 0.20) addStatus(t, 'stun', 1); }, note: '睡眠' },
     W08: { allyHitMod: -0.15, note: '浓雾' },

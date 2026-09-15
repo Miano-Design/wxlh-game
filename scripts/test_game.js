@@ -66,6 +66,8 @@ t('升星', Core.starUp('C021').ok && Core.S.chars['C021'].star === 2);
 Core.addCur('skillChip', 500);
 t('技能升级', Core.skillUp('C021', 0).ok);
 Core.addCur('bloodCrystal', 10000);
+t('血统强化未解锁时被拒', Core.bloodlineUpgrade('C021').ok === false);
+Core.S.unlocks.bloodline = true;   // 血统强化是通关 潜影窟·第1关 之后才开的线
 t('血统升级', Core.bloodlineUpgrade('C021').ok);
 
 // 3. 属性计算
@@ -123,7 +125,7 @@ const sc = Core.stageComplete('W01', 'normal', 0, 3);
 t('首关记录', Core.S.worlds.W01.stages.normal[0] === 3);
 t('第二关解锁', Core.stageUnlocked('W01', 'normal', 1));
 t('第三关未解锁', !Core.stageUnlocked('W01', 'normal', 2));
-t('通关1关后解锁招募', sc.newUnlocks.includes('执灯者招募') && Core.isUnlocked('recruit'));
+t('通关1关后解锁招募', sc.newUnlocks.includes('招募伙伴') && Core.isUnlocked('recruit'));
 
 // 9b. 主线任务
 Core.S.stats.profileViews = 1;
@@ -192,7 +194,7 @@ setParty(['C021']);
   Core.S.player.level = 20;
   const after = Core.effectivePlayerStats();
   t('主角随玩家等级成长', after.atk > before.atk && after.hp > before.hp);
-  t('主角血统选择', Core.choosePlayerBloodline('狼人').ok);
+  t('主角血统选择（开局必经，不受解锁限制）', Core.choosePlayerBloodline('狼人').ok);
   Core.addCur('bloodCrystal', 10000); Core.addCur('points', 1000000);
   t('主角血统升级', Core.upgradePlayerBloodline().ok && Core.S.player.bloodlineLv === 1);
   t('血统不可更改', !Core.choosePlayerBloodline('魔法').ok);
@@ -250,20 +252,44 @@ setParty(['C021']);
   Core.switchProtagonist(0); // 切回原主角
 }
 
-// 21. 背包容量
+// 21. 背包容量（V9.2：道具与装备分开算，各自 50 起、各自扩容）
 {
   const u0 = Core.bagUsage();
-  t('背包容量初始100', u0.cap === 100);
-  Core.S.bag.cap = u0.used; // 强制塞满
+  t('道具格初始 50', u0.cap === 50 && u0.cap === D.BAG_BASE_ITEM_CAP);
+  t('三池各 50 且互相独立', u0.eqCap === 50 && u0.matCap === 50 && u0.cap === 50);
+  Core.S.bag.itemCap = u0.itemStacks; // 只把道具格塞满
   Core.S.settings.autoSellN = false; Core.S.settings.autoSellR = false;
-  t('背包满时新道具失败', Core.addItem('heal_l') === false);
+  t('道具格满时新道具失败', Core.addItem('heal_l') === false);
   t('已满的堆叠仍可叠加', Core.addItem('heal_s') === true);
   const eqFull = Core.grantEquip('W01', 'N');
-  t('背包满时装备自动分解', eqFull.sold === true && eqFull.bagFull === true);
-  Core.S.bag.cap = 100;
+  t('道具格满不影响装备入库', !!eqFull.equip && !eqFull.sold);
+  Core.S.bag.eqCap = u0.eqUsed;       // 再把装备格塞满
+  const eqFull2 = Core.grantEquip('W01', 'N');
+  t('装备格满时自动分解', eqFull2.sold === true && eqFull2.bagFull === true);
+  Core.S.bag.itemCap = 50; Core.S.bag.eqCap = 50;
   Core.addCur('points', 100000);
-  const cap0 = Core.bagUsage().cap;
-  t('购买扩容', Core.buyBagCap().ok && Core.bagUsage().cap === cap0 + D.BAG_EXPAND_SIZE);
+  const cap0 = Core.bagUsage();
+  const itemCap0 = cap0.cap, eqCap0 = cap0.eqCap;
+  const rItem = Core.buyBagCap('item'), rEq = Core.buyBagCap('eq');
+  t('道具格与装备格分开扩容', rItem.ok && rEq.ok
+    && Core.bagUsage().cap === itemCap0 + D.BAG_EXPAND_SIZE
+    && Core.bagUsage().eqCap === eqCap0 + D.BAG_EXPAND_SIZE);
+  t('两条扩容曲线各自记账', Core.S.bag.itemExpands === 1 && Core.S.bag.eqExpands === 1);
+  t('扩容一次只加 10 格', D.BAG_EXPAND_SIZE === 10);
+  t('三条扩容曲线各自记账', Core.S.bag.itemExpands === 1 && Core.S.bag.eqExpands === 1 && Core.S.bag.matExpands === 0);
+}
+
+// 21b. 三池互相独立：道具池满了不影响材料池
+{
+  Core.newGame();
+  Core.setPlayerName('分池');
+  Object.keys(Core.S.items).forEach(k => delete Core.S.items[k]);   // 清掉新手道具，只看分池行为
+  Core.S.bag.itemCap = 1;
+  Core.S.bag.matCap = 3;
+  t('道具池先占满', Core.addItem('heal_s', 1) === true && Core.addItem('heal_m', 1) === false);
+  t('道具池满不影响材料池入库', Core.addItem('mat_t1', 1) === true && Core.addItem('mat_t2', 1) === true);
+  const u = Core.bagUsage();
+  t('三个池分别报数', u.itemStacks === 1 && u.matStacks === 2 && u.cap === 1 && u.matCap === 3);
 }
 
 // 22. 删除进度不再被 beforeunload 回写
@@ -287,7 +313,7 @@ setParty(['C021']);
 
 // 24. 装备四类
 {
-  Core.S.bag.cap = 99999; // 避免背包满干扰判定
+  Core.S.bag.eqCap = 99999; Core.S.bag.itemCap = 99999; // 避免背包满干扰判定
   let plain = 0, world = 0, cls = 0;
   for (let i = 0; i < 300; i++) {
     const e = Core.grantEquip('W01', 'SR');
@@ -434,6 +460,7 @@ setParty(['C021']);
 {
   Core.newGame();
   Core.setPlayerName('回归');
+  Core.S.unlocks.enhance = true;   // 装备强化是通关 菌毯巢穴·第3关 之后才开的线
   Core.addItem('mat_t1', 5);
   const eq = Core.grantEquip('W01', 'SR', 'weapon').equip;
   eq.enhance = 0; eq.set = null; eq.classSet = null;
@@ -464,8 +491,8 @@ setParty(['C021']);
   Core.newGame();
   Core.setPlayerName('回归');
   Object.keys(Core.S.items).forEach(k => delete Core.S.items[k]);
-  Core.S.bag.cap = 2;
-  Core.S.items.mat_t1 = 1; Core.S.items.mat_t2 = 1;   // 占满 2 格
+  Core.S.bag.itemCap = 2;
+  Core.S.items.heal_s = 1; Core.S.items.heal_m = 1;   // 道具池占满 2 格（材料走材料池）
   Core.S.cur.points = 100000;
   const r = Core.buyShopItem('god', 0);                // 初级经验模块
   t('背包满时购买被拒', r.ok === false);

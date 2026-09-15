@@ -26,7 +26,8 @@ window.Core = (function () {
       createdAt: Date.now(),
       player: Object.assign(freshProtagonist('执灯者'), { geneLock: 0, reincarnations: 0, talents: { body: 0, energy: 0, nerve: 0, grace: 0 } }),
       altPlayers: [],         // 新建的主角（体验不同血统），与当前主角可切换
-      bag: { cap: 100, expands: 0 },
+      // V9.2：背包分三池（道具 / 材料 / 装备），各 50 格起、各自扩容
+      bag: { itemCap: 50, itemExpands: 0, matCap: 50, matExpands: 0, eqCap: 50, eqExpands: 0 },
       cur: { points: 0, story: 0, otherworld: 0, holy: 0, skillChip: 0, bloodCrystal: 0, corridor: 0, rp: 0 },
       chars: {},            // id → {lv, exp, star, shards, skillLv:[1,1,1], bloodlineLv}
       // 上阵 5 格（固定前 2 后 3）：0/1 前排，2/3/4 后排。
@@ -47,6 +48,7 @@ window.Core = (function () {
       mount: { own: [], on: null },      // 坐骑（对标"Horse"）：own = 已驯服，on = 当前乘骑的那匹
       sign: { date: '', tier: '', idlePct: 0, drawn: 0 },   // 求签（对标"SignItem"）：今天的签文与挂机加成
       worlds: {},           // worldId → {unlocked, stages: {normal:[stars×12], hard, hell}}
+      worldFirstClear: {},  // 'worldId_diff' → true（通关奖励每个世界·每个难度只发一次）
       corridor: { floor: 1, best: 0 },
       // 保底按池分开记账：高级 / 限定 各自算 SSR / UR / 当期 UP 的累计数
       recruit: { pity: { advanced: { ssr: 0, ur: 0, up: 0 }, limited: { ssr: 0, ur: 0, up: 0 } }, lastFree: '' },
@@ -170,7 +172,10 @@ window.Core = (function () {
     S.codex.claimed = Array.isArray(S.codex.claimed) ? S.codex.claimed : [];
     S.login = Object.assign(def.login, S.login || {});
     S.cur = Object.assign(def.cur, S.cur || {});
-    if (S.chars && S.chars['C001']) {
+    // ⚠️ 只跑一次：C001 是旧版"主角占位"，新版主角是独立实体。
+    // 之前这段没有开关，**每次读档都会跑**——玩家只要抽到 C001（他很普通池里 N 档 6 人之一），
+    // 下次开游戏角色就被删掉，花的货币不退（V9.2 修）。
+    if (S.chars && S.chars['C001'] && !S.c001Merged) {
       // 转移 C001 装备到主角
       const old = (S.equipped && S.equipped['C001']) || {};
       const slots = S.equipped['@player'];
@@ -178,8 +183,12 @@ window.Core = (function () {
       delete S.equipped['C001'];
       delete S.chars['C001'];
       if (S.codex && S.codex.chars) S.codex.chars = S.codex.chars.filter(x => x !== 'C001');
+      S.c001Merged = true;
     }
-    if (S.party) S.party = S.party.map(id => (id === 'C001' ? null : id));
+    if (!S.c001Merged) {
+      if (S.party) S.party = S.party.map(id => (id === 'C001' ? null : id));
+      S.c001Merged = true;
+    }
     // V8.3：上阵位从「4 格（主角不占位）」改成「5 格（前 2 后 3，主角占一格）」
     S.party = normalizeParty(S.party, S.player.row);
     if (Array.isArray(S.presets)) S.presets = S.presets.map(p => (p ? normalizeParty(p, 'front') : p));
@@ -206,7 +215,34 @@ window.Core = (function () {
         p.skillPoints = Math.max(0, (p.level - 1) - spent);
       }
     });
-    if (!S.bag || !S.bag.cap) S.bag = { cap: D.BAG_BASE_CAP, expands: 0 };
+    // 背包从"道具+装备一个池子"改成三池分开（V9.2：道具 / 材料 / 装备）。
+    // 老档的扩容次数同时算给三边：总格数只多不少，不会因为改版缩水。
+    if (!S.bag || S.bag.itemCap === undefined) {
+      const oldExpands = (S.bag && S.bag.expands) || 0;
+      S.bag = {
+        itemCap: D.BAG_BASE_ITEM_CAP + oldExpands * D.BAG_EXPAND_SIZE, itemExpands: oldExpands,
+        matCap: D.BAG_BASE_MAT_CAP + oldExpands * D.BAG_EXPAND_SIZE, matExpands: oldExpands,
+        eqCap: D.BAG_BASE_EQ_CAP + oldExpands * D.BAG_EXPAND_SIZE, eqExpands: oldExpands,
+      };
+    }
+    if (S.bag.matCap === undefined) {   // V9.2 中途有过"只有两池"的版本，补上材料池
+      S.bag.matCap = D.BAG_BASE_MAT_CAP; S.bag.matExpands = 0;
+    }
+    // 世界首通奖励改成"每个世界·每个难度只发一次"。
+    // 老档里已经打穿的世界要当场标成"已领过"，否则更新之后还能再白领一轮（V9.2）。
+    S.unlocks = S.unlocks || {};
+    S.worldFirstClear = S.worldFirstClear || {};
+    Object.keys(S.worlds || {}).forEach(wid => {
+      const w = S.worlds[wid];
+      ['normal', 'hard', 'hell'].forEach(d => {
+        if (w && w.stages && w.stages[d] && w.stages[d].length && w.stages[d].every(x => x > 0)) {
+          S.worldFirstClear[wid + '_' + d] = true;
+        }
+      });
+    });
+    // 功能解锁按"当前进度"补一遍：老档（或解锁表后续加过条目）读进来时，
+    // 已经打过的关卡要立刻反映成"已解锁"，否则新加的解锁门禁会把老玩家拦在外面。
+    refreshUnlocks();
   }
   function newGame() {
     S = defaultState();
@@ -236,6 +272,7 @@ window.Core = (function () {
       const data = JSON.parse(json);
       if (!data || data.v !== 5) return { ok: false, msg: '存档版本不兼容' };
       S = Object.assign(defaultState(), data);
+      migrate();     // 老版本导出的存档也要补字段（之前漏了这一步，导入老档会缺东西）
       save();
       return { ok: true };
     } catch (e) { return { ok: false, msg: '存档文件损坏' }; }
@@ -248,6 +285,7 @@ window.Core = (function () {
       const data = JSON.parse(raw);
       if (data.v !== 5) return false;
       S = Object.assign(defaultState(), data);
+      migrate();     // 同上：读存档槽也要走一遍迁移
       save();
       return true;
     } catch (e) { return false; }
@@ -340,17 +378,34 @@ window.Core = (function () {
     const equippedUids = new Set();
     Object.values(S.equipped || {}).forEach(slots => Object.values(slots || {}).forEach(uid => { if (uid) equippedUids.add(uid); }));
     const eqCount = Object.keys(S.equips).filter(uid => !equippedUids.has(uid)).length;
-    const itemStacks = Object.values(S.items).filter(n => n > 0).length;
-    return { used: eqCount + itemStacks, eqCount, itemStacks, cap: S.bag.cap };
+    const stacks = Object.entries(S.items).filter(([, n]) => n > 0);
+    const isMat = k => ((D.ITEMS[k] || {}).type === 'material');
+    const matStacks = stacks.filter(([k]) => isMat(k)).length;
+    const itemStacks = stacks.length - matStacks;
+    return {
+      eqCount, itemStacks, matStacks,
+      // used/cap 保留成"道具那一块"，老调用点不会读错
+      used: itemStacks, cap: S.bag.itemCap,
+      matUsed: matStacks, matCap: S.bag.matCap,
+      eqUsed: eqCount, eqCap: S.bag.eqCap,
+      total: eqCount + itemStacks + matStacks,
+    };
   }
   function addItem(id, n = 1) {
-    if (!(S.items[id] > 0) && bagUsage().used >= S.bag.cap) return false; // 新堆叠需占格
+    if (!(S.items[id] > 0)) {
+      // 新堆叠要占格：材料进材料池，其余进道具池
+      const isMat = (D.ITEMS[id] || {}).type === 'material';
+      const u = bagUsage();
+      if (isMat ? u.matUsed >= u.matCap : u.itemStacks >= S.bag.itemCap) return false;
+    }
     S.items[id] = (S.items[id] || 0) + n;
     return true;
   }
   // 能否再放进这个道具（已有堆叠不占新格）
   function canAddItem(id) {
-    return (S.items[id] > 0) || bagUsage().used < S.bag.cap;
+    if (S.items[id] > 0) return true;
+    const u = bagUsage();
+    return (D.ITEMS[id] || {}).type === 'material' ? u.matUsed < u.matCap : u.itemStacks < S.bag.itemCap;
   }
   function removeItem(id, n = 1) {
     if ((S.items[id] || 0) < n) return false;
@@ -393,7 +448,7 @@ window.Core = (function () {
   }
   function levelUp(charId, times = 1) {
     const c = S.chars[charId];
-    if (!c) return { ok: false, msg: '未拥有该角色' };
+    if (!c) return { ok: false, msg: '未拥有该伙伴' };
     let ups = 0;
     for (let i = 0; i < times; i++) {
       if (c.lv >= 100) break;
@@ -409,7 +464,7 @@ window.Core = (function () {
     const item = D.ITEMS[itemId];
     if (!item || item.type !== 'exp') return { ok: false, msg: '不是经验道具' };
     const c = S.chars[charId];
-    if (!c) return { ok: false, msg: '未拥有该角色' };
+    if (!c) return { ok: false, msg: '未拥有该伙伴' };
     const have = S.items[itemId] || 0;
     if (have < 1) return { ok: false, msg: '道具不足' };
     const use = Math.max(1, Math.min(n, have));
@@ -480,10 +535,10 @@ window.Core = (function () {
     if (have < 1) return { ok: false, msg: '道具不足' };
     const isPlayer = charId === '@player';
     const base = isPlayer ? null : D.charById[charId];
-    if (!isPlayer && !S.chars[charId]) return { ok: false, msg: '未拥有该角色' };
+    if (!isPlayer && !S.chars[charId]) return { ok: false, msg: '未拥有该伙伴' };
     if (sd.bloodline) {
       const bl = isPlayer ? S.player.bloodline : (base && base.bloodline);
-      if (!bl) return { ok: false, msg: `该角色还没觉醒血统，先觉醒「${sd.bloodline}」再用` };
+      if (!bl) return { ok: false, msg: `该伙伴还没觉醒血统，先觉醒「${sd.bloodline}」再用` };
       if (bl !== sd.bloodline) return { ok: false, msg: `只有「${sd.bloodline}」血统能用这支血清` };
     }
     S.serums[charId] = S.serums[charId] || {};
@@ -502,7 +557,7 @@ window.Core = (function () {
   function starUp(charId) {
     const c = S.chars[charId];
     const base = D.charById[charId];
-    if (!c) return { ok: false, msg: '未拥有该角色' };
+    if (!c) return { ok: false, msg: '未拥有该伙伴' };
     const maxStar = D.RARITY_MAXSTAR[base.rarity];
     if (c.star >= maxStar) return { ok: false, msg: '已达最高星级' };
     const need = D.STAR_COST[c.star];
@@ -515,7 +570,7 @@ window.Core = (function () {
   const SKILL_CHIP_COST = [10, 20, 35, 55, 80, 110, 150, 200, 260];
   function skillUp(charId, idx) {
     const c = S.chars[charId];
-    if (!c) return { ok: false, msg: '未拥有该角色' };
+    if (!c) return { ok: false, msg: '未拥有该伙伴' };
     const lv = c.skillLv[idx];
     if (lv >= 10) return { ok: false, msg: '已满级' };
     const cost = SKILL_CHIP_COST[lv - 1];
@@ -530,7 +585,8 @@ window.Core = (function () {
   function bloodlineUpgrade(charId) {
     const c = S.chars[charId];
     const base = D.charById[charId];
-    if (!c) return { ok: false, msg: '未拥有该角色' };
+    if (!c) return { ok: false, msg: '未拥有该伙伴' };
+    if (!isUnlocked('bloodline')) return { ok: false, msg: `🔒 ${unlockTip('bloodline')}` };
     if (c.bloodlineLv >= D.BLOODLINE_MAX) return { ok: false, msg: '血统已满级' };
     let cost = D.bloodlineCost(c.bloodlineLv);
     const discount = Math.min(0.4, S.buildings.geneLab * 0.01);
@@ -747,6 +803,9 @@ window.Core = (function () {
   function realmChainOf(bloodlineId) { return D.realmChain(bloodlineId || S.player.bloodline); }
   function upgradePlayerBloodline() {
     if (!S.player.bloodline) return { ok: false, msg: '尚未选择血统' };
+    // 解锁门禁：血统"强化"要通关 潜影窟·第1关 才开（与 D.UNLOCKS 的说明同源；
+    // 起步时的"选血统"不受限——那是开局必经的一步）
+    if (!isUnlocked('bloodline')) return { ok: false, msg: `🔒 ${unlockTip('bloodline')}` };
     if (S.player.bloodlineLv >= D.BLOODLINE_MAX) return { ok: false, msg: '血统已满级' };
     let cost = D.bloodlineCost(S.player.bloodlineLv);
     const discount = Math.min(0.4, S.buildings.geneLab * 0.01);
@@ -820,8 +879,8 @@ window.Core = (function () {
       addCur('otherworld', gain);
       return { sold: true, gain, auto: true };
     }
-    // 背包已满 → 自动分解为异界结晶
-    if (bagUsage().used > S.bag.cap) {
+    // 装备格子已满 → 自动分解为异界结晶
+    if (bagUsage().eqUsed > S.bag.eqCap) {
       const gain = D.DECOMPOSE_GAIN[rarity];
       delete S.equips[uid];
       addCur('otherworld', gain);
@@ -840,7 +899,7 @@ window.Core = (function () {
     if (!eq) return { sold: false };
     S.equips[uid] = eq;
     S.codex.equipsSeen++;
-    if (bagUsage().used > S.bag.cap) {
+    if (bagUsage().eqUsed > S.bag.eqCap) {
       delete S.equips[uid];
       addCur('otherworld', D.DECOMPOSE_GAIN.UR);
       return { sold: true, gain: D.DECOMPOSE_GAIN.UR, bagFull: true };
@@ -848,13 +907,19 @@ window.Core = (function () {
     return { equip: eq, signature: true };
   }
 
-  function buyBagCap() {
-    const cost = D.bagExpandCost(S.bag.expands);
+  // 扩容分三种：kind = 'item'（道具）| 'mat'（材料）| 'eq'（装备），三条曲线各自独立。
+  // 每次 +10 格，价格从 ◈1500 起、每扩一次 ×1.3。
+  function buyBagCap(kind) {
+    const k = ['eq', 'mat'].includes(kind) ? kind : 'item';
+    const expandsKey = k + 'Expands';
+    const capKey = k + 'Cap';
+    const label = { eq: '装备', mat: '材料', item: '道具' }[k];
+    const cost = D.bagExpandCost(S.bag[expandsKey] || 0);
     if (!spend({ points: cost })) return { ok: false, msg: `点数不足（需 ◈${cost}）` };
-    S.bag.expands++;
-    S.bag.cap += D.BAG_EXPAND_SIZE;
+    S.bag[expandsKey] = (S.bag[expandsKey] || 0) + 1;
+    S.bag[capKey] += D.BAG_EXPAND_SIZE;
     save();
-    return { ok: true, msg: `背包扩容至 ${S.bag.cap} 格` };
+    return { ok: true, msg: `${label}格 +${D.BAG_EXPAND_SIZE}，现在 ${S.bag[capKey]} 格` };
   }
   function equipItem(charId, uid) {
     const eq = S.equips[uid];
@@ -1009,6 +1074,7 @@ window.Core = (function () {
   function enhance(uid) {
     const eq = S.equips[uid];
     if (!eq) return { ok: false, msg: '装备不存在' };
+    if (!isUnlocked('enhance')) return { ok: false, msg: `🔒 ${unlockTip('enhance')}` };
     if (eq.enhance >= 20) return { ok: false, msg: '已满强化' };
     const cost = enhanceCost(eq);
     const mat = enhanceMat(eq);
@@ -1123,7 +1189,7 @@ window.Core = (function () {
   // 把某名上阵成员移到另一排：目标排有空位就搬过去，没空位就和那一排第一个换
   function moveMemberRow(id, row) {
     const from = S.party.indexOf(id);
-    if (from < 0) return { ok: false, msg: '这名角色不在队伍里' };
+    if (from < 0) return { ok: false, msg: '这名伙伴不在队伍里' };
     const r = row === 'front' ? 'front' : 'back';
     const want = rowOfSlots(r);
     if (want.includes(from)) return { ok: false, msg: `已经在${ROW_NAME[r]}了` };
@@ -1249,6 +1315,8 @@ window.Core = (function () {
     };
   }
   // opts.noCost：十连已整笔扣费，单抽不再重复扣（见 recruitTen）
+  // opts.noGrant：只决定"抽到谁"，先不入库——十连要先确认有没有 SR 再一起发，
+  //   否者补保底时会白送第 11 个人（V9.2 修）
   function recruitOnce(pool, opts) {
     opts = opts || {};
     const p = D.RECRUIT_POOLS[pool];
@@ -1283,8 +1351,8 @@ window.Core = (function () {
       if (D.RARITIES.indexOf(base.rarity) >= 4) pit.ur = 0;
       if (up && base.id === up.id) pit.up = 0;
     }
-    const res = addChar(base.id);
-    save();
+    const res = opts.noGrant ? { isNew: false } : addChar(base.id);
+    if (!opts.noGrant) save();
     const upChar = poolUpChar(pool);
     return {
       id: base.id, name: base.name, rarity: base.rarity, isNew: res.isNew, shards: res.shards || 0,
@@ -1307,31 +1375,34 @@ window.Core = (function () {
       if (!canAfford(cost)) return { error: '货币不足（招募券也不足 10 张）' };
       spend(cost);
     }
-    const results = [];
-    let hasSR = false;
+    // 先抽完 10 次再统一入库：这样"十连保底 SR"是把最后一次换掉，
+    // 而不是额外再补一个人（旧版会白送第 11 个）
+    const picks = [];
     for (let i = 0; i < 10; i++) {
-      const r = recruitOnce(pool, { noCost: true });
-      if (r.error) return { error: r.error, results };
-      if (D.RARITIES.indexOf(r.rarity) >= 2) hasSR = true;
-      results.push(r);
+      const r = recruitOnce(pool, { noCost: true, noGrant: true });
+      if (r.error) return { error: r.error, results: [] };
+      picks.push(r);
     }
-    // 十连保证至少 1 个 SR
-    if (!hasSR) {
+    if (!picks.some(r => D.RARITIES.indexOf(r.rarity) >= 2)) {
       const base = pickCharOfRarity('SR', pool);
-      const res = addChar(base.id);
-      results[results.length - 1] = { id: base.id, name: base.name, rarity: 'SR', isNew: res.isNew, shards: res.shards || 0, pityFix: true };
+      picks[picks.length - 1] = { id: base.id, name: base.name, rarity: base.rarity, pityFix: true };
     }
+    const results = picks.map(r => {
+      const res = addChar(r.id);
+      return Object.assign({}, r, { isNew: res.isNew, shards: res.shards || 0 });
+    });
     save();
     return { results, usedTickets };
   }
   function freeRecruitAvailable() {
-    const today = new Date().toDateString();
+    const today = dailyDate();   // 与每日任务 / 商店 / 求签同一把钟（本地 0 点）
     return S.recruit.lastFree !== today;
   }
   function freeRecruit() {
     if (!freeRecruitAvailable()) return { error: '今日已领取' };
-    S.recruit.lastFree = new Date().toDateString();
-    const rar = Math.random() < 0.5 ? 'N' : Math.random() < 0.85 ? 'R' : 'SR';
+    S.recruit.lastFree = dailyDate();
+    // 出率与「普通池」完全同源：之前写的是另一套（SR 只有 7.5%，界面却写"走普通池出率"，V9.2 修）
+    const rar = rollRarityInPool('normal');
     const base = pickCharOfRarity(rar, 'normal');
     const res = addChar(base.id);
     S.stats.recruits++;
@@ -1425,7 +1496,7 @@ window.Core = (function () {
   function setIdleLeader(lineId, charId) {
     if (!D.IDLE_LINES.some(l => l.id === lineId)) return { ok: false, msg: '没有这条产线' };
     if (!charId) { S.idle.lines[lineId] = null; save(); return { ok: true, msg: '已撤下领队' }; }
-    if (!S.chars[charId]) return { ok: false, msg: '没有这名执灯者' };
+    if (!S.chars[charId]) return { ok: false, msg: '没有这名伙伴' };
     if (S.party.includes(charId)) return { ok: false, msg: '上阵主力不能派去挂机，先把他换下来' };
     const other = D.IDLE_LINES.find(l => l.id !== lineId && S.idle.lines[l.id] === charId);
     if (other) return { ok: false, msg: `他已经在「${other.name}」了` };
@@ -1590,15 +1661,15 @@ window.Core = (function () {
   function createProtagonist(name) {
     name = (name || '').trim();
     if (!name) return { ok: false, msg: '名字不能为空' };
-    if (S.altPlayers.length >= 6) return { ok: false, msg: '最多创建 6 个额外角色' };
+    if (S.altPlayers.length >= 6) return { ok: false, msg: '最多创建 6 个额外主角' };
     S.altPlayers.push(snapshotProtagonist());
     restoreProtagonist(freshProtagonist(name));
     save();
-    return { ok: true, msg: `新角色「${name}」已创建，从 Lv.1 开始轮回` };
+    return { ok: true, msg: `新主角「${name}」已创建，天赋与血统从 Lv.1 重新选` };
   }
   function switchProtagonist(altIndex) {
     const alt = S.altPlayers[altIndex];
-    if (!alt) return { ok: false, msg: '角色不存在' };
+    if (!alt) return { ok: false, msg: '主角不存在' };
     const cur = snapshotProtagonist();
     S.altPlayers[altIndex] = cur;
     restoreProtagonist(alt);
@@ -2004,8 +2075,14 @@ window.Core = (function () {
       // 全难度通关 → 解锁下一世界 / 下一难度提示
       const wi = D.WORLDS.findIndex(x => x.id === worldId);
       if (diff === 'normal' && wi < D.WORLDS.length - 1) unlockWorld(D.WORLDS[wi + 1].id);
-      firstClearReward = D.FIRST_CLEAR[diff];
-      Object.entries(firstClearReward).forEach(([k, v]) => addCur(k, v));
+      // ⚠️ 通关奖励只能领一次：之前这里缺了"第一次"判断，
+      // 重复刷已满进度的第 12 关会一次次重发（等于无限刷高级货币），V9.2 修。
+      const fcKey = worldId + '_' + diff;
+      if (!S.worldFirstClear[fcKey]) {
+        S.worldFirstClear[fcKey] = true;
+        firstClearReward = D.FIRST_CLEAR[diff];
+        Object.entries(firstClearReward).forEach(([k, v]) => addCur(k, v));
+      }
     }
     S.stats.runs++;
     task('dungeon1', 1);
@@ -2055,8 +2132,17 @@ window.Core = (function () {
     if (!q.check(S)) return { ok: false, msg: '尚未完成' };
     S.quests.claimed.push(id);
     applyRewardObj(q.reward);
+    // 任务上写的 unlock 是真的会发出去的（之前只写在表里没人执行，等于装饰）。
+    // 返回"这次真正解锁了哪几个"，界面照着弹——避免弹的是隔壁那个任务的内容。
+    const unlocked = [];
+    String(q.unlock || '').split(',').filter(Boolean).forEach(uid => {
+      if (S.unlocks[uid]) return;
+      S.unlocks[uid] = true;
+      const u = D.UNLOCKS.find(x => x.id === uid);
+      if (u) unlocked.push(u.name);
+    });
     save();
-    return { ok: true };
+    return { ok: true, unlocked };
   }
   function stageUnlocked(worldId, diff, stageIdx) {
     const w = S.worlds[worldId];
@@ -2133,7 +2219,14 @@ window.Core = (function () {
     }
     return { ok: equips.length + sold > 0, equips, sold, soldGain, count: equips.length + sold };
   }
-  function dailyDate() { return new Date().toISOString().slice(0, 10); }
+  // 每日刷新的"今天是哪天"。**必须用本地日期**：
+  // 之前用 toISOString()（UTC），北京时间要等到早上 8 点才翻新，
+  // 而周常、免费招募走的是本地时间——同一天里两套钟，界面写着"每天 0 点重置"却对不上（V9.2 修）。
+  function dailyDate() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
   // 每日扫荡上限（灯阁权限越高，次数越多）
   function sweepCap() { return D.SWEEP_DAILY_CAP + authority().sweep; }
   // 今日剩余扫荡次数（跨天自动重置）
@@ -2286,7 +2379,8 @@ window.Core = (function () {
   function codexState() {
     const owned = S.codex.chars.filter(id => D.charById[id]).length;
     return {
-      owned, total: D.characters.length,
+      // 总数只算"抽得到的人"：隐藏角色永远拿不到，算进去会让图鉴永远集不满
+      owned, total: D.characters.filter(c => !c.hidden).length,
       rewards: D.CODEX_REWARDS.map(r => ({
         n: r.n, reward: r.reward,
         reached: owned >= r.n,
@@ -2298,7 +2392,7 @@ window.Core = (function () {
     const r = D.CODEX_REWARDS.find(x => x.n === n);
     if (!r) return { ok: false, msg: '奖励不存在' };
     if (S.codex.claimed.includes(n)) return { ok: false, msg: '已领取' };
-    if (S.codex.chars.filter(id => D.charById[id]).length < n) return { ok: false, msg: `还差 ${n - codexState().owned} 名角色` };
+    if (S.codex.chars.filter(id => D.charById[id]).length < n) return { ok: false, msg: `还差 ${n - codexState().owned} 名伙伴` };
     S.codex.claimed.push(n);
     applyRewardObj(r.reward);
     save();
