@@ -119,8 +119,13 @@ body {
 /* V9.5.19（父亲大人）：卡片标题行里"左边标题 + 右边小字"要真居中——
    标题 15px、右边小字 11px，两边行高不一样时只靠 align-items:center 会看着高低不齐，
    这里把两边行高统一成 1.3，并显式 align-self:center。 */
-.card h3, .panel h3 { align-items: center; line-height: 1.3; }
-.card h3 .sub, .panel h3 .sub { line-height: 1.3; align-self: center; }
+/* V9.5.22：标题行改成"按基线对齐"——左边标题 15px、右边小字 11px，
+   只按盒子居中看起来仍是一高一低；按基线对齐两条文字才真的在同一条线上。
+   金色竖条与右侧按钮仍然是垂直居中（它们不参与文字基线）。 */
+.card h3, .panel h3 { align-items: baseline; line-height: 1.3; }
+.card h3::before, .panel h3::before { align-self: center; }
+.card h3 .hbtn, .panel h3 .hbtn { align-self: center; }
+.card h3 .sub, .panel h3 .sub { line-height: 1.3; align-self: baseline; }
 .card.plain h3::before, .panel.plain h3::before { display: none; }
 .section-title {
   display: flex; align-items: center; gap: var(--sp2);
@@ -705,8 +710,10 @@ body {
 .fm-row.on { opacity: 1; }
 .fm-row .fm-name { font-weight: 700; min-width: 62px; }
 .fm-row.on .fm-name { color: var(--gold); }
-.fm-row .fm-req { color: var(--dim); }
-.fm-row .fm-buff { margin-left: auto; color: var(--green); }
+.fm-row .fm-req { flex: 1 1 auto; min-width: 0; color: var(--dim); }
+.fm-row .fm-buff { margin-left: auto; flex: 0 0 auto; color: var(--green); white-space: nowrap; }
+/* V9.5.22：未激活的那几行，加成用灰字（激活的仍是绿色） */
+.fm-row:not(.on) .fm-buff { color: var(--dim); }
 /* V9.5.20（父亲大人）：每一行都留出「已激活」那一列（固定宽度、空着也占位），
    这样所有加成值都右对齐到同一条线；没激活的加成用灰字。 */
 .fm-row .fm-on { flex: 0 0 auto; width: 46px; color: var(--green); font-size: 11px; text-align: right; }
