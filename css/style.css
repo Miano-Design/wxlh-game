@@ -461,7 +461,7 @@ body {
 .bg-head .sub { color: var(--dim); font-size: 11px; }
 .bg-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .bg-slot {
-  aspect-ratio: 1 / 1; min-height: 52px; border-radius: 10px;
+  aspect-ratio: 1 / 1; min-height: 62px; border-radius: 10px;
   border: 1px solid var(--line); background: #00000022;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 2px; padding: 3px; overflow: hidden;
@@ -469,9 +469,10 @@ body {
 }
 .bg-slot.filled { background: var(--panel2); cursor: pointer; }
 .bg-slot.filled:active { background: var(--panel3); }
-.bg-slot .bg-name { font-size: 9px; line-height: 1.15; word-break: break-all; max-height: 24px; overflow: hidden; }
-.bg-slot .bg-count { font-size: 10px; color: var(--gold); font-weight: 700; }
-.bg-slot .bg-sub { font-size: 9px; color: var(--dim); }
+/* V9.5.9（父亲大人）：格子里的名字太小看不见 → 放大到 11px，允许折成两行；数量跟着放大到 11px */
+.bg-slot .bg-name { font-size: 11px; line-height: 1.2; font-weight: 600; word-break: break-all; max-height: 27px; overflow: hidden; }
+.bg-slot .bg-count { font-size: 11px; color: var(--gold); font-weight: 700; }
+.bg-slot .bg-sub { font-size: 10px; color: var(--dim); }
 .bg-slot.add {
   border-style: dashed; border-color: var(--gold); color: var(--gold);
   background: #ffd76a11; cursor: pointer; font-size: 18px; line-height: 1;
