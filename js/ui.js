@@ -524,7 +524,7 @@ window.UI = (function () {
   // 「执灯者」= 队伍编成 / 伙伴图鉴 / 成长线，子页共用一条顶部胶囊
   function rosterScreen() {
     const sub = { party: partyScreen, chars: charsScreen, grow: growScreen }[rosterView] || partyScreen;
-    return `<div class="pill-tabs mb3">
+    return `<div class="pill-tabs fill mb3">
         ${ROSTER_TABS.map(t => `<div class="pill ${rosterView === t.id ? 'active' : ''}" data-roster="${t.id}">${t.name}</div>`).join('')}
       </div>
       ${sub()}`;
@@ -1779,63 +1779,61 @@ window.UI = (function () {
     if (eq.set) return `<span class="tag" style="color:#6ec6ff;border-color:#6ec6ff">${D.SETS[eq.set] ? D.SETS[eq.set].name : '世界套装'}</span>`;
     return '<span class="tag">普通</span>';
   }
-  // 装备仓库（V9.2 起住在「背包 → 装备」）：卡片只留名字 + 强化 + 类型 + 谁在穿，
-  // 属性词条挪进详情卡，列表不再一行塞一大串数字。
-  function equipScreen(embedded) {
-    const S = C().S;
-    const list = C().inventoryEquips();
-    const filters = [['all', '全部'], ['weapon', '武器'], ['armor', '胸甲'], ['head', '头部'], ['hands', '手部'], ['legs', '腿部'], ['accessory', '饰品'], ['SSR', 'SSR+']];
-    const catFilters = [['all', '全部'], ['normal', '普通'], ['world', '世界套装'], ['class', '职业套装'], ['sig', '专属']];
-    let shown = list;
-    if (equipFilter === 'SSR') shown = list.filter(e => ['SSR', 'UR'].includes(e.rarity));
-    else if (equipFilter !== 'all') shown = list.filter(e => e.slot === equipFilter);
+  /* 装备页（住在「背包 → 装备」）。V9.3 重排成三层，让层次一眼看得出来：
+     ① 三个主标签（道具 / 材料 / 装备）在最上面，横向铺满、平均分布；
+     ② 分类胶囊紧贴在主标签正下方，按钮做小——"分类属于上层、内容属于下层"；
+        「批量分解」也搬到这一层，跟分类挨着（原来压在最下面，还得往下找）。
+     ③ 内容只有格子：原来那串"一行一件"的列表撤掉了，点格子进详情。
+     穿在角色身上的装备不算背包物品——这里不出现、也不占格，卸下来才回得到格子。 */
+  function bagEquipList() {
+    const worn = equippedUidSet(C().S);
+    let shown = C().inventoryEquips().filter(eq => !worn.has(eq.uid));
+    if (equipFilter === 'SSR') shown = shown.filter(e => ['SSR', 'UR'].includes(e.rarity));
+    else if (equipFilter !== 'all') shown = shown.filter(e => e.slot === equipFilter);
     if (equipCatFilter === 'normal') shown = shown.filter(e => !e.set && !e.classSet && !e.charId);
     else if (equipCatFilter === 'world') shown = shown.filter(e => !!e.set);
     else if (equipCatFilter === 'class') shown = shown.filter(e => !!e.classSet);
     else if (equipCatFilter === 'sig') shown = shown.filter(e => !!e.charId);
-    const rows = shown.slice(0, 80).map(eq => {
-      const equippedBy = Object.entries(S.equipped).find(([cid, slots]) => Object.values(slots).includes(eq.uid));
-      if (batchMode) {
-        const canSel = !equippedBy && !eq.lock;
-        return `<div class="list-row ${canSel ? (batchSel.has(eq.uid) ? 'sel' : '') : 'no-sel'}" ${canSel ? `data-beq="${eq.uid}"` : ''} style="cursor:${canSel ? 'pointer' : 'default'}">
-          <span class="sel-box">✓</span>
-          <div class="grow"><div class="t1 rtext-${eq.rarity}">${eq.lock ? '🔒' : ''}${eq.name} +${eq.enhance}</div>
-          <div class="t2">${D.EQUIP_SLOTS[eq.slot]} · ${equipCatTag(eq)}${eq.lock ? ' · <span style="color:var(--gold)">已锁定</span>' : ''}${equippedBy ? ` · <span style="color:var(--green)">${cname(equippedBy[0])}装备中</span>` : ''}</div></div>
-        </div>`;
-      }
-      return `<div class="list-row" data-eqd="${eq.uid}" style="cursor:pointer">
-        <div class="grow"><div class="t1 rtext-${eq.rarity}">${eq.lock ? '🔒 ' : ''}${eq.name} +${eq.enhance}</div>
-        <div class="t2">${D.EQUIP_SLOTS[eq.slot]} · ${equipCatTag(eq)}${equippedBy ? ` · <span style="color:var(--green)">${cname(equippedBy[0])}装备中</span>` : ''}</div></div>
-        <span style="color:var(--dim)">›</span>
-      </div>`;
-    }).join('');
+    return shown;
+  }
+  function equipFilterBar() {
+    const filters = [['all', '全部'], ['weapon', '武器'], ['armor', '胸甲'], ['head', '头部'], ['hands', '手部'], ['legs', '腿部'], ['accessory', '饰品'], ['SSR', 'SSR+']];
+    const catFilters = [['all', '全部'], ['normal', '普通'], ['world', '世界套装'], ['class', '职业套装'], ['sig', '专属']];
+    const u = C().bagUsage();
     return `
-      <div class="pill-tabs" style="margin-bottom:6px">${catFilters.map(([k, n]) => `<div class="pill ${equipCatFilter === k ? 'active' : ''}" data-ecat="${k}">${n}</div>`).join('')}</div>
-      <div class="pill-tabs">${filters.map(([k, n]) => `<div class="pill ${equipFilter === k ? 'active' : ''}" data-efilter="${k}">${n}</div>`).join('')}</div>
-      <div data-eqpage="1" style="display:flex;align-items:center;font-size:11px;color:var(--dim);margin:2px 2px 8px">
-        <span>装备 ${list.length} 件</span>
-        <span style="margin-left:auto"></span>
+      <div class="pill-tabs tight mb2">${catFilters.map(([k, n]) => `<div class="pill sm ${equipCatFilter === k ? 'active' : ''}" data-ecat="${k}">${n}</div>`).join('')}</div>
+      <div class="pill-tabs tight mb2">${filters.map(([k, n]) => `<div class="pill sm ${equipFilter === k ? 'active' : ''}" data-efilter="${k}">${n}</div>`).join('')}</div>
+      <div class="eq-bar" data-eqpage="1">
+        <span>未穿戴 ${u.eqUsed} / ${u.eqCap} 格</span>
         ${batchMode
-          ? '<span style="color:var(--gold)">批量分解中 · 点选装备，装备中的不可选</span>'
-          : '<button class="btn small" data-batchon>🧹 批量分解</button>'}
-      </div>
-      ${rows || '<div class="empty">还没有装备，去副本打吧</div>'}
-      ${shown.length > 80 ? '<div class="empty">仅显示前 80 件</div>' : ''}
-      ${batchMode ? `
-        <div style="height:116px"></div>
-        <div class="batch-bar">
-          <div class="bb-row mb2">
-            <span class="note">快选：</span>
-            ${['N', 'R', 'SR'].map(r => `<button class="btn small ghost" data-bsel="${r}">${r}</button>`).join('')}
-            <button class="btn small ghost" data-bclear>清空</button>
-          </div>
-          <div class="bb-row">
-            <span style="font-size:12px" data-binfo></span>
-            <span style="margin-left:auto"></span>
-            <button class="btn small primary" data-bgo>⚡ 分解</button>
-            <button class="btn small ghost" data-batchoff>取消</button>
-          </div>
-        </div>` : ''}`;
+          ? '<span class="note push">批量分解中 · 点格子挑选</span>'
+          : '<button class="btn small ghost push" data-batchon>🧹 批量分解</button>'}
+      </div>`;
+  }
+  function equipBatchBar() {
+    if (!batchMode) return '';
+    return `
+      <div style="height:104px"></div>
+      <div class="batch-bar">
+        <div class="bb-row mb2">
+          <span class="note">快选：</span>
+          ${['N', 'R', 'SR'].map(r => `<button class="btn small ghost" data-bsel="${r}">${r}</button>`).join('')}
+          <button class="btn small ghost" data-bclear>清空</button>
+        </div>
+        <div class="bb-row">
+          <span style="font-size:12px" data-binfo></span>
+          <span style="margin-left:auto"></span>
+          <button class="btn small primary" data-bgo>⚡ 分解</button>
+          <button class="btn small ghost" data-batchoff>取消</button>
+        </div>
+      </div>`;
+  }
+  function equipScreen() {
+    const shown = bagEquipList();
+    return `${equipFilterBar()}
+      <div class="card mb3">${bagPoolGrid('equip')}</div>
+      <div class="hint">${shown.length ? `筛出 ${shown.length} 件 · ` : ''}点格子看属性与强化。穿在角色身上的装备不占背包格，卸下后才会回到这里；装备格满了以后，新掉落的装备会自动分解成 ◆异界结晶。</div>
+      ${equipBatchBar()}`;
   }
   function equipDetail(uid, wrap) {
     const S = C().S;
@@ -3198,15 +3196,19 @@ window.UI = (function () {
     const cost = D.bagExpandCost(expands);
     let cells = [];
     if (pool === 'equip') {
-      const S0 = C().S;
-      const worn = equippedUidSet(S0);
-      // 格子里只放"没穿在身上的"：穿在身上的装备不占背包格（在下面那张总览表里看）
-      const list = C().inventoryEquips().filter(eq => !worn.has(eq.uid));
+      // 格子里只放"没穿在身上的"：穿在身上的装备不占背包格（要看就在角色的装备方块里看）
+      const list = bagEquipList();
       cells = list.slice(0, cap).map(eq => {
-        const who = Object.entries(S0.equipped).find(([, slots]) => Object.values(slots).includes(eq.uid));
-        return `<button class="bg-slot filled" data-eqd="${eq.uid}">
-          <span class="bg-name rtext-${eq.rarity}">${eq.lock ? '🔒' : ''}${eq.name}</span>
-          <span class="bg-sub">+${eq.enhance}${who ? ' · ' + cname(who[0]) : ''}</span></button>`;
+        const inner = `<span class="bg-name rtext-${eq.rarity}">${eq.lock ? '🔒' : ''}${eq.name}</span><span class="bg-sub">+${eq.enhance}</span>`;
+        // 批量分解时，格子本身就是勾选按钮（不再有下面那串列表可以勾）
+        if (batchMode) {
+          const canSel = !eq.lock;
+          const cls = ['bg-slot', 'filled'];
+          if (batchSel.has(eq.uid)) cls.push('sel');
+          if (!canSel) cls.push('no-sel');
+          return `<button class="${cls.join(' ')}" ${canSel ? `data-beq="${eq.uid}"` : ''}>${inner}</button>`;
+        }
+        return `<button class="bg-slot filled" data-eqd="${eq.uid}">${inner}</button>`;
       });
     } else {
       const isMat = k => (D.ITEMS[k] || {}).type === 'material';
@@ -3230,17 +3232,13 @@ window.UI = (function () {
   }
   function bagBody(which) {
     const view = which || (curTab === 'bag' ? bagView : 'item');
-    if (view === 'equip') {
-      return `<div class="card mb3">${bagPoolGrid('equip')}</div>
-        <div class="hint mb2">装备格满了以后，新掉落的装备会自动分解成 ◆异界结晶。点一件看属性与强化。</div>
-        ${equipScreen(true)}`;
-    }
+    if (view === 'equip') return equipScreen();
     return `<div class="card mb3">${bagPoolGrid(view === 'mat' ? 'mat' : 'item')}</div>
       <div class="hint">点格子看用途与用法（批量使用在详情里：1 / 10 / 全部）。空格子留着以后装东西，末尾的「＋」是扩容。</div>`;
   }
   // 背包作为一级页签：三栏共用一条顶部胶囊
   function bagScreen() {
-    return `<div class="pill-tabs mb3">
+    return `<div class="pill-tabs fill mb3">
         ${BAG_TABS.map(t => `<div class="pill ${bagView === t.id ? 'active' : ''}" data-bagview="${t.id}">${t.name}</div>`).join('')}
       </div>
       ${bagBody(bagView)}`;
@@ -3593,7 +3591,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V9.2</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V9.3</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -4663,6 +4661,8 @@ window.UI = (function () {
       _closeModal: closeModal,
       lootPanel,
       armLongPress, clickPosition, dropOn, cancelGrab, grabState,
+      // 测试用：装备池筛完的清单 / 批量分解开关（批量态下"格子"才是勾选框）
+      bagEquipList, _setBagBatch: on => { batchMode = !!on; batchSel.clear(); },
       _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen, growScreen },
     },
   };

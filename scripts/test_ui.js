@@ -51,6 +51,7 @@ global.document = {
   getElementById(id) { return byId[id] || (byId[id] = El('div#' + id)); },
   createElement(t) { return El(t); },
   addEventListener() {},
+  querySelector: () => null,      // 桩环境里"页面级查询"一律查不到（批量分解条之类会用到）
   hidden: false,
   elementFromPoint: () => null,     // 默认指针下面没东西；拖拽用例里再临时指到一个格子上
 };
@@ -368,6 +369,70 @@ t('背包是三池格子制：格子里只写名字数量，末尾一格是「�
   const body = UI._panels.bagModal().innerHTML;
   if (body.indexOf('data-expand="item"') < 0) throw new Error('道具池末尾缺少「＋」扩容格');
   if (body.indexOf('＋') < 0) throw new Error('扩容格没有加号');
+});
+// V9.3：装备页重排——三个主标签铺满在最上、分类与「批量分解」紧跟其下、内容只有格子
+t('装备页层次：主标签 → 分类 / 批量分解 → 格子', () => {
+  let html;
+  try {
+    UI._setTab('equip');
+    html = byId['view'].innerHTML;
+  } finally { UI._setTab('home'); }   // 用完还原，别把"背包默认子页"留给后面的用例
+  const iTab = html.indexOf('data-bagview="equip"');
+  const iCat = html.indexOf('data-ecat="all"');
+  const iSlot = html.indexOf('data-efilter="all"');
+  const iBatch = html.indexOf('data-batchon');
+  const iGrid = html.indexOf('bg-grid');
+  if ([iTab, iCat, iSlot, iBatch, iGrid].some(i => i < 0)) throw new Error('装备页缺件（标签/分类/批量/网格）');
+  if (!(iTab < iCat && iCat < iSlot)) throw new Error('分类胶囊没排在主标签正下方');
+  if (iBatch > iGrid) throw new Error('「批量分解」还压在内容下面（应该跟分类同层）');
+  if (html.indexOf('data-eqpage') < 0) throw new Error('装备页的引导锚点 data-eqpage 丢了');
+  if (html.indexOf('list-row') >= 0) throw new Error('装备页还留着"一行一件"的列表');
+  // 分类按钮要比主标签小一号：主标签没有 sm，分类有
+  if (html.indexOf('pill sm') < 0) throw new Error('分类按钮没有做小（缺 pill sm）');
+  if (html.indexOf('pill-tabs fill') < 0) throw new Error('三个主标签没有横向铺满（缺 pill-tabs fill）');
+});
+t('穿在身上的装备不进背包格子、也不算背包格数', () => {
+  const S = Core.S;
+  const owner = '@player';
+  S.equipped[owner] = S.equipped[owner] || {};
+  const backup = S.equipped[owner].weapon || null;
+  const uid = 'eqWearTest';
+  S.equipped[owner].weapon = null;
+  S.equips[uid] = D.makeEquip('W01', 'weapon', 'SR', uid, { setType: 'plain' });
+  const unworn = Core.bagUsage().eqUsed;
+  S.equipped[owner].weapon = uid;
+  const worn = Core.bagUsage().eqUsed;
+  let inBag;
+  try {
+    UI._setTab('equip');
+    inBag = byId['view'].innerHTML.indexOf('data-eqd="' + uid + '"') >= 0;
+  } finally {
+    S.equipped[owner].weapon = backup;
+    delete S.equips[uid];
+    UI._setTab('home');
+    UI.render();
+  }
+  if (worn !== unworn - 1) throw new Error('穿在身上的装备还占着背包格：' + unworn + ' → ' + worn);
+  if (inBag) throw new Error('穿在身上的装备还显示在背包格子里');
+});
+t('批量分解改在格子上勾：批量态下装备格带 data-beq', () => {
+  const S = Core.S;
+  const uid = 'eqBatchTest';
+  S.equips[uid] = D.makeEquip('W01', 'weapon', 'N', uid, { setType: 'plain' });
+  UI._setTab('equip');
+  UI._panels._setBagBatch(true);
+  try {
+    UI.render();
+    const html = byId['view'].innerHTML;
+    if (html.indexOf('data-beq="' + uid + '"') < 0) throw new Error('批量态下装备格子不能勾选');
+    if (html.indexOf('data-batchon') >= 0) throw new Error('批量态下还显示着"批量分解"按钮');
+    if (html.indexOf('data-bgo') < 0) throw new Error('批量态下缺"分解"确认按钮');
+  } finally {
+    UI._panels._setBagBatch(false);
+    delete S.equips[uid];
+    UI._setTab('home');
+    UI.render();
+  }
 });
 t('角色页带排序与搜索', () => {
   const html = UI._panels._screens.charsScreen();

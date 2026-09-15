@@ -419,6 +419,16 @@ body {
 .pill-tabs::-webkit-scrollbar { display: none; }
 .pill { flex: 0 0 auto; display: flex; align-items: center; padding: 8px 14px; min-height: 44px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 12px; color: var(--dim); cursor: pointer; }
 .pill.active { color: #fff; border-color: var(--accent); background: #d43a4f22; }
+/* V9.3：一级的三个标签横向铺满、平均分布（原来按文字长短自适应，右边留一大块空） */
+.pill-tabs.fill { overflow: visible; }
+.pill-tabs.fill .pill { flex: 1 1 0; justify-content: center; }
+/* V9.3：分类胶囊比主标签小一号——主标签 > 分类 > 内容，层次一眼分得出来。
+   仍然留 34px 高（不小于手指能点中的尺寸），只是视觉上退到第二层。 */
+.pill-tabs.tight { gap: 4px; padding-bottom: 0; flex-wrap: wrap; overflow: visible; }
+.pill.sm { min-height: 34px; padding: 5px 11px; font-size: 11px; }
+/* 分类条右边的"计数 / 批量分解"：跟分类同层，不再压到内容最下面 */
+.eq-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--dim); }
+.eq-bar .push { margin-left: auto; }
 .empty { text-align: center; color: var(--dim); padding: 30px 0; font-size: 13px; }
 
 /* 背包（V9.2）：三池格子制——道具 / 材料 / 装备各 50 格起，
@@ -445,6 +455,9 @@ body {
 .bg-slot.add i { font-style: normal; font-size: 10px; }
 .bg-slot.add u { text-decoration: none; font-size: 9px; color: var(--dim); }
 .bg-slot.add:active { background: #ffd76a22; }
+/* 批量分解时格子自己就是勾选框（原来靠下面那串列表勾，列表已撤） */
+.bg-slot.sel { border-color: var(--accent); background: #d43a4f33; box-shadow: 0 0 0 1px var(--accent) inset; }
+.bg-slot.no-sel { opacity: .45; cursor: default; }
 
 /* 货币小卡片（背包） */
 .cur-chips { display: flex; flex-wrap: wrap; gap: 6px; }
