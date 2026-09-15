@@ -19,6 +19,15 @@ window.Battle = (function () {
     W12: { onEnemyHit(t) { if (Math.random() < 0.25) addStatus(t, 'sunder', 2); }, note: '腐化' },
     W13: { onEnemyHit(t) { if (Math.random() < 0.20) addStatus(t, 'freeze', 1); }, note: '冰冻' },
     W14: { randomRule: true, note: '随机规则' },
+    /* W15~W20 的机制以前只写在世界表里、战斗引擎里根本没有（`MECHANICS[worldId] || {}` 直接落空），
+       等于最后 6 个世界（180 关）是纯数值怪，但世界详情页照常写着"吸血 / 水压 / 幻觉…"。
+       这里按世界表上的文案逐条补齐（V9.5）。 */
+    W15: { enemyLifesteal: 0.25, enemyRageEvery: 4, enemyRage: 1.08, rageNote: '血月高悬：敌方攻击提升', note: '吸血/血月强化' },
+    W16: { allyDotPct: 0.04, allyDebuffChance: 0.30, allyDebuffId: 'weak', allyDebuffTurns: 2, debuffNote: '触手缠住了', note: '水压/触手缠绕' },
+    W17: { enemyAoeEvery: 3, enemyAoeMult: 1.2, enemyAoeName: '无人机群', onEnemyHit(t) { if (Math.random() < 0.25) addStatus(t, 'weak', 2); }, note: '无人机群/电磁干扰' },
+    W18: { confuseChance: 0.15, bossRevive: true, note: '幻觉/死亡复活' },
+    W19: { enemyShield: 0.25, enemyAoeEvery: 5, enemyAoeMult: 1.5, enemyAoeName: '轨道扫射', note: '星骸护盾/轨道扫射' },
+    W20: { randomRule: true, ruleEvery: 3, suppressAllies: 0.15, allyDotPct: 0.02, note: '规则改写/全场压制' },
   };
 
   let uidSeq = 0;
@@ -33,7 +42,9 @@ window.Battle = (function () {
   }
   function hasStatus(unit, id) { return unit.statuses.some(s => s.id === id); }
   function getBuffs(unit) {
-    const b = { atkPct: 0, defPct: 0, critPct: 0, skillPct: 0, evaPct: 0, lifesteal: 0, poisonOnHit: 0 };
+    // spdPct 以前不在这个表里，于是「剑心通明」「念动屏障」这类写着"速度+20%"的技能
+    // 在战斗里完全没生效（加不加都没区别）。补上这一项，文案与效果才同源（V9.5）。
+    const b = { atkPct: 0, defPct: 0, spdPct: 0, critPct: 0, skillPct: 0, evaPct: 0, lifesteal: 0, poisonOnHit: 0 };
     unit.statuses.forEach(s => {
       if (s.id === 'buff') Object.keys(b).forEach(k => { b[k] += (s[k] || 0); });
       if (s.id === 'debuff') { b.atkPct += (s.atkPct || 0); b.defPct += (s.defPct || 0); }
@@ -188,12 +199,17 @@ window.Battle = (function () {
 
     for (round = 1; round <= maxRounds; round++) {
       frames.push({ type: 'round', n: round });
-      // W14 随机规则
-      if (mech.randomRule) {
+      // 随机规则（W14 每回合换、W20 每 3 回合换）
+      if (mech.randomRule && round % (mech.ruleEvery || 1) === 0) {
         const rules = ['atkUp', 'defDown', 'spdUp'];
-        const rule = rules[round % 3];
+        // 用"第几次规则"来轮换，而不是 round % 3——否则 ruleEvery=3 时永远停在同一档
+        const rule = rules[Math.floor(round / (mech.ruleEvery || 1)) % 3];
         const pool = rule === 'defDown' ? allies : enemies;
-        pool.forEach(u => addStatus(u, 'debuff', 1, rule === 'defDown' ? { defPct: -0.2 } : { atkPct: 0.15 }));
+        // spdUp 以前加的是 atkPct（写着"速度提升"、实际提攻击），这里改成真加 spdPct
+        const st = rule === 'atkUp' ? { kind: 'buff', buff: { atkPct: 0.15 } }
+          : rule === 'spdUp' ? { kind: 'buff', buff: { spdPct: 0.15 } }
+            : { kind: 'debuff', buff: { defPct: -0.2 } };
+        pool.forEach(u => { if (u.hp > 0) addStatus(u, st.kind, 2, st.buff); });
         frames.push({ type: 'rule', text: rule === 'atkUp' ? '灯阁规则：敌方攻击提升' : rule === 'defDown' ? '灯阁规则：我方防御下降' : '灯阁规则：敌方速度提升' });
       }
       // 回合开始：DOT / 恢复
@@ -212,10 +228,47 @@ window.Battle = (function () {
           }
         }
       }
+      /* ---------- 世界机制：回合开始的额外压力（W15~W20） ---------- */
+      if (mech.allyDotPct) {
+        alive(allies).forEach(u => {
+          const d = Math.max(1, Math.round(u.maxHp * mech.allyDotPct));
+          u.hp = Math.max(0, u.hp - d);
+          frames.push({ type: 'dot', target: u.uid, status: 'pressure', dmg: d, killed: u.hp <= 0 });
+        });
+      }
+      if (mech.allyDebuffChance && Math.random() < mech.allyDebuffChance) {
+        const pool = alive(allies);
+        if (pool.length) {
+          const t = pool[Math.floor(Math.random() * pool.length)];
+          if (addStatus(t, mech.allyDebuffId || 'weak', mech.allyDebuffTurns || 2)) {
+            frames.push({ type: 'rule', text: `${mech.debuffNote || '被缠住'} ${t.name}` });
+          }
+        }
+      }
+      if (mech.enemyRageEvery && round > 1 && round % mech.enemyRageEvery === 0) {
+        enemies.forEach(u => { if (u.hp > 0) u.atk = Math.round(u.atk * (mech.enemyRage || 1.06)); });
+        frames.push({ type: 'rule', text: mech.rageNote || '敌方攻击提升' });
+      }
+      if (mech.enemyAoeEvery && round > 1 && round % mech.enemyAoeEvery === 0) {
+        const live = enemies.filter(u => u.hp > 0);
+        if (live.length && alive(allies).length) {
+          frames.push({ type: 'skill', actor: live[0].uid, name: mech.enemyAoeName || '轨道扫射' });
+          live.forEach(src => {
+            alive(allies).forEach(t => {
+              dealDamage(src, t, mech.enemyAoeMult || 1.2, {}, frames);
+              if (mech.onEnemyHit) mech.onEnemyHit(t, frames);
+            });
+          });
+        }
+      }
+      if (mech.suppressAllies && round % (mech.ruleEvery || 3) === 0) {
+        alive(allies).forEach(u => addStatus(u, 'debuff', 2, { defPct: -mech.suppressAllies }));
+        frames.push({ type: 'rule', text: '全场压制：我方防御下降' });
+      }
       if (!checkEnd()) break;
       // 行动顺序
       // 首回合速度：天赋「先制」在第 1 回合把速度按比例提高后再排行动顺序
-      const spdOf = u => u.spd * (round === 1 ? 1 + (u.firstStrike || 0) : 1);
+      const spdOf = u => u.spd * (1 + (getBuffs(u).spdPct || 0)) * (round === 1 ? 1 + (u.firstStrike || 0) : 1);
       const order = alive(all).sort((a, b) => spdOf(b) * (0.95 + Math.random() * 0.1) - spdOf(a) * (0.95 + Math.random() * 0.1));
       for (const u of order) {
         if (u.hp <= 0) continue;
@@ -290,6 +343,17 @@ window.Battle = (function () {
     u.cds = u.cds || { s1: 0, s2: 0 };
     const isAlly = u.side === 'ally';
     const sb = getBuffs(u);
+    // 幻觉（W18）：行动前有概率被支配，转而攻击同伴——这条机制世界表上写着，但引擎里一直没有
+    if (isAlly && mech.confuseChance && Math.random() < mech.confuseChance) {
+      const others = alive(friends).filter(x => x !== u);
+      if (others.length) {
+        const t = others[Math.floor(Math.random() * others.length)];
+        frames.push({ type: 'attack', actor: u.uid });
+        frames.push({ type: 'rule', text: `${u.name} 被幻觉支配，攻向同伴！` });
+        dealDamage(u, t, 1.0, {}, frames);
+        return;
+      }
+    }
     // ===== 盟友技能 AI =====
     if (isAlly && u.skills) {
       const skillMultLv = i => 1 + (u.skillLv[i] - 1) * 0.07;
@@ -424,7 +488,18 @@ window.Battle = (function () {
         break;
       }
     }
+    /* 非伤害类技能以前一点能量都不给（能量只在 dealDamage 里发），
+       于是治疗 / 辅助 / 护盾型角色放出技能却攒不出必杀，越"不输出"的角色越看不到自己的必杀——
+       实测同条件 30 回合：治疗者 5 次、战士 9 次，治疗者那 5 次基本全靠"挨打"。
+       伤害类技能已经通过 dealDamage 拿到能量，这里只补非伤害类，且必杀本身不回收能量（V9.5）。 */
+    if (!isUlt && u.side === 'ally' && sk.type !== 'dmg') {
+      u.energy = Math.min(100, (u.energy || 0) + 30);
+    }
   }
 
-  return { run, MECHANICS };
+  return {
+    run, MECHANICS,
+    // 测试用：状态结算 / 加状态（验"速度增益真的进了速度区"这类文案与效果同源的问题）
+    _internals: { getBuffs, addStatus, makeEnemyUnit },
+  };
 })();

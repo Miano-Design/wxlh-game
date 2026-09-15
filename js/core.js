@@ -73,10 +73,20 @@ window.Core = (function () {
   }
 
   let suppressSave = false;
+  let saveFailed = false;
   function save() {
     if (suppressSave) return;
     S.idle.lastTs = Date.now();
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {}
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(S));
+      saveFailed = false;
+    } catch (e) {
+      // 存储不可用（隐私模式）/ 配额满：只提示一次，别让玩家打完一整局才发现没存上
+      if (!saveFailed) {
+        saveFailed = true;
+        notice('⚠ 存档写入失败：浏览器存储不可用或已满，请到「设置 → 导出存档」先备份');
+      }
+    }
   }
   // 彻底删除进度（阻止 beforeunload 等钩子重新写入）
   function wipeSave() {
@@ -150,6 +160,8 @@ window.Core = (function () {
     // 境界从「10 个大境」改成「36 小阶」（见 data.js REALMS 注释）。
     // 老存档按「旧第 N 境 = 新第 4N 阶」换算：加成总量不变（旧 N×5% = 新 4N×1.4%），
     // 已解锁的内容一件不少；用 realmScaled 做一次性标记，避免每次读档都乘 4。
+    // 注意：这个标记**不能**写进 defaultState（那会让老档也带着它，老档就永远不换算了），
+    // 只能由 newGame() 在建档时落上——见 newGame 里的说明。
     if (!S.realmScaled) { S.player.realm = S.player.realm * 4; S.realmScaled = true; }
     S.auth = S.auth || 0;   // 灯阁权限等级
     S.sweep = Object.assign(def.sweep, S.sweep || {});
@@ -163,6 +175,8 @@ window.Core = (function () {
     while (S.presets.length < 3) S.presets.push(null);
     S.pendingRun = S.pendingRun || null;
     S.serums = S.serums || {};   // 老档补齐：血清服用记录
+    // 待领箱（背包满时的兜底）：老档补空数组，同时剔除脏条目
+    S.stash = Array.isArray(S.stash) ? S.stash.filter(x => x && (x.n || 0) > 0 && D.ITEMS[x.id]) : [];
     // 老档补齐：招募角色的装备槽从 3 个扩到 6 个（世界套装 4/6 件效果才可能触发）
     Object.keys(S.chars || {}).forEach(id => {
       S.equipped[id] = Object.assign({ weapon: null, head: null, armor: null, hands: null, legs: null, accessory: null }, S.equipped[id] || {});
@@ -247,6 +261,10 @@ window.Core = (function () {
   function newGame() {
     S = defaultState();
     S.player.name = '';   // 创建角色时填写
+    // 旧档境界换算（10 大境 → 36 小阶，×4）只能作用在"V9 之前的老档"上。
+    // 这个标记以前要等第一次读档才写入，于是新档第一次读档时也被乘了 4
+    // （新档渡劫 5 次 → 重开变 20 阶）。建档时就把标记落上，新档永远不会被换算（V9.5 修）。
+    S.realmScaled = true;
     // 新手资源（V5.0 §113）
     addCur('points', D.STARTER.points);
     addCur('holy', D.STARTER.holy);
@@ -306,6 +324,13 @@ window.Core = (function () {
   // 放在 addCur / spend 里，任何来源的收支都会自动有反馈，不需要在每个按钮上重复写。
   let curListener = null;
   function setCurListener(fn) { curListener = fn; }
+  // 系统级提示广播（背包满 / 存档写不进去这类"必须让玩家知道一次"的事）
+  let noticeListener = null;
+  function setNoticeListener(fn) { noticeListener = fn; }
+  function notice(msg) {
+    if (!noticeListener) return;
+    try { noticeListener(msg); } catch (e) { /* UI 出错不影响核心逻辑 */ }
+  }
   function emitCur(id, delta) {
     if (!curListener || !delta) return;
     try { curListener(id, delta); } catch (e) { /* UI 出错不影响存档 */ }
@@ -413,14 +438,46 @@ window.Core = (function () {
     if (S.items[id] <= 0) delete S.items[id];
     return true;
   }
+  /* ================= 待领箱（背包满时的兜底） =================
+     背包满的时候，**奖励不能凭空消失**。凡是"该发出去但装不下"的道具一律进这里，
+     玩家在背包页点一下「领回」就全部入包（本来的口径是"宁可少收也不吞"，
+     但日常/周常/悬赏/药园这类奖励一旦被吞掉，玩家根本不知道自己亏了）。 */
+  function stashItem(id, n = 1) {
+    if (!(n > 0)) return;
+    if (!D.ITEMS[id]) return;                    // 不认识的 id 不进箱，免得存档里堆垃圾
+    S.stash = S.stash || [];
+    const ex = S.stash.find(x => x.id === id);
+    if (ex) ex.n += n;
+    else S.stash.push({ id, n, at: Date.now() });
+    notice(`背包已满：${(D.ITEMS[id] || {}).name || id}×${n} 已存入待领箱`);
+  }
+  function stashCount() { return (S.stash || []).reduce((s, x) => s + (x.n || 0), 0); }
+  function stashList() { return (S.stash || []).slice(); }
+  // 把待领箱里"现在装得下"的东西搬进背包；装不下的留着
+  function claimStash() {
+    S.stash = S.stash || [];
+    let moved = 0;
+    S.stash.forEach(x => {
+      if (!(x.n > 0)) return;
+      if (!canAddItem(x.id)) return;
+      const n = x.n;
+      if (addItem(x.id, n)) { moved += n; x.n = 0; }
+    });
+    S.stash = S.stash.filter(x => (x.n || 0) > 0);
+    if (moved) save();
+    return { ok: moved > 0, moved, left: stashCount() };
+  }
   // 统一的"奖励对象"结算：货币走 addCur，item 走 addItem。
   // 所有奖励（任务 / 周常 / 登录 / 悬赏 / 图鉴）都走这一个入口，避免"某处支持道具、某处不支持"。
   function applyRewardObj(obj) {
+    const out = { stashed: [] };
     Object.entries(obj || {}).forEach(([k, v]) => {
-      if (k === 'item') [].concat(v).forEach(id => addItem(id));
+      // 道具装不下就进待领箱（之前是直接丢掉 addItem 的返回值，背包满时奖励静默蒸发）
+      if (k === 'item') [].concat(v).forEach(id => { if (!addItem(id)) { stashItem(id, 1); out.stashed.push(id); } });
       else if (k === 'ssrTicket') S.ssrTicket = (S.ssrTicket || 0) + (v === true ? 1 : v || 0);
       else addCur(k, v);
     });
+    return out;
   }
 
   /* ================= 角色 ================= */
@@ -1530,6 +1587,17 @@ window.Core = (function () {
       story: Math.floor(elapsedSec / 1800) * r.storyPer30Min,
       mat: Math.floor((r.matPerMin || 0) * mins),
     };
+    /* ⚠️ 离线收益必须**在这里**入账。
+       以前入账写在 UI.showOfflineGains 里（那是"弹结算窗"的地方），而 main.js 只在
+       离线 ≥5 分钟时才调它——于是离线 1~5 分钟的收益算完就被丢掉，lastTs 却已经推到当前时间，
+       玩家白等一场。现在改成：核心负责入账，UI 只负责显示，弹不弹窗与拿不拿到彻底分开（V9.5 修）。 */
+    addCur('points', gains.points);
+    addCur('otherworld', gains.otherworld);
+    addCur('story', gains.story);
+    addPlayerExp(gains.exp);
+    const matOut = grantIdleMat(gains.mat);
+    if (matOut && matOut.count > 0) { gains.matItem = matOut.item; gains.matCount = matOut.count; gains.mat = matOut.count; }
+    else { gains.matFull = !!(matOut && matOut.full); gains.matStashed = (matOut && matOut.stashed) || 0; gains.mat = 0; }
     S.idle.lastTs = now;
     travelAccrue(elapsedSec);      // 离线时间同样攒"游历奇遇"
     addSectExp(Math.floor(elapsedSec / 60 * D.SECT_EXP.perMin));
@@ -1561,7 +1629,8 @@ window.Core = (function () {
     const mi = idleMatItem();
     const count = Math.floor(units / Math.pow(2, mi.tier - 1));
     if (count <= 0) return null;
-    if (!addItem(mi.item, count)) return { item: mi.item, count: 0, full: true };
+    // 背包满：不吞玩家的东西，先记进待领箱（清出格子后在背包页一键领回）
+    if (!addItem(mi.item, count)) { stashItem(mi.item, count); return { item: mi.item, count: 0, tier: mi.tier, full: true, stashed: count }; }
     return { item: mi.item, count, tier: mi.tier };
   }
   function claimIdle() {
@@ -1574,7 +1643,7 @@ window.Core = (function () {
     if (g.mat > 0) {
       const m = grantIdleMat(g.mat);
       if (m && m.count > 0) { g.matItem = m.item; g.matCount = m.count; g.mat = m.count; }
-      else { g.matFull = !!(m && m.full); g.mat = 0; }
+      else { g.matFull = !!(m && m.full); g.matStashed = (m && m.stashed) || 0; g.mat = 0; }
     }
     S.idle.bankSec = 0;
     task('idle1', 1);
@@ -1887,11 +1956,19 @@ window.Core = (function () {
     if (!p) return { ok: false, msg: '这块地是空的' };
     if (Date.now() < p.at) return { ok: false, msg: `还没熟（剩 ${Math.ceil((p.at - Date.now()) / 1000)} 秒）` };
     const g = D.GARDEN.find(x => x.id === p.id);
-    const got = [`${(D.ITEMS[g.out.item] || {}).name || g.out.item}×${g.out.n}`];
-    addItem(g.out.item, g.out.n);
+    const got = [];
+    // 收获一律保底：装得下进背包，装不下进待领箱——绝不出现"地清了、东西没了"
+    const take = (id, n) => {
+      const nm = `${(D.ITEMS[id] || {}).name || id}×${n}`;
+      if (addItem(id, n)) { got.push(nm); return; }
+      stashItem(id, n);
+      got.push(`${nm}（背包满，已存待领箱）`);
+    };
+    take(g.out.item, g.out.n);
     if (g.extra && Math.random() < g.extra.p) {
-      addItem(g.extra.item, g.extra.n);
-      got.push(`稀有 ${(D.ITEMS[g.extra.item] || {}).name || g.extra.item}×${g.extra.n}`);
+      const before = got.length;
+      take(g.extra.item, g.extra.n);
+      got[before] = '稀有 ' + got[before];
     }
     S.garden[idx] = null;
     save();
@@ -2708,6 +2785,7 @@ window.Core = (function () {
     get S() { return S; },
     save, load, newGame, wipeSave, exportSave, importSave, saveSlot, loadSlot, slotInfo,
     addCur, canAfford, spend, addItem, removeItem, canAddItem, setCurListener, applyRewardObj, sweepCap,
+    setNoticeListener, stashItem, stashCount, stashList, claimStash,
     bagUsage, buyBagCap,
     addChar, addShards, levelCost, levelUp, useExpItem, starUp, skillUp, SKILL_CHIP_COST,
     craftSerum, useSerum, serumTaken, serumApplied,

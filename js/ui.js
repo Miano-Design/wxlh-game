@@ -3,6 +3,17 @@ window.UI = (function () {
   const D = window.DATA;
   const C = () => window.Core;
   const $view = () => document.getElementById('view');
+  /* 版本号只有这一处：设置页显示它、GM 门禁提示也用它（改版本号时和 index.html/sw.js 一起改，见 scripts/test_ui.js） */
+  const GAME_VER = '9.5';
+  /* GM 面板是内部工具，但它跟着正式包一起上线了（线上连点 7 次就能开，还能刷货币并导出存档）。
+     线上要求 URL 带 ?gm=1 才认，本地开发照旧直接开（V9.5）。 */
+  function gmAllowed() {
+    const loc = (typeof location !== 'undefined' && location) || null;
+    if (!loc) return true;
+    const h = loc.hostname || '';
+    if (!h || h === 'localhost' || h === '127.0.0.1' || h === '::1') return true;
+    return /(^|[?&])gm=1(&|$)/.test(loc.search || '');
+  }
 
   /* ================= 工具 ================= */
   function fmt(n) {
@@ -980,14 +991,27 @@ window.UI = (function () {
     return `<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">${heal.concat(buff).map(btn).join('')}</div>`;
   }
   // 用一支探索消耗品。返回是否真的用掉了（由调用方决定要不要重画）
+  // 药剂回血只治"活着的人"（hpPct > 0.01），阵亡的成员不复活——
+  // 否则一支药就能把全队从灭团捞回来，星级评价里的"无人阵亡"就没意义了（V9.5 定死）。
+  // 抽成纯函数是为了能脱离 DOM 直接测（见 scripts/test_ui.js）。
+  function applyPotionHp(hpPct, healPct) {
+    const out = Object.assign({}, hpPct);
+    let down = 0;
+    Object.keys(out).forEach(cid => {
+      if (out[cid] <= 0.01) { down++; return; }
+      out[cid] = Math.min(1, out[cid] + healPct);
+    });
+    return { hpPct: out, down };
+  }
   function usePotion(id) {
     if (!run) return false;
     const eff = (D.ITEMS[id] || {}).effect || {};
     if (!C().removeItem(id)) { toast('道具不足'); return false; }
     const parts = [];
     if (eff.healPct) {
-      Object.keys(run.hpPct).forEach(cid => { run.hpPct[cid] = Math.min(1, run.hpPct[cid] + eff.healPct); });
-      parts.push(`全队恢复 ${Math.round(eff.healPct * 100)}% 生命`);
+      const r = applyPotionHp(run.hpPct, eff.healPct);
+      run.hpPct = r.hpPct;
+      parts.push(`全队恢复 ${Math.round(eff.healPct * 100)}% 生命${r.down ? `（${r.down} 名成员已阵亡，不复活）` : ''}`);
     }
     ['atkPct', 'spdPct', 'defPct'].forEach(k => {
       if (!eff[k]) return;
@@ -1163,6 +1187,9 @@ window.UI = (function () {
     if (!el.addEventListener) return;
     const down = ev => {
       cancelPress();
+      // 新的一次按下 = 全新手势：上一次长按留下的"吞点击"标记到此为止。
+      // 否则抓起后立刻点目标格，那一下点击会被 700ms 的兜底计时器吞掉，表现就是"点了没反应"（V9.5 修）
+      suppressClick = false;
       pressTimer = setTimeout(() => {
         pressTimer = null;
         suppressClick = true;
@@ -3216,8 +3243,10 @@ window.UI = (function () {
       cells = stacks.slice(0, cap).map(([k, n]) => `<button class="bg-slot filled" data-item="${k}">
         <span class="bg-name">${D.ITEMS[k].name}</span><span class="bg-count">×${n}</span></button>`);
     }
-    // 空的补到 cap 个，再加上"第 cap+1 格：＋扩容"
-    while (cells.length < cap) cells.push(bagEmptyCell());
+    // 空的补到 cap 个，再加上"第 cap+1 格：＋扩容"。
+    // 筛选状态下**不补空格子**：筛出 3 件武器后面跟着 47 个空格，玩家会以为筛选没生效（V9.5）。
+    const filtering = pool === 'equip' && (equipFilter !== 'all' || equipCatFilter !== 'all');
+    if (!filtering) while (cells.length < cap) cells.push(bagEmptyCell());
     const used = pool === 'equip' ? C().bagUsage().eqUsed : (pool === 'mat' ? C().bagUsage().matUsed : C().bagUsage().itemStacks);
     const full = used >= cap;
     return `
@@ -3236,11 +3265,26 @@ window.UI = (function () {
     return `<div class="card mb3">${bagPoolGrid(view === 'mat' ? 'mat' : 'item')}</div>
       <div class="hint">点格子看用途与用法（批量使用在详情里：1 / 10 / 全部）。空格子留着以后装东西，末尾的「＋」是扩容。</div>`;
   }
+  /* 待领箱：背包满时收到的东西先存在这里，清出格子一键领回。
+     以前这类道具是直接丢掉的（addItem 的返回值没人看），玩家根本不知道自己亏了什么（V9.5）。 */
+  function stashBar() {
+    const n = C().stashCount();
+    if (!n) return '';
+    const list = C().stashList();
+    const txt = list.slice(0, 4).map(x => `${(D.ITEMS[x.id] || {}).name || x.id}×${x.n}`).join(' · ');
+    return `<div class="card mb3" style="border-color:#ffd76a88">
+      <h3>📮 待领箱 <span class="sub">${n} 件</span></h3>
+      <div class="hint mb2">背包满的时候收到的道具会先存这里，不会丢。</div>
+      <div class="hint mb2" style="color:var(--text2)">${txt}${list.length > 4 ? ` … 还有 ${list.length - 4} 种` : ''}</div>
+      <button class="btn small primary" data-stashclaim="1">全部领回</button>
+    </div>`;
+  }
   // 背包作为一级页签：三栏共用一条顶部胶囊
   function bagScreen() {
     return `<div class="pill-tabs fill mb3">
         ${BAG_TABS.map(t => `<div class="pill ${bagView === t.id ? 'active' : ''}" data-bagview="${t.id}">${t.name}</div>`).join('')}
       </div>
+      ${stashBar()}
       ${bagBody(bagView)}`;
   }
   // 背包绑定：asDrawer=true 时是"弹窗里的背包"，否则是页签里的背包（返回行为不同）
@@ -3264,6 +3308,12 @@ window.UI = (function () {
       bagView = el.dataset.bagview;
       if (asDrawer) bagModal(root); else render();
     });
+    root.querySelectorAll('[data-stashclaim]').forEach(b => b.onclick = () => {
+      const r = C().claimStash();
+      toast(r.moved ? `领回 ${r.moved} 件${r.left ? `，还有 ${r.left} 件装不下` : ''}` : '背包还是满的，先扩容或分解装备');
+      sfx(r.ok ? 'success' : 'fail');
+      refresh();
+    });
     root.querySelectorAll('[data-cur]').forEach(el => el.onclick = () => {
       if (asDrawer) currencyModal(el.dataset.cur, root, w2 => bagModal(w2));
       else currencyModal(el.dataset.cur);
@@ -3278,7 +3328,8 @@ window.UI = (function () {
   }
   // 卡片上的快捷键：宝箱直接开，经验模块/血清先选目标
   function bagModal(wrap) {
-    const w = showPanel(wrap, '背包', bagBody());
+    // 抽屉形态也要有待领箱入口，否则从弹窗进来的玩家看不到"背包满时存下来的东西"
+    const w = showPanel(wrap, '背包', `${stashBar()}${bagBody()}`);
     bindBag(w, true);
     return w;
   }
@@ -3591,7 +3642,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V9.4</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V${GAME_VER}</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -3599,7 +3650,10 @@ window.UI = (function () {
       verTaps++;
       clearTimeout(verTimer);
       verTimer = setTimeout(() => { verTaps = 0; }, 2000);
-      if (verTaps >= 7) { closeModal(w); gmModal(); }
+      if (verTaps >= 7) {
+        if (!gmAllowed()) { toast(`残域 V${GAME_VER}（内部调试入口已关闭）`); return; }
+        closeModal(w); gmModal();
+      }
     };
     w.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
       C().S.settings.speed = +b.dataset.speed; C().save();
@@ -3709,7 +3763,8 @@ window.UI = (function () {
   /* ================= 战斗播放器 ================= */
   // 胜利结算的自动倒计时：5 秒内没点，就自动走"主按钮"那条（默认就是「下一关」）。
   // 只对胜利生效，失败页不自动跳；没有主按钮（最后一关打完）时也不自动，避免把人越推越远。
-  const AUTO_NEXT_SEC = 5;
+  // 结算页倒计时：原来 5 秒，看掉落清单偏赶（自动接了关就没法回头看了），放宽到 8 秒（V9.5）
+  const AUTO_NEXT_SEC = 8;
   // 副本"波间结算"的倒计时：比整关结算短，副本是一路打到底的
   function autoNextIndex(win, acts) {
     if (!win || !acts || !acts.length) return -1;
@@ -3732,16 +3787,19 @@ window.UI = (function () {
       const position = idx < 2 ? 'front' : 'back';
       if (id === '@player') {
         const pst = C().effectivePlayerStats();
-        const pFullHp = pst.hp;
+        // 阵型加成以前只加在招募角色身上（这支缺 fb.*），主角吃不到——
+        // 而队伍页照常写着"攻击+X% 生命+X%"，主角还正是让五行归元阵成立的万能补位（V9.5 修）
+        const pFullHp = Math.round(pst.hp * (1 + fb.hpPct));
         const pHp = hpPctMap && hpPctMap['@player'] !== undefined ? Math.max(1, Math.round(pFullHp * hpPctMap['@player'])) : pFullHp;
         allies.push(Object.assign({}, pst, {
           name: cname('@player'), kind: 'warrior', faction: null,
           position,
           skills: C().protagonistSkills(), skillLv: S.player.skillLv || [1, 1, 1],
-          atk: Math.round(pst.atk * (1 + buffAtk) * mult),
+          atk: Math.round(pst.atk * (1 + fb.atkPct + buffAtk) * mult),
           def: Math.round(pst.def * mult),
           spd: Math.round(pst.spd * (1 + buffSpd) * mult),
           hp: Math.round(pHp * mult), maxHp: Math.round(pFullHp * mult),
+          skillMult: (pst.skillMult || 1) + fb.skillPct,
           charId: '@player',
         }));
         return;
@@ -3882,7 +3940,13 @@ window.UI = (function () {
       const bar = run ? potionBarHtml() : '';
       if (!bar) { potBox.innerHTML = ''; return; }
       const lastWave = run.wave >= run.waves.length - 1;
-      potBox.innerHTML = `<div class="b-potion-tip">战备补给 · 喝了从${lastWave ? '下一轮' : '下一波'}进场生效</div>${bar}`;
+      // 整场战斗是"开打前一次算完"的，药剂只能作用于**下一波进场**。
+      // 最后一波后面没有下一波了（这一关打完 run 就清空），在这里喝药等于白扣道具，所以不给按。
+      if (lastWave) {
+        potBox.innerHTML = '<div class="b-potion-tip">收官战 · 药剂要到下一关才生效（每关开局满血），先留着吧</div>';
+        return;
+      }
+      potBox.innerHTML = `<div class="b-potion-tip">战备补给 · 喝了从下一波进场生效</div>${bar}`;
       bindPotionButtons(overlay, paintPotions);
     }
     paintPotions();
@@ -4137,6 +4201,9 @@ window.UI = (function () {
         const anyDead = (run.deaths || 0) > 0 || Object.values(units).some(u => u.side === 'ally' && u.hp <= 0);
         let stars = 1 + (anyDead ? 0 : 1) + (res.rounds <= 20 ? 1 : 0);
         const comp = C().stageComplete(run.worldId, run.diff, run.stageIdx, stars);
+        // 这一关已经结算完成：把"继续上次副本"的落盘进度清掉，
+        // 否则打完直接关掉 App，下次进来世界列表还挂着一张"继续上次副本"的卡片（V9.5）
+        C().clearPendingRun();
         const chips = rewardChips(g.got);
         if (comp.firstClearReward) {
           Object.entries(comp.firstClearReward).forEach(([k, v]) => chips.push(`首通 ${curIcon(k)}+${v}`));
@@ -4508,13 +4575,10 @@ window.UI = (function () {
       return;
     }
     if (!g) return;
-    // 先把离线收益入库（含挂机分工产出的材料），再展示"这次拿到了什么"
-    C().addCur('points', g.gains.points);
-    C().addCur('otherworld', g.gains.otherworld);
-    C().addCur('story', g.gains.story);
-    C().addPlayerExp(g.gains.exp);
-    const mat = C().grantIdleMat(g.gains.mat || 0);
-    C().save();
+    /* 入账已经在 Core.settleOffline 里做完了——那里才是唯一正确的位置：
+       这个弹窗只在"离线够久"时才弹，而入账不能跟弹窗绑定（否则离线 1~5 分钟的收益会被丢掉，V9.5 修）。
+       这里只负责把"这次拿到了什么"讲清楚。 */
+    const mat = g.gains.matCount ? { item: g.gains.matItem, count: g.gains.matCount } : null;
     modal('欢迎回来，执灯者', `
       <div style="text-align:center;padding:6px 0 12px">
         <div style="font-size:13px;color:var(--dim)">离线 ${formatDuration(g.seconds)}（效率 ${Math.round(g.efficiency * 100)}%）</div>
@@ -4524,6 +4588,7 @@ window.UI = (function () {
           ${g.gains.otherworld ? `<span class="reward-chip">◆+${g.gains.otherworld}</span>` : ''}
           ${g.gains.story ? `<span class="reward-chip">❖+${g.gains.story}</span>` : ''}
           ${mat && mat.count ? `<span class="reward-chip">⚙️ ${D.ITEMS[mat.item].name}×${mat.count}</span>` : ''}
+          ${g.gains.matStashed ? `<span class="reward-chip">📮 待领箱 +${g.gains.matStashed}</span>` : ''}
         </div>
         <div style="font-size:11px;color:var(--dim);margin-top:10px">离线期间挂机分工的产线一样在跑。</div>
       </div>`, { center: true });
@@ -4601,6 +4666,8 @@ window.UI = (function () {
       });
       installClickGuard();                 // 防连点
       C().setCurListener(pulseCur);        // 货币变化 → ±数值跳动
+      // 核心层要说给玩家听的话（背包满进待领箱 / 存档写不进去）走这一条，一条通道管到底
+      C().setNoticeListener(msg => toast(msg, 3600));
       // 手机专属两件事（电脑上看不出问题，真机才有）：
       // ① 顶栏高度随系统字号 / 刘海变化，正文上边距跟着量出来的高度走；
       // ② 键盘弹出时，居中弹窗会被键盘盖住 —— 用 visualViewport 把弹窗往上抬。
@@ -4674,6 +4741,11 @@ window.UI = (function () {
       armLongPress, clickPosition, dropOn, cancelGrab, grabState,
       // 测试用：装备池筛完的清单 / 批量分解开关（批量态下"格子"才是勾选框）
       bagEquipList, _setBagBatch: on => { batchMode = !!on; batchSel.clear(); },
+      // 测试用：设置装备筛选（验"筛选后不再补空格子"）
+      _setEquipFilter: (f, cat) => { equipFilter = f || 'all'; equipCatFilter = cat || 'all'; },
+      // 测试用：药剂回血（纯函数：阵亡成员不复活）
+      applyPotionHp,
+      stashBar,
       _screens: { homeScreen, dungeonScreen, rosterScreen, bagScreen, partyScreen, charsScreen, equipScreen, growScreen },
     },
   };

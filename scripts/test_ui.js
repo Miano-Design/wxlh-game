@@ -524,7 +524,7 @@ t('战斗界面按站位分前后两行（队伍页排的位在战斗里看得�
   const css = fs.readFileSync('css/style.css', 'utf8');
   if (css.indexOf('.b-line-label') < 0) throw new Error('缺站位行的样式');
 });
-t('倒计时 5 秒', () => { if (UI.AUTO_NEXT_SEC !== 5) throw new Error('不是 5 秒：' + UI.AUTO_NEXT_SEC); });
+t('倒计时 8 秒（V9.5：5 秒看掉落偏赶，放宽到 8 秒）', () => { if (UI.AUTO_NEXT_SEC !== 8) throw new Error('不是 8 秒：' + UI.AUTO_NEXT_SEC); });
 t('胜利时自动目标＝主按钮（下一关）', () => {
   const acts = [{ label: '↻ 再来一次' }, { label: '› 下一关', primary: true }];
   if (UI._panels.autoNextIndex(true, acts) !== 1) throw new Error('没选中下一关');
@@ -1087,9 +1087,120 @@ t('设置页显示的版本号也跟着一起走（三处同源）', () => {
   const html = fs.readFileSync('index.html', 'utf8');
   const ui = fs.readFileSync('js/ui.js', 'utf8');
   const htmlV = (html.match(/\?v=([\d.]+)/) || [])[1];
-  const shown = (ui.match(/data-ver>残域 V([\d.]+)</) || [])[1];
+  // V9.5 起版本号收成一处常量（设置页与 GM 门禁提示共用），两种写法都认：
+  // 常量形式要求 data-ver 里真的引用了这个常量，防着"改了常量但设置页写死老版本号"
+  const constV = (ui.match(/const GAME_VER = '([\d.]+)'/) || [])[1];
+  const shown = (ui.match(/data-ver>残域 V([\d.]+)</) || [])[1]
+    || (ui.includes('data-ver>残域 V${GAME_VER}<') ? constV : null);
   if (!shown) throw new Error('设置页没有版本号');
+  if (!constV) throw new Error('ui.js 里没有 GAME_VER 常量（版本号要收成一处）');
+  if (constV !== htmlV) throw new Error(`GAME_VER 写的是 V${constV}，资源版本是 V${htmlV}`);
   if (shown !== htmlV) throw new Error(`设置页写的是 V${shown}，资源版本是 V${htmlV}`);
+});
+
+/* ==================================================================
+   V9.5 回归（界面侧）：阵型加成漏主角 / 药剂复活阵亡 / 抓起后吞点击 /
+   装备筛选补空格 / 待领箱入口 / GM 门禁
+   ================================================================== */
+
+t('主角也吃阵型加成（以前只有招募角色吃得到，队伍页却照写"攻击+X%"）', () => {
+  Core.newGame();
+  Core.setPlayerName('阵型');
+  // 找两个同阵营的伙伴（配合主角的万能补位，直接凑出三才阵：攻击+6%、生命+6%）
+  const byFac = {};
+  D.characters.filter(c => !c.hidden).forEach(c => { (byFac[c.faction] = byFac[c.faction] || []).push(c.id); });
+  const pair = Object.values(byFac).find(list => list.length >= 2);
+  if (!pair) throw new Error('找不到同阵营的两名伙伴');
+  Core.addChar(pair[0]); Core.addChar(pair[1]);
+  Core.S.party = ['@player', pair[0], pair[1], null, null];
+  const fb = Core.factionBuffs(Core.S.party);
+  if (!(fb.atkPct > 0)) throw new Error('这组队伍没成阵，用例前提不成立');
+  const allies = UI._panels.buildAllies({}, {});
+  const st = Core.effectivePlayerStats();
+  const me = allies.find(u => u.charId === '@player');
+  if (!me) throw new Error('主角没上阵');
+  if (!(me.atk > st.atk)) throw new Error(`主角攻击没吃到阵型加成：${me.atk} vs ${st.atk}`);
+  if (!(me.maxHp > st.hp)) throw new Error(`主角生命没吃到阵型加成：${me.maxHp} vs ${st.hp}`);
+  // 招募角色那支一直是对的，顺带钉住它，别改坏
+  const mate = allies.find(u => u.charId === pair[0]);
+  const mateSt = Core.effectiveStats(pair[0]);
+  if (!(mate.atk > mateSt.atk)) throw new Error('招募角色的阵型加成反而不见了');
+});
+
+t('药剂不复活阵亡成员（星级评价里的"无人阵亡"才有意义）', () => {
+  const r = UI._panels.applyPotionHp({ '@player': 0, C021: 0.4, C022: 1 }, 0.2);
+  if (r.hpPct['@player'] !== 0) throw new Error('阵亡成员被药剂复活了');
+  if (Math.abs(r.hpPct.C021 - 0.6) > 1e-9) throw new Error('活着的成员没回血');
+  if (r.hpPct.C022 !== 1) throw new Error('满血成员被治过头');
+  if (r.down !== 1) throw new Error('没有回报"有几名成员已阵亡"');
+});
+
+t('最后一波不再给按药剂（战斗是一次算完的，喝了纯白扣）', () => {
+  const src = fs.readFileSync('js/ui.js', 'utf8');
+  if (src.indexOf('收官战 · 药剂要到下一关才生效') < 0) throw new Error('最后一波缺"不给喝药"的说明');
+  const i = src.indexOf('function paintPotions');
+  if (i < 0) throw new Error('找不到 paintPotions');
+  const seg = src.slice(i, i + 900);
+  const j = seg.indexOf('if (lastWave)');
+  if (j < 0 || seg.slice(j, j + 220).indexOf('return') < 0) throw new Error('最后一波没有提前返回（还能按药剂）');
+});
+
+t('抓起之后立刻点别的格子不会被吞掉（新手势＝清掉上一次的"吞点击"）', () => {
+  UI._setTab('party');
+  const h = pressHarness();
+  try {
+    UI._panels.armLongPress(h.el, '0');
+    const fire = h.down({ clientX: 10, clientY: 10 });
+    fire();                                            // 长按到点：抓起
+    if (!UI._panels.grabState().suppress) throw new Error('长按没有抑制紧接着的那一下点击');
+    h.down({ clientX: 20, clientY: 20 });              // 玩家又按了一下（新手势）
+    if (UI._panels.grabState().suppress) throw new Error('新手势还背着上一次的"吞点击"，会表现为点了没反应');
+  } finally {
+    h.restore();
+    settleGrab();
+  }
+});
+
+t('待领箱：背包满时的奖励能在背包页领回', () => {
+  Core.newGame();
+  Core.S.items = {};
+  Core.S.bag.itemCap = 1;
+  Core.S.items.ticket_normal = 1;                      // 占满唯一的道具格
+  Core.applyRewardObj({ item: 'heal_s' });
+  const html = UI._panels._screens.bagScreen();
+  if (html.indexOf('待领箱') < 0) throw new Error('背包页没有待领箱入口');
+  if (html.indexOf('data-stashclaim') < 0) throw new Error('待领箱缺"全部领回"按钮');
+  Core.S.bag.itemCap = 10;
+  const r = Core.claimStash();
+  if (!r.ok || Core.stashCount() !== 0) throw new Error('扩容后领回失败');
+  if (UI._panels._screens.bagScreen().indexOf('待领箱') >= 0) throw new Error('领回之后待领箱还在页面上');
+});
+
+t('装备页筛选后不再补一屏空格子（否则看着像筛选没生效）', () => {
+  Core.newGame();
+  UI._panels._setEquipFilter('all', 'all');
+  Core.grantEquip('W05', 'SR', 'weapon');
+  Core.grantEquip('W05', 'SR', 'armor');
+  Core.grantEquip('W05', 'SR', 'weapon');
+  const all = UI._panels._screens.equipScreen();
+  const cap = Core.S.bag.eqCap;
+  const slotsAll = (all.match(/class="bg-slot/g) || []).length;
+  if (slotsAll < cap) throw new Error('未筛选时应当把格子补满到容量：' + slotsAll);
+  UI._panels._setEquipFilter('weapon', 'all');
+  const one = UI._panels._screens.equipScreen();
+  const slotsOne = (one.match(/class="bg-slot/g) || []).length;
+  if (slotsOne !== 3) throw new Error(`筛选"武器"应只剩 2 件 + 1 个扩容格，实际 ${slotsOne} 个`);
+  UI._panels._setEquipFilter('all', 'all');            // 还原，别影响后面的用例
+});
+
+t('GM 面板在线上要带 ?gm=1 才认（不再跟正式包一起裸奔）', () => {
+  const src = fs.readFileSync('js/ui.js', 'utf8');
+  const i = src.indexOf('function gmAllowed');
+  if (i < 0) throw new Error('缺 GM 门禁函数');
+  const seg = src.slice(i, i + 500);
+  if (seg.indexOf('gm=1') < 0) throw new Error('线上没有要求 ?gm=1');
+  if (seg.indexOf('localhost') < 0) throw new Error('本地开发没有被放行');
+  if (src.indexOf('if (!gmAllowed())') < 0) throw new Error('连点版本号那条路径没有走门禁');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

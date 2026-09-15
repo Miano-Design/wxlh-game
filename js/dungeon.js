@@ -215,8 +215,23 @@ window.Dungeon = (function () {
     const left = cap - Core.S.sweep.count;
     if (left <= 0) { Core.save(); return { ok: false, msg: `今日扫荡次数已用完（${cap}/${cap}）` }; }
     const n = Math.min(times, left);
+    const kind = finalKind(stage);
     const total = [];
-    for (let i = 0; i < n; i++) total.push(grantRewards(worldId, diff, stage, stage === 12 ? 'boss' : stage % 4 === 0 ? 'elite' : 'combat'));
+    let exp = 0;
+    for (let i = 0; i < n; i++) {
+      const g = grantRewards(worldId, diff, stage, kind);
+      // 扫荡 = 自动重打这一关：经验与战绩必须和手打一致。
+      // 以前 exp 只写进 got（结算面板照样显示 "EXP+xxx"），却没有一行把它加进角色/主角经验（V9.5 修）。
+      exp += g.rewards.exp || 0;
+      total.push(g);
+    }
+    const party = Core.S.party.filter(Boolean);
+    if (exp) {
+      Core.addCharExp(party, exp);                       // 与手打普通波同一口径
+      Core.addPlayerBattleExp(Math.round(exp * 0.5));
+    }
+    // 战斗统计与"战斗 N 次"这类进度也要跟着走——否则扫荡党永远完不成日常/成就，两套口径打架
+    for (let i = 0; i < n; i++) Core.battleSettle({}, true, kind === 'boss');
     Core.S.sweep.count += n;
     Core.save();
     return { ok: true, total, count: n, capped: n < times };

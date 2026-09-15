@@ -1554,5 +1554,162 @@ setParty(['C021']);
   t('带血进场的比例口径一致（hpPct 按真上限算）', endAlly.maxHp === 1000);
 }
 
+/* ==================================================================
+   V9.5 回归：这一批全是"测试全绿但其实有问题"的真实缺陷
+   （离线收益被丢 / 扫荡经验是假的 / 新档境界被 ×4 / 背包满吞奖励 / W15~W20 没机制 / 辅助攒不出必杀）
+   ================================================================== */
+
+// V9.5-1：新档渡劫后重开，境界不能被 ×4（旧档换算仍然只做一次）
+{
+  Core.newGame();
+  Core.setPlayerName('回归');
+  Core.S.player.bloodline = '修真';
+  t('新档建档时就把 realmScaled 落上（否则第一次读档会被 ×4）', Core.S.realmScaled === true);
+  Core.S.player.level = 40;
+  Core.S.items.mat_t1 = 9999; Core.S.items.mat_t2 = 999; Core.S.items.mat_t3 = 999;
+  Core.addCur('points', 5e6);
+  let ok = 0;
+  // 渡劫有随机成功率，这里钉住随机数，只验"成功之后境界会不会被换算坏"
+  withRandom(0, () => { for (let i = 0; i < 4; i++) { const r = Core.attemptRealm(); if (r.ok && r.success) ok++; } });
+  const realmBefore = Core.S.player.realm;
+  t('新档能正常渡劫（本用例至少成功 1 次）', ok >= 1 && realmBefore >= 1);
+  Core.save();
+  Core.load();
+  t('新档重开后境界保持原值（不再 ×4）', Core.S.player.realm === realmBefore);
+  // 对照：真正的老档（没有 realmScaled 字段）仍然按「旧第 N 境 = 新第 4N 阶」换算
+  const raw = JSON.parse(Core.exportSave());
+  delete raw.realmScaled;
+  raw.player.realm = 3;
+  Core.importSave(JSON.stringify(raw));
+  t('老档（无 realmScaled）仍然 ×4 换算：3 境 → 12 阶', Core.S.player.realm === 12);
+}
+
+// V9.5-2：离线 1~5 分钟的收益必须真的入账（以前算完就被丢掉）
+{
+  Core.newGame();
+  Core.S.player.level = 20;
+  const p0 = Core.S.cur.points, e0 = Core.S.player.exp;
+  Core.S.idle.lastTs = Date.now() - 240 * 1000;      // 离线 4 分钟
+  const g = Core.settleOffline();
+  t('离线 4 分钟：settleOffline 返回了收益', !!g && !g.cheat && g.seconds > 200 && g.gains.points > 0);
+  t('离线 4 分钟：点数真的进了账（不再依赖弹窗）', Core.S.cur.points - p0 === g.gains.points);
+  t('离线 4 分钟：主角经验也进了账', Core.S.player.exp - e0 === g.gains.exp);
+}
+
+// V9.5-3：扫荡界面上写着 EXP，就必须真的发经验（含战斗统计）
+{
+  Core.newGame();
+  Core.setPlayerName('扫荡');
+  Core.S.player.level = 20;
+  Core.unlockWorld('W01');
+  Core.S.worlds.W01.stages.normal = Array(12).fill(3);
+  Core.S.party = ['@player', null, null, null, null];
+  Core.addChar('C021');
+  Core.S.party[1] = 'C021';
+  const ce0 = Core.S.chars.C021.exp, pe0 = Core.S.player.exp, b0 = Core.S.stats.battles;
+  const r = Dungeon.sweep('W01', 'normal', 5, 3);
+  const shown = r.total.reduce((s, x) => s + x.got.filter(gg => gg.k === 'exp').reduce((a, gg) => a + gg.v, 0), 0);
+  t('扫荡返回的 EXP 合计 > 0（界面显示这一项）', r.ok && shown > 0);
+  t('扫荡的角色经验 = 界面显示的口径', Core.S.chars.C021.exp - ce0 === shown);
+  t('扫荡的主角经验 = 界面口径的一半', Core.S.player.exp - pe0 === Math.round(shown * 0.5));
+  t('扫荡会累计战斗次数（扫荡党也能完成日常/成就）', Core.S.stats.battles - b0 === 3);
+}
+
+// V9.5-4：背包满时奖励不丢——进待领箱，清出格子能领回
+{
+  Core.newGame();
+  Core.S.items = {};
+  Core.S.bag.itemCap = 1;
+  Core.S.items.ticket_normal = 1;                    // 占满唯一的道具格
+  const p0 = Core.S.cur.points;
+  const out = Core.applyRewardObj({ points: 100, item: 'heal_s' });
+  t('背包满：奖励道具进待领箱，不再静默蒸发', (Core.S.items.heal_s || 0) === 0 && Core.stashCount() === 1);
+  t('背包满：货币照常发放（只有道具会被寄存）', Core.S.cur.points - p0 === 100);
+  t('applyRewardObj 会回报"哪件道具被寄存了"', out.stashed.length === 1 && out.stashed[0] === 'heal_s');
+  t('待领箱里就是那件道具', Core.stashList()[0].id === 'heal_s' && Core.stashList()[0].n === 1);
+  Core.S.bag.itemCap = 10;                           // 扩容之后能领回
+  const cs = Core.claimStash();
+  t('扩容后一键领回：进背包、待领箱清空', cs.ok && cs.moved === 1 && (Core.S.items.heal_s || 0) === 1 && Core.stashCount() === 0);
+}
+
+// V9.5-5：药园收获也不能被背包吞掉（地清了，东西必须在）
+{
+  Core.newGame();
+  Core.addCur('points', 1e6);
+  Core.S.bag.matCap = 1;
+  const g0 = D.GARDEN[0];
+  delete Core.S.items[g0.out.item];
+  Core.S.items.mat_t5 = 1;                           // 占满唯一的材料格
+  Core.plantGarden(0, g0.id);
+  Core.S.garden[0].at = Date.now() - 1000;
+  // 钉住随机数：别让"稀有额外掉落"混进这次断言
+  const h = withRandom(0.9, () => Core.harvestGarden(0));
+  t('药园：地块收回（收获动作成功）', h.ok && Core.S.garden[0] === null);
+  t('药园：背包满时产物进待领箱（不再凭空消失）', Core.stashCount() === g0.out.n && Core.stashList()[0].id === g0.out.item);
+}
+
+// V9.5-6：挂机产线材料同样走待领箱
+{
+  Core.newGame();
+  Core.S.bag.matCap = 1;
+  Core.S.items.mat_t5 = 1;
+  const before = Core.stashCount();
+  const m = Core.grantIdleMat(10);
+  t('挂机材料背包满 → 进待领箱，且明确回报 full', !!m && m.full === true && m.stashed > 0 && Core.stashCount() > before);
+}
+
+// V9.5-7：能量发放 —— 治疗/辅助放出非伤害技能也要攒能量，必杀不能只有输出位看得到
+{
+  const mkSpec = (c, role) => ({
+    name: c ? c.name : '测试', kind: role, faction: null, position: 'front',
+    skills: c ? c.skills : D.PROTAGONIST.skills, skillLv: [1, 1, 1],
+    maxHp: 100000, hp: 100000, atk: 1000, def: 500, spd: 100, crit: 0.05, critDmg: 2, eva: 0, skillMult: 1,
+    charId: c ? c.id : '@player',
+  });
+  const healer = D.characters.find(c => c.kind === 'healer' && !c.hidden);
+  const warrior = D.characters.find(c => c.kind === 'warrior' && !c.hidden);
+  const foe = [{ name: '木桩', hp: 1e8, atk: 1, def: 0, spd: 1, faction: null }];
+  const run1 = Battle.run({ allies: [mkSpec(healer, 'healer')], enemies: foe.slice(), worldId: 'W99', maxRounds: 30 });
+  const run2 = Battle.run({ allies: [mkSpec(warrior, 'warrior')], enemies: foe.slice(), worldId: 'W99', maxRounds: 30 });
+  const ults = r => r.frames.filter(f => f.type === 'skill' && f.ult).length;
+  // 修之前：治疗者 5 次 / 战士 9 次（能量只在伤害里发，治疗放技能等于白放）
+  // 修之后：两边都是 9 次，稳定复现
+  t('治疗者在 30 回合里能放出必杀（≥8 次）', ults(run1) >= 8);
+  t('治疗者的必杀节奏与输出位基本持平（不再被能量机制惩罚）', Math.abs(ults(run1) - ults(run2)) <= 1);
+}
+
+// V9.5-8：W15~W20 的世界机制必须真的存在（世界表上写着，引擎里就得有）
+{
+  const missing = ['W15', 'W16', 'W17', 'W18', 'W19', 'W20'].filter(id => !Battle.MECHANICS[id]);
+  t('W15~W20 都有世界机制（不再是"只写在文案里"）', missing.length === 0);
+  const worlds = ['W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'W13', 'W14', 'W15', 'W16', 'W17', 'W18', 'W19', 'W20'];
+  t('20 个世界全都有机制', worlds.every(id => Battle.MECHANICS[id] && Battle.MECHANICS[id].note));
+  // 机制要真的跑得动：拿 W16（每回合全队掉血）与 W18（幻觉）各跑一场，确认不崩且有效果
+  const spec = {
+    name: '测试', kind: 'warrior', faction: null, position: 'front', skills: D.PROTAGONIST.skills, skillLv: [1, 1, 1],
+    maxHp: 100000, hp: 100000, atk: 3000, def: 500, spd: 100, crit: 0.05, critDmg: 2, eva: 0, skillMult: 1, charId: '@player',
+  };
+  const r16 = Battle.run({ allies: [spec], enemies: [{ name: '桩', hp: 1e6, atk: 10, def: 0, spd: 30, faction: null }], worldId: 'W16', maxRounds: 10 });
+  t('W16 水压：每回合全队掉血真的结算了', r16.frames.some(f => f.type === 'dot' && f.status === 'pressure'));
+  t('W19 星骸护盾：世界表里的护盾值真的被机械表接住', Battle.MECHANICS.W19.enemyShield > 0);
+  const r19 = Battle.run({ allies: [spec], enemies: [{ name: '桩', hp: 1e6, atk: 10, def: 0, spd: 30, faction: null }], worldId: 'W19', maxRounds: 10 });
+  t('W19 轨道扫射：按节奏打出群体技能', r19.frames.some(f => f.type === 'skill' && f.name === '轨道扫射'));
+  const r20 = Battle.run({ allies: [spec], enemies: [{ name: '桩', hp: 1e6, atk: 10, def: 0, spd: 30, faction: null }], worldId: 'W20', maxRounds: 10 });
+  t('W20 规则改写：至少出现一次规则帧', r20.frames.some(f => f.type === 'rule'));
+}
+
+// V9.5-9：文案与效果同源 —— 「速度+20%」这类增益必须真的进速度区
+{
+  const b = Battle._internals.getBuffs({ statuses: [{ id: 'buff', spdPct: 0.2, turns: 3 }] });
+  t('buff 里的 spdPct 真的被结算（剑心通明 / 念动屏障 之前是空转）', b.spdPct === 0.2);
+  // W14 第三条规则：说是"敌方速度提升"，就加 spdPct（以前加的是 atkPct）
+  const spec = {
+    name: '测试', kind: 'warrior', faction: null, position: 'front', skills: D.PROTAGONIST.skills, skillLv: [1, 1, 1],
+    maxHp: 100000, hp: 100000, atk: 50, def: 500, spd: 1, crit: 0.05, critDmg: 2, eva: 0, skillMult: 1, charId: '@player',
+  };
+  const r14 = Battle.run({ allies: [spec], enemies: [{ name: '桩', hp: 1e6, atk: 10, def: 0, spd: 50, faction: null }], worldId: 'W14', maxRounds: 6 });
+  t('W14 每回合都有规则帧', r14.frames.filter(f => f.type === 'rule').length >= 5);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
