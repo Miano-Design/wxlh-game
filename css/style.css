@@ -241,6 +241,11 @@ body {
 .list-row { display: flex; align-items: center; gap: var(--sp3); padding: 10px var(--sp1); border-bottom: 1px solid var(--line-soft); }
 .list-row:last-child { border-bottom: none; }
 .list-row .grow { flex: 1; min-width: 0; }
+
+/* V9.5.14（整体自查）：`.grow` 以前只写在 `.list-row .grow` 里 —— 放在别的卡片里它就**不撑开**，
+   于是"右边的箭头 / 战力 / 数值"全跟着文字跑，看起来像没对齐（世界卡、深井卡、主角卡都吃过这个亏）。
+   这里补一条通用规则：任何容器里的 .grow 都撑开、且允许收窄。 */
+.grow { flex: 1; min-width: 0; }
 .list-row .t1 { font-size: var(--fs-1); font-weight: 600; display: flex; align-items: center; gap: 6px; }
 .list-row .t2 { font-size: var(--fs-sm); color: var(--dim); margin-top: 3px; line-height: 1.6; }
 
