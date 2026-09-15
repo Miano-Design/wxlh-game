@@ -385,6 +385,9 @@ body {
 .unit .u-name { font-size: 10px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .unit .bar { height: 6px; margin-top: 2px; }
 .unit .bar.energy { height: 3px; }
+/* 血条下面的百分比：带血进场 / 血线告急一眼看得出来（V9.4） */
+.unit .u-hp { font-size: 9px; color: var(--dim); margin-top: 1px; }
+.unit .bar.hp.low + .u-hp { color: var(--accent); }
 .floater { position: absolute; left: 50%; top: 0; transform: translateX(-50%); font-weight: 800; font-size: 15px; animation: floatup .8s ease forwards; pointer-events: none; text-shadow: 0 2px 4px #000; z-index: 5; }
 .floater.crit { color: var(--gold); font-size: 19px; }
 .floater.heal { color: var(--green); }

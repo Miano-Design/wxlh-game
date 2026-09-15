@@ -3591,7 +3591,7 @@ window.UI = (function () {
         <h3>危险区</h3>
         <button class="btn small ghost" data-reset="1" style="color:var(--accent)">删除当前进度，重新开始</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V9.3</div>
+      <div style="text-align:center;font-size:10px;color:var(--dim);padding:8px;opacity:.6" data-ver>残域 V9.4</div>
     `;
     const w = showPanel(wrap, '设置与存档', body);
     let verTaps = 0, verTimer = null;
@@ -3815,10 +3815,13 @@ window.UI = (function () {
     const aBackRow = overlay.querySelector('.allies.back');
     const aFrontRow = overlay.querySelector('.allies.front');
     function unitHtml(u) {
+      // 这一波进场时的真实血线：副本是带血打下一波的，不能重画成满血
+      const pct0 = Math.max(0, Math.min(100, Math.round((u.hp / u.maxHp) * 100)));
       return `<div class="unit ${u.side === 'enemy' ? 'enemy' : ''} ${u.isBoss ? 'boss' : ''}" id="u-${u.uid}">
         <div class="u-avatar">${esc(u.name[0])}</div>
         <div class="u-name">${esc(u.name)}</div>
-        <div class="bar hp"><i style="width:100%"></i></div>
+        <div class="bar hp ${pct0 < 35 ? 'low' : ''}"><i style="width:${pct0}%"></i></div>
+        <div class="u-hp">${pct0}%</div>
         ${u.side === 'ally' ? '<div class="bar energy"><i style="width:0%"></i></div>' : ''}
       </div>`;
     }
@@ -3842,6 +3845,8 @@ window.UI = (function () {
       const bar = el.querySelector('.bar.hp');
       bar.classList.toggle('low', pct < 35);
       bar.querySelector('i').style.width = pct + '%';
+      const txt = el.querySelector('.u-hp');
+      if (txt) txt.textContent = Math.round(pct) + '%';
       el.classList.toggle('dead', u.hp <= 0);
     }
     function floater(uid, text, cls) {
@@ -3889,6 +3894,10 @@ window.UI = (function () {
     let idx = 0, skipped = false, finished = false;
     overlay.querySelector('[data-skip]').onclick = () => { skipped = true; };
     if (start.note) log(`⚠ 世界机制：${start.note}`);
+    // 带血进场时把血线写出来：玩家才知道血是"继承"过来的，不是被刷新了
+    const carried = start.allies.filter(u => u.hp < u.maxHp)
+      .map(u => `${u.name} ${Math.round(u.hp / u.maxHp * 100)}%`);
+    if (carried.length) log(`🩸 带血进场：${carried.join(' · ')}`);
     sfx('battle');
     // 自动战斗：设置里打开后直接出结果（刷材料时不用逐场看动画）
     if (S.settings.autoBattle) setTimeout(() => { skipped = true; }, 120);
@@ -4655,6 +4664,8 @@ window.UI = (function () {
       autoNextIndex, autoNextBtnHtml,
       gardenModal, arenaModal, fabaoModal, mountModal, signModal,
       buildAllies,
+      // 测试用：直接发一场战斗（验「带血进场时血条画的是真实血线」）
+      _startBattle: startBattle,
       // 测试用：弹窗层数与"原地重画"，用来验"返回到底有没有把面板收掉"
       _modalCount: () => modalStack.length,
       _updateModal: updateModal,

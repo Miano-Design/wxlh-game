@@ -140,7 +140,11 @@ window.Battle = (function () {
   function makeEnemyUnit(spec, side) {
     return Object.assign({
       uid: 'e' + (uidSeq++), side: side || 'enemy', name: spec.name, faction: spec.faction || null,
-      maxHp: spec.hp, hp: spec.hp, atk: spec.atk, def: spec.def, spd: spec.spd || 60,
+      // maxHp 必须优先取规格里的值：副本是"带血打下一波"的，
+      // 若把 maxHp 当成 hp（当前血量），每一波都会把上一波挨的伤"抹掉"——
+      // 400/1000 进场会被引擎当成 400/400，打完写回 100%，血线自己涨回满。
+      // 敌人不传 maxHp（生成即满血），所以照旧取 spec.hp。
+      maxHp: spec.maxHp || spec.hp, hp: spec.hp, atk: spec.atk, def: spec.def, spd: spec.spd || 60,
       crit: 0.05, critDmg: 2.0, eva: spec.eva || 0.02, skillMult: 1, lifesteal: spec.lifesteal || 0,
       resPct: spec.resPct || 0, energy: 0, statuses: [], shield: spec.shield || 0,
       isBoss: !!spec.isBoss, isElite: !!spec.isElite, kind: 'mob',

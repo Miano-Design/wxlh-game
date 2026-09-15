@@ -434,6 +434,23 @@ t('批量分解改在格子上勾：批量态下装备格带 data-beq', () => {
     UI.render();
   }
 });
+t('副本带血进场：新一波的血条画的是真实血线，不是满血', () => {
+  const eff = Core.effectivePlayerStats();
+  const ally = Object.assign({
+    name: '测试', kind: 'warrior', faction: null, position: 'front',
+    skills: D.PROTAGONIST.skills, skillLv: [1, 1, 1],
+  }, eff, { maxHp: 1000, hp: 300 });          // 30% 血进场
+  const enemy = window.Dungeon.makeEnemies('W01', 'normal', 1, 'combat');
+  UI._panels._startBattle({ title: '带血进场', allies: [ally], enemies: enemy, worldId: 'W01', maxRounds: 3, onEnd: () => ({}) });
+  const kids = byId['battle-root'].children;
+  const ov = kids[kids.length - 1];
+  const front = ov.querySelector('.allies.front').innerHTML;   // 前排那一行
+  const foes = ov.querySelector('.enemies').innerHTML;
+  if (front.indexOf('width:30%') < 0) throw new Error('血条还是按满血画的（新一波 = 血量被刷新）');
+  if (front.indexOf('bar hp low') < 0) throw new Error('低血进场没有进"低血"样式');
+  if (front.indexOf('>30%<') < 0) throw new Error('血条下面没有血线数字');
+  if (foes.indexOf('width:100%') < 0) throw new Error('满血的敌人也被画成不满血了');
+});
 t('角色页带排序与搜索', () => {
   const html = UI._panels._screens.charsScreen();
   if (html.indexOf('data-charsort') < 0 || html.indexOf('char-search') < 0) throw new Error('缺排序或搜索');

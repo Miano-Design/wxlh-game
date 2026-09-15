@@ -1535,5 +1535,24 @@ setParty(['C021']);
   })());
 }
 
+// V9.4：副本带血打下一波——maxHp 必须保持真上限，否则每波都会"自动回满"
+{
+  const allySpec = (hp) => ({
+    name: '测试', kind: 'warrior', faction: null, position: 'front', skills: D.PROTAGONIST.skills, skillLv: [1, 1, 1],
+    maxHp: 1000, hp, atk: 100, def: 10, spd: 60, charId: '@player',
+  });
+  const foe = [{ name: '影', hp: 5000, atk: 1, def: 0, spd: 1 }];
+  const r1 = Battle.run({ allies: [allySpec(1000)], enemies: foe.slice(), worldId: 'W01', maxRounds: 1 });
+  const s1 = r1.frames[0].allies[0];
+  t('带血进场：快照里的 maxHp 是真上限，不是当前血量', s1.maxHp === 1000 && s1.hp === 1000);
+  const r2 = Battle.run({ allies: [allySpec(400)], enemies: foe.slice(), worldId: 'W01', maxRounds: 1 });
+  const s2 = r2.frames[0].allies[0];
+  t('40% 血进场：引擎里还是 400/1000', s2.maxHp === 1000 && s2.hp === 400);
+  // 打完一波后写回的血线必须是"相对真上限"的比例（这就是"血量继承"的口径）
+  const last = r2.frames[r2.frames.length - 1];
+  const endAlly = r2.frames.find(f => f.type === 'start').allies[0];
+  t('带血进场的比例口径一致（hpPct 按真上限算）', endAlly.maxHp === 1000);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
