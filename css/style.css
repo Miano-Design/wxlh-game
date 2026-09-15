@@ -429,6 +429,27 @@ body {
    仍然留 34px 高（不小于手指能点中的尺寸），只是视觉上退到第二层。 */
 .pill-tabs.tight { gap: 4px; padding-bottom: 0; flex-wrap: wrap; overflow: visible; }
 .pill.sm { min-height: 34px; padding: 5px 11px; font-size: 11px; }
+
+/* ---------- 页面顶部的主标签：矩形卡片 + 吸顶（V9.5.2，父亲大人定的） ---------- */
+/* 背包（道具/材料/装备）与执灯者（队伍/伙伴/成长）共用这一套：
+   以前是圆角胶囊、跟着内容一起滚；现在改成矩形卡片，钉在顶栏（货币条）下方——
+   滚到下面挑东西时，这一排不动，随时能换栏、也随时知道自己在哪一栏。 */
+.tab-cards {
+  position: sticky; top: var(--topbar-h, 92px); z-index: 30;
+  display: flex; gap: var(--sp2);
+  padding: var(--sp2) 0;
+  margin-bottom: var(--sp2);
+  background: linear-gradient(180deg, #0b0e15f5, #0b0e15e0);
+  backdrop-filter: blur(6px);
+}
+.tab-cards .tab-card {
+  flex: 1 1 0; min-width: 0; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--panel); color: var(--dim);
+  font-size: var(--fs-md); font-weight: 600; cursor: pointer;
+}
+.tab-cards .tab-card.active { color: #fff; border-color: var(--accent); background: #d43a4f22; }
 /* 分类条右边的"计数 / 批量分解"：跟分类同层，不再压到内容最下面 */
 .eq-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--dim); }
 .eq-bar .push { margin-left: auto; }
@@ -536,7 +557,10 @@ body {
 /* ---------- 文字行（对标参考图：`【标签】值` 一行一项，右对齐） ---------- */
 /* 参考产品整屏就是这种行：左边【境界】右边 练气初期，没有任何图标。
    我们的状态区 / 挂机区 / 属性区统一用它，一行一件事，扫一眼就看完。 */
-.text-rows { margin: 0; }
+/* 这里以前写的是 `margin: 0`——它把 .card 自己的 14px 下边距一起清掉了，
+   于是首页「主角卡」和「主线任务卡」两张卡直接贴在一起（V9.5.2 修）。 */
+.text-rows { margin-bottom: var(--sp3); }
+.text-rows:last-child { margin-bottom: 0; }
 .text-rows .row {
   display: flex; align-items: baseline; gap: var(--sp2);
   padding: 7px 0; border-bottom: 1px dashed var(--line-soft); cursor: pointer;

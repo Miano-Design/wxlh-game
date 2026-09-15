@@ -389,7 +389,8 @@ t('装备页层次：主标签 → 分类 / 批量分解 → 格子', () => {
   if (html.indexOf('list-row') >= 0) throw new Error('装备页还留着"一行一件"的列表');
   // 分类按钮要比主标签小一号：主标签没有 sm，分类有
   if (html.indexOf('pill sm') < 0) throw new Error('分类按钮没有做小（缺 pill sm）');
-  if (html.indexOf('pill-tabs fill') < 0) throw new Error('三个主标签没有横向铺满（缺 pill-tabs fill）');
+  if (html.indexOf('tab-cards') < 0) throw new Error('三个主标签不是吸顶的矩形卡片（缺 tab-cards，V9.5.2 改的）');
+  if (html.indexOf('tab-card ') < 0) throw new Error('三个主标签缺 tab-card 卡片样式');
 });
 t('穿在身上的装备不进背包格子、也不算背包格数', () => {
   const S = Core.S;
