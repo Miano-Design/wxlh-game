@@ -477,8 +477,9 @@ body {
 .bg-slot.filled { background: var(--panel2); cursor: pointer; }
 .bg-slot.filled:active { background: var(--panel3); }
 /* V9.5.9（父亲大人）：格子里的名字太小看不见 → 放大到 11px，允许折成两行；数量跟着放大到 11px */
-.bg-slot .bg-name { font-size: 11px; line-height: 1.2; font-weight: 600; word-break: break-all; max-height: 27px; overflow: hidden; }
-.bg-slot .bg-count { font-size: 11px; color: var(--gold); font-weight: 700; }
+/* V9.5.11（父亲大人）：名字再放大一档 → 13px，两行放得下（32px），超出两行才截断 */
+.bg-slot .bg-name { font-size: 13px; line-height: 1.25; font-weight: 600; word-break: break-all; max-height: 32px; overflow: hidden; }
+.bg-slot .bg-count { font-size: 12px; color: var(--gold); font-weight: 700; }
 .bg-slot .bg-sub { font-size: 10px; color: var(--dim); }
 .bg-slot.add {
   border-style: dashed; border-color: var(--gold); color: var(--gold);
