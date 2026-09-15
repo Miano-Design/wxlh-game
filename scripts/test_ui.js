@@ -1009,11 +1009,10 @@ t('主角能洗点：六维 + 技能都能退回点数', () => {
   const html = UI._panels.protagonistDetail().innerHTML;
   if (html.indexOf('data-attrreset') < 0) throw new Error('缺六维洗点按钮');
   if (html.indexOf('data-pskillreset') < 0) throw new Error('缺技能重置按钮');
-  // 按钮还在原位（六维 / 技能卡里），但文案改成"重置"了，而且两张卡里各要写清"能退回"
-  if (html.indexOf('↺ 重置') < 0) throw new Error('面板里没有重置按钮');
-  if (html.indexOf('随时点右上角重置') < 0 || html.indexOf('退回全部技能点') < 0) {
-    throw new Error('重置按钮旁边没写清可以退回点数');
-  }
+  // 按钮还在原位（六维 / 技能卡里）；V9.5.5 起那两句"怎么重置"的说明按父亲大人要求删掉了，
+  // 所以这里改成断结构：两张卡里各有一个可用的重置按钮
+  const resetBtns = (html.match(/↺ 重置/g) || []).length;
+  if (resetBtns < 2) throw new Error('六维/技能卡里的重置按钮不齐（' + resetBtns + ' 个）');
 });
 t('长按抓起不弹提示框，也不再提 Esc（手机没有键盘）', () => {
   const ui = fs.readFileSync('js/ui.js', 'utf8');
