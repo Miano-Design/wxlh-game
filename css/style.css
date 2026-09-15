@@ -243,6 +243,13 @@ body {
 .list-row .grow { flex: 1; min-width: 0; }
 .list-row .t1 { font-size: var(--fs-1); font-weight: 600; display: flex; align-items: center; gap: 6px; }
 .list-row .t2 { font-size: var(--fs-sm); color: var(--dim); margin-top: 3px; line-height: 1.6; }
+
+/* V9.5.10（父亲大人）：标题行/副标题行不只出现在 .list-row 里——残域的世界卡、深井卡、
+   队伍卡都直接写 .t1/.t2，以前吃不到上面那两条规则：标签按基线挂下去（比文字低一截）、
+   还跟下面那行贴在一起。这里补一套通用规则，任何卡片里的 .t1/.t2 长相一致。 */
+.t1 { font-size: var(--fs-1); font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.t1 .tag { align-self: center; line-height: 1.4; }
+.t2 { font-size: var(--fs-sm); color: var(--dim); margin-top: 3px; line-height: 1.6; }
 .tag { font-size: var(--fs-xs); border: 1px solid var(--line2); border-radius: var(--radius-sm); padding: 1px 6px; color: var(--text2); font-weight: 400; }
 
 /* ---------- 弹窗（底部抽屉） ---------- */
