@@ -329,7 +329,7 @@ body {
 
 /* ---------- 世界/关卡 ---------- */
 .world-card { display: flex; gap: 12px; align-items: center; }
-.world-ico { width: 52px; height: 52px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 24px; background: #232c42; border: 1px solid var(--line); }
+.world-ico { width: 52px; height: 52px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 24px; line-height: 1; background: #232c42; border: 1px solid var(--line); }
 .stage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .stage-cell { aspect-ratio: 1; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; cursor: pointer; }
 .stage-cell .st { font-size: 9px; color: var(--gold); letter-spacing: -1px; }

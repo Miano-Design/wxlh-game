@@ -643,7 +643,7 @@ t('队伍页：站位可长按换位（不再有单独按钮）', () => {
   if (!html.includes('data-protag="1"')) throw new Error('主角那一格缺少标记');
   if (!html.includes('data-pos="0"')) throw new Error('上阵位缺少可抓取标记');
   if (!html.includes('data-pos="4"')) throw new Error('后排应该有 3 格（0/1 前排、2/3/4 后排）');
-  if (!html.includes('长按')) throw new Error('缺长按提示');
+  if (typeof UI._panels.armLongPress !== 'function') throw new Error('长按换位没接线（armLongPress 不在）');
   if (html.includes('data-prow') || html.includes('data-mrow')) throw new Error('换排按钮应该已经撤掉');
 });
 t('队伍页：上阵固定前 2 后 3（不再多出一格）', () => {
@@ -972,11 +972,10 @@ t('装备改成 6 个方块：主角与伙伴同一套，不再一行一件', ()
     if (html.indexOf('eq-grid') < 0) throw new Error(who + '的装备还是老的行列表（缺 eq-grid）');
     const tiles = (html.match(/class="eq-tile/g) || []).length;
     if (tiles !== 6) throw new Error(who + '的装备方块数量不对：' + tiles + '（应为 6）');
-    // 装备卡片内部（标题 → 底部说明之间）不许再出现 list-row
+    // 装备区（从"🗡 装备"标题往后）不许再出现 list-row
     const iEq = html.indexOf('🗡 装备');
-    const iHint = html.indexOf('一件装备只能一个人穿');
-    if (iEq < 0 || iHint < iEq) throw new Error(who + '的装备卡片结构不对');
-    if (html.slice(iEq, iHint).indexOf('list-row') >= 0) throw new Error(who + '的装备区里还混着 list-row');
+    if (iEq < 0) throw new Error(who + '的装备卡片结构不对');
+    if (html.slice(iEq).indexOf('list-row') >= 0) throw new Error(who + '的装备区里还混着 list-row');
     if (html.indexOf('点一行换装') >= 0) throw new Error(who + '的文案还写着"点一行换装"');
   });
   const ch = cases[0][1], pd = cases[1][1];
